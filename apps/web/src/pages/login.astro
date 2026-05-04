@@ -1,0 +1,14 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro';
+import { LoginForm } from '@/islands/login-form';
+import { getServerSession } from '@/lib/auth-server';
+
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const session = await getServerSession(cookie);
+if (session.user && session.user.emailVerified) {
+  return Astro.redirect('/');
+}
+---
+<AuthLayout title="Sign in">
+  <LoginForm client:load />
+</AuthLayout>

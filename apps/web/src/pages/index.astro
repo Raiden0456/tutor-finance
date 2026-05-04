@@ -1,0 +1,39 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { DashboardIsland } from '@/islands/dashboard-island';
+import { getServerClient } from '@/lib/apollo';
+import { Q_DASHBOARD, Q_STUDENTS } from '@/lib/gql';
+
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const client = getServerClient({ cookie });
+
+const now = new Date();
+const from = new Date(now.getFullYear(), now.getMonth(), 1);
+const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+const dashboardRes = await client.query({
+  query: Q_DASHBOARD,
+  variables: { from: from.toISOString(), to: to.toISOString() },
+});
+
+const studentsRes = await client.query({ query: Q_STUDENTS, variables: { includeArchived: true } });
+const studentNames: Record<string, string> = {};
+for (const s of studentsRes.data?.students ?? []) {
+  studentNames[s.id] = s.name;
+}
+
+const summary = dashboardRes.data?.monthSummary;
+const recentLessons = dashboardRes.data?.lessons ?? [];
+---
+<AppLayout title="Dashboard">
+  {summary ? (
+    <DashboardIsland
+      client:load
+      summary={summary}
+      recentLessons={recentLessons}
+      studentNames={studentNames}
+    />
+  ) : (
+    <p class="text-sm text-muted-foreground">Loading dashboard…</p>
+  )}
+</AppLayout>

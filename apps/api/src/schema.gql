@@ -1,0 +1,236 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""ISO-4217 fiat or pinned-stablecoin currency code."""
+enum Currency {
+  EUR
+  GBP
+  KZT
+  PLN
+  RUB
+  TRY
+  UAH
+  USD
+  USDC
+  USDT
+}
+
+type CurrencyTotal {
+  amount: Int!
+  count: Int!
+  currency: Currency!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Lesson {
+  createdAt: DateTime!
+  durationMin: Int!
+  id: ID!
+  notes: String
+  priceOverride: Money
+  startsAt: DateTime!
+  status: LessonStatus!
+  studentId: ID!
+  updatedAt: DateTime!
+}
+
+input LessonFilter {
+  from: DateTime
+  limit: Int = 200
+  status: LessonStatus
+  studentId: ID
+  to: DateTime
+}
+
+input LessonInput {
+  durationMin: Int!
+  notes: String
+  priceOverride: MoneyInput
+  startsAt: DateTime!
+  status: LessonStatus! = scheduled
+  studentId: ID!
+}
+
+input LessonPatch {
+  durationMin: Int
+  notes: String
+  priceOverride: MoneyInput
+  startsAt: DateTime
+  status: LessonStatus
+}
+
+enum LessonStatus {
+  cancelled
+  completed
+  no_show
+  scheduled
+}
+
+enum Locale {
+  en
+  ru
+}
+
+type Money {
+  amount: Int!
+  currency: Currency!
+}
+
+input MoneyInput {
+  amount: Int!
+  currency: Currency!
+}
+
+type Mutation {
+  archiveStudent(id: ID!): Student!
+  createLesson(input: LessonInput!): Lesson!
+  createStudent(input: StudentInput!): Student!
+  createTransaction(input: TransactionInput!): Transaction!
+  deleteLesson(id: ID!): Boolean!
+  deleteTransaction(id: ID!): Boolean!
+  refreshFxRates: Boolean!
+  unarchiveStudent(id: ID!): Student!
+  updateLesson(id: ID!, patch: LessonPatch!): Lesson!
+  updateMySettings(patch: UserSettingsPatch!): UserSettings!
+  updateStudent(id: ID!, patch: StudentPatch!): Student!
+  updateTransaction(id: ID!, patch: TransactionPatch!): Transaction!
+}
+
+"""MongoDB ObjectId scalar (24-char hex string)."""
+scalar ObjectId
+
+type PeriodSummary {
+  expense: [CurrencyTotal!]!
+
+  """Expense (target currency, minor units)."""
+  expenseInTargetCurrency: Int!
+  from: DateTime!
+  income: [CurrencyTotal!]!
+
+  """Income (target currency, minor units)."""
+  incomeInTargetCurrency: Int!
+
+  """Net income (target currency, minor units)."""
+  netInTargetCurrency: Int!
+  targetCurrency: Currency!
+  to: DateTime!
+}
+
+type Query {
+  """Convert minor-unit amount; null if rate missing."""
+  fxConvert(amount: Float!, from: Currency!, to: Currency!): Float
+  health: String!
+  lesson(id: ID!): Lesson!
+  lessons(filter: LessonFilter): [Lesson!]!
+  monthSummary(from: DateTime!, target: Currency, to: DateTime!): PeriodSummary!
+  mySettings: UserSettings!
+  student(id: ID!): Student!
+  students(includeArchived: Boolean! = false): [Student!]!
+  transaction(id: ID!): Transaction!
+  transactions(filter: TransactionFilter): [Transaction!]!
+}
+
+type Student {
+  archivedAt: DateTime
+  createdAt: DateTime!
+  defaultCurrency: Currency!
+  email: String
+  hourlyRate: Money!
+  id: String!
+  name: String!
+  notes: String
+  phone: String
+  updatedAt: DateTime!
+}
+
+input StudentInput {
+  defaultCurrency: Currency!
+  email: String
+  hourlyRate: MoneyInput!
+  name: String!
+  notes: String
+  phone: String
+}
+
+input StudentPatch {
+  defaultCurrency: Currency
+  email: String
+  hourlyRate: MoneyInput
+  name: String
+  notes: String
+  phone: String
+}
+
+enum Theme {
+  dark
+  light
+  system
+}
+
+type Transaction {
+  amount: Int!
+  category: String!
+
+  """
+  Amount converted to the requested target currency (minor units, integer).
+  """
+  convertedAmount(target: Currency!): Float
+  createdAt: DateTime!
+  currency: Currency!
+  description: String
+  id: ID!
+  lessonId: ID
+  occurredAt: DateTime!
+  studentId: ID
+  type: TransactionType!
+  updatedAt: DateTime!
+}
+
+input TransactionFilter {
+  from: DateTime
+  limit: Int = 200
+  studentId: ID
+  to: DateTime
+  type: TransactionType
+}
+
+input TransactionInput {
+  amount: Int!
+  category: String!
+  currency: Currency!
+  description: String
+  occurredAt: DateTime!
+  studentId: ID
+  type: TransactionType!
+}
+
+input TransactionPatch {
+  amount: Int
+  category: String
+  currency: Currency
+  description: String
+  occurredAt: DateTime
+  studentId: ID
+}
+
+enum TransactionType {
+  expense
+  income
+}
+
+type UserSettings {
+  locale: Locale!
+  primaryCurrency: Currency!
+  theme: Theme!
+}
+
+input UserSettingsPatch {
+  locale: Locale
+  primaryCurrency: Currency
+  theme: Theme
+}

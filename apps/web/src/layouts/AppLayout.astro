@@ -1,0 +1,56 @@
+---
+import '@/styles/globals.css';
+import { Sidebar, MobileTabBar } from '@/components/nav';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { SignOutButton } from '@/components/sign-out-button';
+import { getServerSession } from '@/lib/auth-server';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Tutor Finance' } = Astro.props;
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const session = await getServerSession(cookie);
+const path = new URL(Astro.request.url).pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme') || 'system';
+          var dark =
+            t === 'dark' ||
+            (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <div class="flex min-h-screen">
+      <Sidebar current={path} client:load />
+      <div class="flex flex-1 flex-col">
+        <header class="flex h-14 items-center justify-between border-b bg-card/50 px-4">
+          <div class="font-semibold">Tutor Finance</div>
+          <div class="flex items-center gap-2">
+            <span class="hidden text-sm text-muted-foreground sm:inline">{session.user?.email}</span
+            >
+            <ThemeToggle client:load />
+            <SignOutButton client:load />
+          </div>
+        </header>
+        <main class="flex-1 px-4 pb-20 pt-6 md:px-8 md:pb-6">
+          <slot />
+        </main>
+      </div>
+    </div>
+    <MobileTabBar current={path} client:load />
+  </body>
+</html>

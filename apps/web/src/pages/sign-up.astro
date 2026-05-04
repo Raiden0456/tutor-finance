@@ -1,0 +1,7 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro';
+import { SignupForm } from '@/islands/signup-form';
+---
+<AuthLayout title="Create account">
+  <SignupForm client:load />
+</AuthLayout>

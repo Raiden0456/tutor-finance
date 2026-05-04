@@ -1,0 +1,23 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro';
+
+const sent = new URL(Astro.request.url).searchParams.get('sent') === '1';
+---
+<AuthLayout title="Verify email">
+  <div class="space-y-4 text-center text-sm">
+    {sent ? (
+      <p>
+        Check your inbox for a verification link. You can close this tab — the link will sign you
+        in automatically.
+      </p>
+    ) : (
+      <p>
+        Your email is not verified yet. Click the link in the most recent verification email or
+        request a new one by signing up again with the same address.
+      </p>
+    )}
+    <a href="/login" class="inline-block underline-offset-4 hover:underline">
+      Back to sign in
+    </a>
+  </div>
+</AuthLayout>

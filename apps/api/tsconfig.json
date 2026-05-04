@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "declaration": false,
+    "sourceMap": true,
+    "noEmit": false,
+    "isolatedModules": false,
+    "allowJs": false,
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*"]
+}

@@ -1,8 +1,15 @@
-# Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
+# Build outputs
+**/dist
+**/build
+**/.astro
+**/.turbo
+**/.next
+**/.output
+**/.cache
+
+# Deps
+node_modules
+.pnpm-store
 
 # Logs
 logs
@@ -18,7 +25,19 @@ lerna-debug.log*
 .env.development
 .env.test
 .env.production
+.env.local
 
 # temp directory
 .temp
 .tmp
+/tmp
+
+# Editor
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Volumes (local docker)
+docker/data
+

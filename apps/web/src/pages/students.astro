@@ -1,0 +1,15 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { StudentsIsland } from '@/islands/students-island';
+import { getServerClient } from '@/lib/apollo';
+import { Q_STUDENTS } from '@/lib/gql';
+
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const { data } = await getServerClient({ cookie }).query({
+  query: Q_STUDENTS,
+  variables: { includeArchived: false },
+});
+---
+<AppLayout title="Students">
+  <StudentsIsland client:load initial={data?.students ?? []} />
+</AppLayout>

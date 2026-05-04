@@ -1,0 +1,43 @@
+---
+import '@/styles/globals.css';
+import { ThemeToggle } from '@/components/theme-toggle';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Tutor Finance' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme') || 'system';
+          var dark =
+            t === 'dark' ||
+            (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <div class="absolute right-4 top-4">
+      <ThemeToggle client:load />
+    </div>
+    <div class="flex min-h-screen items-center justify-center px-4">
+      <div class="w-full max-w-sm">
+        <div class="mb-8 text-center">
+          <h1 class="text-xl font-semibold">Tutor Finance</h1>
+          <p class="text-sm text-muted-foreground">Track lessons, students &amp; income.</p>
+        </div>
+        <slot />
+      </div>
+    </div>
+  </body>
+</html>

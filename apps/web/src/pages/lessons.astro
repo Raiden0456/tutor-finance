@@ -1,0 +1,22 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { LessonsIsland } from '@/islands/lessons-island';
+import { getServerClient } from '@/lib/apollo';
+import { Q_LESSONS, Q_STUDENTS } from '@/lib/gql';
+
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const client = getServerClient({ cookie });
+const lessonsRes = await client.query({ query: Q_LESSONS, variables: { filter: { limit: 200 } } });
+const studentsRes = await client.query({
+  query: Q_STUDENTS,
+  variables: { includeArchived: false },
+});
+
+const students = (studentsRes.data?.students ?? []).map((s: { id: string; name: string }) => ({
+  id: s.id,
+  name: s.name,
+}));
+---
+<AppLayout title="Lessons">
+  <LessonsIsland client:load initial={lessonsRes.data?.lessons ?? []} students={students} />
+</AppLayout>
