@@ -10,8 +10,7 @@ export const MoneyInputSchema = z.object({
   currency: currencyEnum,
 });
 
-const objectIdRegex = /^[a-f\d]{24}$/i;
-const objectId = z.string().regex(objectIdRegex, 'Invalid ObjectId');
+const id = z.string().uuid();
 
 export const StudentInputSchema = z.object({
   name: z.string().min(1),
@@ -30,7 +29,7 @@ export const LessonStatusEnum = z.enum([
 ]);
 
 export const LessonInputSchema = z.object({
-  studentId: objectId,
+  studentId: id,
   startsAt: z.string().datetime(),
   durationMin: z.number().int().positive(),
   status: LessonStatusEnum,
@@ -46,8 +45,8 @@ export const TransactionInputSchema = z.object({
   currency: currencyEnum,
   occurredAt: z.string().datetime(),
   category: z.string().min(1),
-  studentId: objectId.optional(),
-  lessonId: objectId.optional(),
+  studentId: id.optional(),
+  lessonId: id.optional(),
   description: z.string().optional(),
 });
 

@@ -6,7 +6,12 @@ import { AppModule } from './app.module.js';
 import { env } from './config.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // bodyParser: false is required by @thallesp/nestjs-better-auth so Better Auth
+  // can read the raw request stream. The module re-installs JSON/urlencoded
+  // parsers for non-auth routes via AuthModule.forRoot bodyParser options.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
 
   app.enableCors({
     origin: [env.publicAppUrl, env.betterAuthUrl, ...env.trustedOrigins].filter(Boolean),
@@ -15,7 +20,13 @@ async function bootstrap() {
 
   app.set('trust proxy', 1);
 
-  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   await app.listen(env.port, '0.0.0.0');
 

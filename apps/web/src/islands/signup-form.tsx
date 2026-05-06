@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { signUp } from '@/lib/auth-client';
+import { PUBLIC_APP_URL } from '@/lib/env';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,13 +16,13 @@ export function SignupForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await signUp.email({ email, password, name });
+    const res = await signUp.email({ email, password, name, callbackURL: PUBLIC_APP_URL });
     setLoading(false);
     if (res.error) {
       setError(res.error.message ?? 'Could not create account');
       return;
     }
-    window.location.href = '/verify-email?sent=1';
+    window.location.href = '/';
   }
 
   return (

@@ -1,7 +1,5 @@
-import { ApolloProvider, useMutation } from '@apollo/client/react';
 import { useState } from 'react';
-import { getBrowserClient } from '@/lib/apollo';
-import { M_UPDATE_SETTINGS } from '@/lib/gql';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -24,20 +22,17 @@ interface Props {
   initial: Settings;
 }
 
-function SettingsImpl({ initial }: Props) {
+export function SettingsIsland({ initial }: Props) {
   const [primaryCurrency, setPrimary] = useState<Currency>(initial.primaryCurrency);
   const [theme, setTheme] = useState(initial.theme);
   const [locale, setLocale] = useState(initial.locale);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [updateMut] = useMutation(M_UPDATE_SETTINGS);
 
   async function save() {
     setSaving(true);
     setSaved(false);
-    await updateMut({
-      variables: { patch: { primaryCurrency, theme, locale } },
-    });
+    await api.patch('/settings/me', { primaryCurrency, theme, locale });
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', theme);
       const resolved =
@@ -108,13 +103,5 @@ function SettingsImpl({ initial }: Props) {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export function SettingsIsland(props: Props) {
-  return (
-    <ApolloProvider client={getBrowserClient()}>
-      <SettingsImpl {...props} />
-    </ApolloProvider>
   );
 }

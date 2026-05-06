@@ -12,7 +12,6 @@
     "typecheck": "astro check"
   },
   "dependencies": {
-    "@apollo/client": "^3.12.3",
     "@astrojs/node": "^9.0.0",
     "@astrojs/react": "^4.1.1",
     "@astrojs/tailwind": "^5.1.4",
@@ -27,7 +26,6 @@
     "astro": "^5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "graphql": "^16.10.0",
     "lucide-react": "^0.469.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

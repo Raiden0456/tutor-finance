@@ -1,7 +1,5 @@
-import { ApolloProvider, useMutation } from '@apollo/client/react';
 import { useState } from 'react';
-import { getBrowserClient } from '@/lib/apollo';
-import { M_CREATE_TRANSACTION } from '@/lib/gql';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -49,9 +47,8 @@ interface Props {
   primaryCurrency: Currency;
 }
 
-function TransactionsImpl({ initial, primaryCurrency }: Props) {
+export function TransactionsIsland({ initial, primaryCurrency }: Props) {
   const [open, setOpen] = useState(false);
-  const [createMut] = useMutation(M_CREATE_TRANSACTION);
 
   async function onCreate(form: HTMLFormElement) {
     const data = new FormData(form);
@@ -65,7 +62,7 @@ function TransactionsImpl({ initial, primaryCurrency }: Props) {
       category: String(data.get('category') ?? 'misc'),
       description: String(data.get('description') ?? '').trim() || undefined,
     };
-    await createMut({ variables: { input } });
+    await api.post('/transactions', input);
     setOpen(false);
     window.location.reload();
   }
@@ -190,9 +187,7 @@ function TransactionsImpl({ initial, primaryCurrency }: Props) {
                 <TableRow key={t.id}>
                   <TableCell>{fmtDate(t.occurredAt)}</TableCell>
                   <TableCell
-                    className={
-                      t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
-                    }
+                    className={t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}
                   >
                     {t.type}
                   </TableCell>
@@ -213,13 +208,5 @@ function TransactionsImpl({ initial, primaryCurrency }: Props) {
         </Table>
       </div>
     </div>
-  );
-}
-
-export function TransactionsIsland(props: Props) {
-  return (
-    <ApolloProvider client={getBrowserClient()}>
-      <TransactionsImpl {...props} />
-    </ApolloProvider>
   );
 }

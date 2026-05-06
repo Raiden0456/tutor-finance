@@ -1,111 +1,22 @@
 name: tutor-finance
 
 services:
-  mongo:
-    image: mongo:7
-    command: ['--replSet', 'rs0', '--bind_ip_all']
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tutor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tutor}
+      POSTGRES_DB: ${POSTGRES_DB:-tutor_finance}
     ports:
-      - '27017:27017'
+      - '5432:5432'
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - CMD
-        - mongosh
-        - --quiet
-        - --eval
-        - |
-          try { rs.status().ok } catch (e) {
-            rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok
-          }
-      interval: 10s
-      timeout: 10s
-      retries: 30
-      start_period: 10s
-    restart: unless-stopped
-
-  mongo-init:
-    image: mongo:7
-    depends_on:
-      mongo:
-        condition: service_healthy
-    restart: 'no'
-    entrypoint: ['/bin/bash', '-c']
-    command:
-      - >
-        mongosh --host mongo:27017 --quiet --eval "try { rs.status() } catch (e) {
-        rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }"
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - minio_data:/data
-    restart: unless-stopped
-
-  mailhog:
-    image: mailhog/mailhog:latest
-    ports:
-      - '1025:1025'
-      - '8025:8025'
-    restart: unless-stopped
-
-  api:
-    build:
-      context: ..
-      dockerfile: docker/api.Dockerfile
-    env_file:
-      - ../.env
-    environment:
-      DATABASE_URL: mongodb://mongo:27017/tutor_finance?replicaSet=rs0&directConnection=true
-      SMTP_HOST: mailhog
-      SMTP_PORT: '1025'
-      SMTP_SECURE: 'false'
-      S3_ENDPOINT: http://minio:9000
-      BETTER_AUTH_URL: http://localhost
-      PUBLIC_APP_URL: http://localhost
-    depends_on:
-      mongo:
-        condition: service_healthy
-    expose:
-      - '3000'
-    restart: unless-stopped
-
-  web:
-    build:
-      context: ..
-      dockerfile: docker/web.Dockerfile
-    env_file:
-      - ../.env
-    environment:
-      PUBLIC_API_URL: http://api:3000
-      PUBLIC_APP_URL: http://localhost
-    depends_on:
-      - api
-    expose:
-      - '4321'
-    restart: unless-stopped
-
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-    depends_on:
-      - api
-      - web
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-tutor} -d ${POSTGRES_DB:-tutor_finance}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
 
 volumes:
-  mongo_data:
-  minio_data:
-  caddy_data:
+  postgres_data:

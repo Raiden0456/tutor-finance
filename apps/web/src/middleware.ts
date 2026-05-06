@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { getServerSession } from '@/lib/auth-server';
 
-const PUBLIC_ROUTES = ['/login', '/sign-up', '/forgot-password', '/reset-password', '/verify-email'];
+const PUBLIC_ROUTES = ['/login', '/sign-up', '/forgot-password', '/reset-password'];
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const pathname = new URL(ctx.request.url).pathname;
@@ -15,10 +15,6 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
   if (!session.user) {
     return ctx.redirect('/login');
-  }
-
-  if (!session.user.emailVerified) {
-    return ctx.redirect('/verify-email');
   }
 
   return next();

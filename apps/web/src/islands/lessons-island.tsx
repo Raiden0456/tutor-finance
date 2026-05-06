@@ -1,7 +1,5 @@
-import { ApolloProvider, useMutation } from '@apollo/client/react';
 import { useState } from 'react';
-import { getBrowserClient } from '@/lib/apollo';
-import { M_CREATE_LESSON, M_UPDATE_LESSON } from '@/lib/gql';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -52,10 +50,8 @@ interface Props {
 
 const STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 
-function LessonsImpl({ initial, students }: Props) {
+export function LessonsIsland({ initial, students }: Props) {
   const [open, setOpen] = useState(false);
-  const [createMut] = useMutation(M_CREATE_LESSON);
-  const [updateMut] = useMutation(M_UPDATE_LESSON);
 
   const studentMap = new Map(students.map((s) => [s.id, s.name]));
 
@@ -68,13 +64,13 @@ function LessonsImpl({ initial, students }: Props) {
       status: String(data.get('status') ?? 'scheduled'),
       notes: String(data.get('notes') ?? '').trim() || undefined,
     };
-    await createMut({ variables: { input } });
+    await api.post('/lessons', input);
     setOpen(false);
     window.location.reload();
   }
 
   async function setStatus(id: string, status: Lesson['status']) {
-    await updateMut({ variables: { id, patch: { status } } });
+    await api.patch(`/lessons/${id}`, { status });
     window.location.reload();
   }
 
@@ -219,13 +215,5 @@ function LessonsImpl({ initial, students }: Props) {
         </Table>
       </div>
     </div>
-  );
-}
-
-export function LessonsIsland(props: Props) {
-  return (
-    <ApolloProvider client={getBrowserClient()}>
-      <LessonsImpl {...props} />
-    </ApolloProvider>
   );
 }

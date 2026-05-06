@@ -1,47 +1,22 @@
 name: tutor-finance-dev
 
 services:
-  mongo:
-    image: mongo:7
-    command: ['--replSet', 'rs0', '--bind_ip_all']
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tutor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tutor}
+      POSTGRES_DB: ${POSTGRES_DB:-tutor_finance}
     ports:
-      - '27017:27017'
+      - '5432:5432'
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - CMD
-        - mongosh
-        - --quiet
-        - --eval
-        - |
-          try { rs.status().ok } catch (e) {
-            rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok
-          }
-      interval: 10s
-      timeout: 10s
-      retries: 30
-      start_period: 10s
-    restart: unless-stopped
-
-  mongo-init:
-    image: mongo:7
-    depends_on:
-      mongo:
-        condition: service_healthy
-    restart: 'no'
-    entrypoint: ['/bin/bash', '-c']
-    command:
-      - >
-        mongosh --host mongo:27017 --quiet --eval "try { rs.status() } catch (e) {
-        rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }"
-
-  mailhog:
-    image: mailhog/mailhog:latest
-    ports:
-      - '1025:1025'
-      - '8025:8025'
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-tutor} -d ${POSTGRES_DB:-tutor_finance}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
 
 volumes:
-  mongo_data:
+  postgres_data:

@@ -1,11 +1,5 @@
-import { useMutation, ApolloProvider } from '@apollo/client/react';
 import { useState } from 'react';
-import { getBrowserClient } from '@/lib/apollo';
-import {
-  M_ARCHIVE_STUDENT,
-  M_CREATE_STUDENT,
-  M_UPDATE_STUDENT,
-} from '@/lib/gql';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -52,14 +46,10 @@ interface Props {
   initial: Student[];
 }
 
-function StudentsImpl({ initial }: Props) {
+export function StudentsIsland({ initial }: Props) {
   const [students, setStudents] = useState(initial);
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
-
-  const [createMut] = useMutation(M_CREATE_STUDENT);
-  const [updateMut] = useMutation(M_UPDATE_STUDENT);
-  const [archiveMut] = useMutation(M_ARCHIVE_STUDENT);
 
   function startCreate() {
     setEditing(null);
@@ -88,9 +78,9 @@ function StudentsImpl({ initial }: Props) {
       notes,
     };
     if (editing) {
-      await updateMut({ variables: { id: editing.id, patch: input } });
+      await api.patch(`/students/${editing.id}`, input);
     } else {
-      await createMut({ variables: { input } });
+      await api.post('/students', input);
     }
     setOpen(false);
     window.location.reload();
@@ -98,7 +88,7 @@ function StudentsImpl({ initial }: Props) {
 
   async function archive(id: string) {
     if (!confirm('Archive this student?')) return;
-    await archiveMut({ variables: { id } });
+    await api.post(`/students/${id}/archive`);
     setStudents((prev) => prev.filter((s) => s.id !== id));
   }
 
@@ -128,12 +118,7 @@ function StudentsImpl({ initial }: Props) {
             >
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  defaultValue={editing?.name ?? ''}
-                />
+                <Input id="name" name="name" required defaultValue={editing?.name ?? ''} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
@@ -167,10 +152,7 @@ function StudentsImpl({ initial }: Props) {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    name="currency"
-                    defaultValue={editing?.hourlyRate.currency ?? 'USD'}
-                  >
+                  <Select name="currency" defaultValue={editing?.hourlyRate.currency ?? 'USD'}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -217,9 +199,7 @@ function StudentsImpl({ initial }: Props) {
               students.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>
-                    {fmtMoney(s.hourlyRate.amount, s.hourlyRate.currency)} / hr
-                  </TableCell>
+                  <TableCell>{fmtMoney(s.hourlyRate.amount, s.hourlyRate.currency)} / hr</TableCell>
                   <TableCell className="text-muted-foreground">{s.email ?? '-'}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => startEdit(s)}>
@@ -236,13 +216,5 @@ function StudentsImpl({ initial }: Props) {
         </Table>
       </div>
     </div>
-  );
-}
-
-export function StudentsIsland(props: Props) {
-  return (
-    <ApolloProvider client={getBrowserClient()}>
-      <StudentsImpl {...props} />
-    </ApolloProvider>
   );
 }

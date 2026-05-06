@@ -1,9 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { FxRate } from './fx-rate.schema.js';
+import { eq } from 'drizzle-orm';
 import { SUPPORTED_CURRENCIES } from '@tutor-finance/shared';
+import { DB } from '../db/db.module.js';
+import type { Database } from '../db/client.js';
+import { fxRates } from '../db/schema.js';
 import { env } from '../config.js';
 
 const FIAT = SUPPORTED_CURRENCIES.filter((c) => c !== 'USDT' && c !== 'USDC');
@@ -19,7 +20,7 @@ export class FxService implements OnModuleInit {
   private readonly logger = new Logger(FxService.name);
   private cache: { rates: Record<string, number>; fetchedAt: number } | undefined;
 
-  constructor(@InjectModel(FxRate.name) private readonly model: Model<FxRate>) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async onModuleInit() {
     try {
@@ -48,24 +49,21 @@ export class FxService implements OnModuleInit {
     const fetchedAt = new Date();
     const rates = data.rates;
 
-    const ops = Object.entries(rates).map(([quote, rate]) => ({
-      updateOne: {
-        filter: { base: BASE, quote },
-        update: {
-          $set: { base: BASE, quote, rate, fetchedAt },
-        },
-        upsert: true,
-      },
-    }));
-    if (ops.length > 0) {
-      await this.model.bulkWrite(ops);
+    for (const [quote, rate] of Object.entries(rates)) {
+      await this.db
+        .insert(fxRates)
+        .values({ base: BASE, quote, rate, fetchedAt })
+        .onConflictDoUpdate({
+          target: [fxRates.base, fxRates.quote],
+          set: { rate, fetchedAt },
+        });
     }
+
     this.cache = { rates: this.expand(rates), fetchedAt: Date.now() };
     this.logger.log(`FX rates refreshed (${Object.keys(rates).length} pairs)`);
     return this.cache.rates;
   }
 
-  // Build all-pairs map "<from>_<to>" using USD as the pivot.
   private expand(usdRates: Record<string, number>): Record<string, number> {
     const all: Record<string, number> = {};
     const base: Record<string, number> = { USD: 1, ...usdRates };
@@ -86,14 +84,22 @@ export class FxService implements OnModuleInit {
     if (this.cache && Date.now() - this.cache.fetchedAt < 1000 * 60 * 60 * 6) {
       return this.cache.rates;
     }
-    const docs = await this.model.find({ base: BASE }).lean();
-    if (docs.length === 0) {
+    const rows = await this.db.select().from(fxRates).where(eq(fxRates.base, BASE));
+    if (rows.length === 0) {
       return this.refresh();
     }
     const usdRates: Record<string, number> = {};
-    for (const d of docs) usdRates[d.quote] = d.rate;
+    for (const r of rows) usdRates[r.quote] = r.rate;
     const expanded = this.expand(usdRates);
     this.cache = { rates: expanded, fetchedAt: Date.now() };
     return expanded;
+  }
+
+  async convert(amount: number, from: string, to: string): Promise<number | null> {
+    if (from === to) return amount;
+    const rates = await this.getRatesMap();
+    const fx = rates[`${from}_${to}`];
+    if (typeof fx !== 'number') return null;
+    return Math.round(amount * fx);
   }
 }

@@ -15,10 +15,12 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,astro,md,json,yml,yaml}\"",
     "setup": "pnpm install && pnpm --filter @tutor-finance/shared --filter @tutor-finance/auth build",
-    "docker:up": "docker compose -f docker/docker-compose.yml --env-file .env up -d",
-    "docker:up:infra": "docker compose -f docker/docker-compose.yml --env-file .env up -d mongo minio mailhog",
-    "docker:down": "docker compose -f docker/docker-compose.yml down",
-    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f"
+    "db:up": "docker compose -f docker/docker-compose.yml --env-file .env up -d",
+    "db:down": "docker compose -f docker/docker-compose.yml down",
+    "db:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "db:generate": "pnpm --filter @tutor-finance/api db:generate",
+    "db:migrate": "pnpm --filter @tutor-finance/api db:migrate",
+    "db:auth:generate": "pnpm --filter @tutor-finance/api db:auth:generate"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

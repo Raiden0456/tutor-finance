@@ -14,7 +14,7 @@ export default defineConfig({
   },
   vite: {
     ssr: {
-      noExternal: ['@apollo/client', 'recharts'],
+      noExternal: ['recharts'],
     },
   },
 });

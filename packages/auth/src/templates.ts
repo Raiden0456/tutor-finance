@@ -18,20 +18,6 @@ const layout = (title: string, body: string) => `
 const button = (url: string, label: string) => `
   <a href="${url}" style="display:inline-block; padding:12px 20px; background:#111827; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">${label}</a>`;
 
-export function verifyEmailTemplate(opts: { url: string; appName?: string }): MailContent {
-  const appName = opts.appName ?? 'Tutor Finance';
-  return {
-    subject: `Verify your email for ${appName}`,
-    html: layout(
-      `Welcome to ${appName}`,
-      `<p>Confirm your email address to finish setting up your account.</p>
-       ${button(opts.url, 'Verify email')}
-       <p style="margin-top:24px; font-size:13px; color:#6b7280;">If the button does not work, paste this link into your browser:<br/><a href="${opts.url}">${opts.url}</a></p>`,
-    ),
-    text: `Welcome to ${appName}.\n\nVerify your email: ${opts.url}\n`,
-  };
-}
-
 export function resetPasswordTemplate(opts: { url: string; appName?: string }): MailContent {
   const appName = opts.appName ?? 'Tutor Finance';
   return {

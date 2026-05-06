@@ -1,50 +1,80 @@
-import { Args, Query, Resolver } from '@nestjs/graphql';
-import { PeriodSummary, CurrencyTotal } from './dashboard.types.js';
+import { Controller, Get, Query } from '@nestjs/common';
+import { IsDateString, IsIn, IsOptional } from 'class-validator';
+import { convertMoney, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorator.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import { FxService } from '../fx/fx.service.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { CurrentUser, CurrentUserData } from '../auth/current-user.decorator.js';
-import { Currency } from '../common/enums.js';
-import { convertMoney, type Currency as CurrencyCode } from '@tutor-finance/shared';
 
-@Resolver(() => PeriodSummary)
-export class DashboardResolver {
+class SummaryQueryDto {
+  @IsDateString()
+  from!: string;
+
+  @IsDateString()
+  to!: string;
+
+  @IsOptional()
+  @IsIn(SUPPORTED_CURRENCIES as unknown as string[])
+  target?: Currency;
+}
+
+interface CurrencyTotal {
+  currency: Currency;
+  amount: number;
+  count: number;
+}
+
+interface PeriodSummary {
+  from: Date;
+  to: Date;
+  income: CurrencyTotal[];
+  expense: CurrencyTotal[];
+  incomeInTargetCurrency: number;
+  expenseInTargetCurrency: number;
+  netInTargetCurrency: number;
+  targetCurrency: Currency;
+}
+
+@Controller('dashboard')
+export class DashboardController {
   constructor(
     private readonly transactions: TransactionsService,
     private readonly fx: FxService,
     private readonly settings: SettingsService,
   ) {}
 
-  @Query(() => PeriodSummary)
-  async monthSummary(
+  @Get('summary')
+  async summary(
     @CurrentUser() user: CurrentUserData,
-    @Args('from', { type: () => Date }) from: Date,
-    @Args('to', { type: () => Date }) to: Date,
-    @Args('target', { type: () => Currency, nullable: true }) target?: CurrencyCode,
+    @Query() q: SummaryQueryDto,
   ): Promise<PeriodSummary> {
     const settings = await this.settings.getOrCreate(user.id);
-    const targetCurrency = (target ?? settings.primaryCurrency) as CurrencyCode;
+    const targetCurrency = (q.target ?? settings.primaryCurrency) as Currency;
+    const from = new Date(q.from);
+    const to = new Date(q.to);
     const rows = await this.transactions.monthSummary(user.id, from, to);
+
     const income: CurrencyTotal[] = [];
     const expense: CurrencyTotal[] = [];
     for (const r of rows) {
       const total: CurrencyTotal = {
-        currency: r._id.currency as CurrencyCode,
+        currency: r.currency as Currency,
         amount: r.total,
         count: r.count,
       };
-      if (r._id.type === 'income') income.push(total);
+      if (r.type === 'income') income.push(total);
       else expense.push(total);
     }
+
     let rates: Record<string, number> = {};
     try {
       rates = await this.fx.getRatesMap();
     } catch {
       rates = {};
     }
-    const sumIn = (rows: CurrencyTotal[]) => {
+    const sumIn = (rs: CurrencyTotal[]) => {
       let acc = 0;
-      for (const r of rows) {
+      for (const r of rs) {
         try {
           const c = convertMoney({ amount: r.amount, currency: r.currency }, targetCurrency, rates);
           acc += c.amount;
@@ -56,6 +86,7 @@ export class DashboardResolver {
     };
     const incomeT = sumIn(income);
     const expenseT = sumIn(expense);
+
     return {
       from,
       to,

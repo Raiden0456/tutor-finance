@@ -1,5 +1,4 @@
 import { createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { GqlExecutionContext } from '@nestjs/graphql';
 
 export interface CurrentUserData {
   id: string;
@@ -7,18 +6,27 @@ export interface CurrentUserData {
   emailVerified: boolean;
 }
 
+interface SessionUser {
+  id: string;
+  email: string;
+  emailVerified?: boolean | null;
+}
+
+interface RequestWithSession {
+  session?: { user?: SessionUser } | null;
+}
+
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): CurrentUserData => {
-    const gql = GqlExecutionContext.create(ctx);
-    const req = gql.getContext().req;
-    const session = req?.session;
-    if (!session?.user?.id) {
+    const req = ctx.switchToHttp().getRequest<RequestWithSession>();
+    const user = req?.session?.user;
+    if (!user?.id) {
       throw new UnauthorizedException('Not authenticated');
     }
     return {
-      id: session.user.id,
-      email: session.user.email,
-      emailVerified: !!session.user.emailVerified,
+      id: user.id,
+      email: user.email,
+      emailVerified: !!user.emailVerified,
     };
   },
 );

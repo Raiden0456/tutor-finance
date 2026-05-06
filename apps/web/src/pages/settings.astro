@@ -1,13 +1,17 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { SettingsIsland } from '@/islands/settings-island';
-import { getServerClient } from '@/lib/apollo';
-import { Q_ME_SETTINGS } from '@/lib/gql';
+import { serverApi } from '@/lib/api';
+import type { Currency } from '@tutor-finance/shared';
+
+interface SettingsData {
+  primaryCurrency: Currency;
+  theme: 'light' | 'dark' | 'system';
+  locale: 'en' | 'ru';
+}
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
-const client = getServerClient({ cookie });
-const { data } = await client.query({ query: Q_ME_SETTINGS });
-const initial = data?.mySettings ?? { primaryCurrency: 'USD', theme: 'system', locale: 'en' };
+const initial = await serverApi(cookie).get<SettingsData>('/settings/me');
 ---
 <AppLayout title="Settings">
   <h1 class="mb-4 text-xl font-semibold">Settings</h1>
