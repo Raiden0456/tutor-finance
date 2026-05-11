@@ -8,6 +8,13 @@
       "when": 1778059563886,
       "tag": "0000_shallow_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778491878024,
+      "tag": "0001_foamy_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

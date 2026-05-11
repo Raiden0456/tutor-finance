@@ -133,6 +133,34 @@ export const lessons = pgTable(
   ],
 );
 
+export const recurringExpenses = pgTable(
+  'recurring_expenses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    currency: text('currency').notNull(),
+    category: text('category').notNull(),
+    description: text('description'),
+    frequency: text('frequency').notNull(), // 'daily' | 'weekly' | 'monthly' | 'yearly'
+    startDate: timestamp('start_date').notNull(),
+    nextDueAt: timestamp('next_due_at').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    deletedAt: timestamp('deleted_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('recurring_user_id_idx').on(t.userId),
+    index('recurring_next_due_idx').on(t.nextDueAt, t.isActive),
+  ],
+);
+
 export const transactions = pgTable(
   'transactions',
   {
@@ -147,6 +175,9 @@ export const transactions = pgTable(
     category: text('category').notNull(),
     studentId: uuid('student_id').references(() => students.id, { onDelete: 'set null' }),
     lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'set null' }),
+    recurringExpenseId: uuid('recurring_expense_id').references(() => recurringExpenses.id, {
+      onDelete: 'set null',
+    }),
     description: text('description'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')
@@ -191,6 +222,7 @@ export const schema = {
   ...authSchema,
   students,
   lessons,
+  recurringExpenses,
   transactions,
   fxRates,
   userSettings,

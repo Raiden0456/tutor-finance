@@ -10,6 +10,7 @@ import { FxModule } from './fx/fx.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { HealthModule } from './health/health.module.js';
+import { RecurringModule } from './recurring/recurring.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { HealthModule } from './health/health.module.js';
     SettingsModule,
     DashboardModule,
     HealthModule,
+    RecurringModule,
   ],
 })
 export class AppModule {}
