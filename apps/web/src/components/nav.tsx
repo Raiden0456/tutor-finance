@@ -22,10 +22,10 @@ export function Sidebar({ current }: NavProps) {
             key={href}
             href={href}
             className={
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ' +
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ' +
               (active
-                ? 'bg-secondary text-secondary-foreground font-medium'
-                : 'hover:bg-accent hover:text-accent-foreground')
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')
             }
           >
             <Icon className="h-4 w-4" />
@@ -39,7 +39,10 @@ export function Sidebar({ current }: NavProps) {
 
 export function MobileTabBar({ current }: NavProps) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-card md:hidden">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-card/95 backdrop-blur-md md:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       {links.map(({ href, label, icon: Icon }) => {
         const active = href === current || (href !== '/' && current.startsWith(href));
         return (
@@ -47,11 +50,11 @@ export function MobileTabBar({ current }: NavProps) {
             key={href}
             href={href}
             className={
-              'flex flex-1 flex-col items-center gap-1 py-2 text-xs ' +
-              (active ? 'text-primary' : 'text-muted-foreground')
+              'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors ' +
+              (active ? 'text-primary' : 'text-muted-foreground hover:text-foreground')
             }
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
             <span>{label}</span>
           </a>
         );

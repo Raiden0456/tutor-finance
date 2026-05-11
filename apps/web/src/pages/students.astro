@@ -15,9 +15,40 @@ interface Student {
   archivedAt?: string | null;
 }
 
+interface IncomeTx {
+  studentId: string | null;
+  type: 'income' | 'expense';
+  convertedAmount: number | null;
+}
+
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
-const students = await serverApi(cookie).get<Student[]>('/students');
+const api = serverApi(cookie);
+
+const settings = await api.get<{ primaryCurrency: Currency }>('/settings/me');
+const primary: Currency = settings.primaryCurrency ?? 'USD';
+
+const now = new Date();
+const from = new Date(now.getFullYear(), now.getMonth(), 1);
+const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+const [students, transactions] = await Promise.all([
+  api.get<Student[]>('/students'),
+  api.get<IncomeTx[]>('/transactions', {
+    query: {
+      type: 'income',
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: 1000,
+      target: primary,
+    },
+  }),
+]);
 ---
 <AppLayout title="Students">
-  <StudentsIsland client:load initial={students} />
+  <StudentsIsland
+    client:load
+    initial={students}
+    transactions={transactions}
+    primaryCurrency={primary}
+  />
 </AppLayout>

@@ -20,6 +20,7 @@ pnpm --filter @tutor-finance/shared --filter @tutor-finance/auth build
 pnpm db:up                  # starts postgres
 pnpm db:generate            # generate domain migrations from drizzle schema
 pnpm db:migrate             # apply migrations to the database
+pnpm db:seed                # (optional) populate demo@tutor.local / demo12345 with mock data
 pnpm dev
 ```
 

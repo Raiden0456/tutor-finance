@@ -20,6 +20,7 @@
     "db:logs": "docker compose -f docker/docker-compose.yml logs -f",
     "db:generate": "pnpm --filter @tutor-finance/api db:generate",
     "db:migrate": "pnpm --filter @tutor-finance/api db:migrate",
+    "db:seed": "pnpm --filter @tutor-finance/api db:seed",
     "db:auth:generate": "pnpm --filter @tutor-finance/api db:auth:generate"
   },
   "devDependencies": {

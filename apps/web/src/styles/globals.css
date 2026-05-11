@@ -1,63 +1,171 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark ([data-theme='dark'] &);
+
+/* ----------------------------------------------------------------------- */
+/* Rose Pine palette                                                       */
+/*   light = Dawn  · https://rosepinetheme.com/palette/ingredients/        */
+/*   dark  = Moon                                                          */
+/* ----------------------------------------------------------------------- */
+
+:root {
+  /* Dawn */
+  --rp-base: #faf4ed;
+  --rp-surface: #fffaf3;
+  --rp-overlay: #f2e9e1;
+  --rp-muted: #9893a5;
+  --rp-subtle: #797593;
+  --rp-text: #575279;
+  --rp-love: #b4637a;
+  --rp-gold: #ea9d34;
+  --rp-rose: #d7827e;
+  --rp-pine: #286983;
+  --rp-foam: #56949f;
+  --rp-iris: #907aa9;
+  --rp-hl-low: #f4ede8;
+  --rp-hl-med: #dfdad9;
+  --rp-hl-high: #cecacd;
+
+  /* shadcn semantic tokens (mapped from rose pine) */
+  --background: var(--rp-base);
+  --foreground: var(--rp-text);
+  --card: var(--rp-surface);
+  --card-foreground: var(--rp-text);
+  --popover: var(--rp-surface);
+  --popover-foreground: var(--rp-text);
+  --primary: var(--rp-iris);
+  --primary-foreground: var(--rp-base);
+  --secondary: var(--rp-hl-low);
+  --secondary-foreground: var(--rp-text);
+  --muted: var(--rp-hl-low);
+  --muted-foreground: var(--rp-subtle);
+  --accent: var(--rp-hl-med);
+  --accent-foreground: var(--rp-text);
+  --destructive: var(--rp-love);
+  --destructive-foreground: var(--rp-base);
+  --border: var(--rp-hl-med);
+  --input: var(--rp-hl-med);
+  --ring: var(--rp-iris);
+  --radius: 0.875rem;
+
+  /* finance-domain colour tokens */
+  --income: var(--rp-pine);
+  --expense: var(--rp-love);
+  --net: var(--rp-iris);
+}
+
+[data-theme='dark'] {
+  /* Moon */
+  --rp-base: #232136;
+  --rp-surface: #2a273f;
+  --rp-overlay: #393552;
+  --rp-muted: #6e6a86;
+  --rp-subtle: #908caa;
+  --rp-text: #e0def4;
+  --rp-love: #eb6f92;
+  --rp-gold: #f6c177;
+  --rp-rose: #ea9a97;
+  --rp-pine: #3e8fb0;
+  --rp-foam: #9ccfd8;
+  --rp-iris: #c4a7e7;
+  --rp-hl-low: #2a283e;
+  --rp-hl-med: #44415a;
+  --rp-hl-high: #56526e;
+
+  --background: var(--rp-base);
+  --foreground: var(--rp-text);
+  --card: var(--rp-surface);
+  --card-foreground: var(--rp-text);
+  --popover: var(--rp-surface);
+  --popover-foreground: var(--rp-text);
+  --primary: var(--rp-iris);
+  --primary-foreground: var(--rp-base);
+  --secondary: var(--rp-overlay);
+  --secondary-foreground: var(--rp-text);
+  --muted: var(--rp-hl-low);
+  --muted-foreground: var(--rp-subtle);
+  --accent: var(--rp-hl-med);
+  --accent-foreground: var(--rp-text);
+  --destructive: var(--rp-love);
+  --destructive-foreground: var(--rp-base);
+  --border: var(--rp-hl-med);
+  --input: var(--rp-hl-med);
+  --ring: var(--rp-iris);
+
+  --income: var(--rp-foam);
+  --expense: var(--rp-love);
+  --net: var(--rp-iris);
+}
+
+/* ----------------------------------------------------------------------- */
+/* @theme — exposes CSS vars to Tailwind v4 utilities (bg-*, text-*, etc.) */
+/* ----------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-net: var(--net);
+
+  --color-rp-love: var(--rp-love);
+  --color-rp-gold: var(--rp-gold);
+  --color-rp-rose: var(--rp-rose);
+  --color-rp-pine: var(--rp-pine);
+  --color-rp-foam: var(--rp-foam);
+  --color-rp-iris: var(--rp-iris);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Base                                                                     */
+/* ----------------------------------------------------------------------- */
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 11%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 222 47% 11%;
-    --radius: 0.6rem;
-  }
-
-  [data-theme='dark'] {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 213 27% 84%;
-  }
-
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
-
   html,
   body {
-    @apply bg-background text-foreground;
+    background: var(--background);
+    color: var(--foreground);
   }
-
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Reduce the chance of iOS auto-zooming form inputs (font-size <16px). */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
   }
 }

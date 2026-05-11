@@ -23,6 +23,12 @@ interface RecentLesson {
   studentId: string;
 }
 
+interface DailyTx {
+  occurredAt: string;
+  type: 'income' | 'expense';
+  convertedAmount: number | null;
+}
+
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 
@@ -41,6 +47,15 @@ const studentsList = await api.get<{ id: string; name: string }[]>('/students', 
 });
 const studentNames: Record<string, string> = {};
 for (const s of studentsList) studentNames[s.id] = s.name;
+
+const dailyTransactions = await api.get<DailyTx[]>('/transactions', {
+  query: {
+    from: from.toISOString(),
+    to: to.toISOString(),
+    limit: 1000,
+    target: summary.targetCurrency,
+  },
+});
 ---
 <AppLayout title="Dashboard">
   <DashboardIsland
@@ -48,5 +63,6 @@ for (const s of studentsList) studentNames[s.id] = s.name;
     summary={summary}
     recentLessons={recentLessons}
     studentNames={studentNames}
+    dailyTransactions={dailyTransactions}
   />
 </AppLayout>

@@ -19,7 +19,9 @@ const path = new URL(Astro.request.url).pathname;
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#faf4ed" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#232136" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
     <script is:inline>
       (function () {
@@ -33,21 +35,26 @@ const path = new URL(Astro.request.url).pathname;
       })();
     </script>
   </head>
-  <body class="min-h-screen bg-background text-foreground">
+  <body class="min-h-screen bg-background text-foreground antialiased">
     <div class="flex min-h-screen">
       <Sidebar current={path} client:load />
-      <div class="flex flex-1 flex-col">
-        <header class="flex h-14 items-center justify-between border-b bg-card/50 px-4">
-          <div class="font-semibold">Tutor Finance</div>
-          <div class="flex items-center gap-2">
-            <span class="hidden text-sm text-muted-foreground sm:inline">{session.user?.email}</span
+      <div class="flex min-w-0 flex-1 flex-col">
+        <header
+          class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-md md:px-6"
+          style="padding-top: env(safe-area-inset-top)"
+        >
+          <div class="text-base font-semibold tracking-tight">{title}</div>
+          <div class="flex items-center gap-1">
+            <span class="hidden text-sm text-muted-foreground md:inline">{session.user?.email}</span
             >
             <ThemeToggle client:load />
             <SignOutButton client:load />
           </div>
         </header>
-        <main class="flex-1 px-4 pb-20 pt-6 md:px-8 md:pb-6">
-          <slot />
+        <main class="flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-8 md:pt-6">
+          <div class="mx-auto w-full max-w-3xl md:max-w-5xl">
+            <slot />
+          </div>
         </main>
       </div>
     </div>

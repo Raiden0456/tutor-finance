@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "node --env-file=.env --import tsx ./scripts/migrate.ts",
+    "db:seed": "node --env-file=.env --import tsx ./scripts/seed.ts",
     "db:auth:generate": "npx @better-auth/cli@latest generate --config ./src/auth/auth.provider.ts --output ../../packages/auth/src/schema.ts --yes"
   },
   "dependencies": {
