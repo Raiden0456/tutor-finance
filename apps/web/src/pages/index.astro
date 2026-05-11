@@ -2,32 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { DashboardIsland } from '@/islands/dashboard-island';
 import { serverApi } from '@/lib/api';
-import type { Currency } from '@tutor-finance/shared';
-
-interface SummaryData {
-  from: string;
-  to: string;
-  targetCurrency: Currency;
-  incomeInTargetCurrency: number;
-  expenseInTargetCurrency: number;
-  netInTargetCurrency: number;
-  income: { currency: Currency; amount: number; count: number }[];
-  expense: { currency: Currency; amount: number; count: number }[];
-}
-
-interface RecentLesson {
-  id: string;
-  startsAt: string;
-  durationMin: number;
-  status: string;
-  studentId: string;
-}
-
-interface DailyTx {
-  occurredAt: string;
-  type: 'income' | 'expense';
-  convertedAmount: number | null;
-}
+import type { Summary, RecentLesson, DailyTx } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
@@ -36,7 +11,7 @@ const now = new Date();
 const from = new Date(now.getFullYear(), now.getMonth(), 1);
 const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-const summary = await api.get<SummaryData>('/dashboard/summary', {
+const summary = await api.get<Summary>('/dashboard/summary', {
   query: { from: from.toISOString(), to: to.toISOString() },
 });
 
@@ -57,6 +32,7 @@ const dailyTransactions = await api.get<DailyTx[]>('/transactions', {
   },
 });
 ---
+
 <AppLayout title="Dashboard">
   <DashboardIsland
     client:load

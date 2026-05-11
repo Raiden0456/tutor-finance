@@ -24,37 +24,8 @@ import {
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
 import { fromMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
-
-interface CurrencyTotal {
-  currency: Currency;
-  amount: number;
-  count: number;
-}
-
-interface Summary {
-  from: string;
-  to: string;
-  targetCurrency: Currency;
-  incomeInTargetCurrency: number;
-  expenseInTargetCurrency: number;
-  netInTargetCurrency: number;
-  income: CurrencyTotal[];
-  expense: CurrencyTotal[];
-}
-
-interface RecentLesson {
-  id: string;
-  startsAt: string;
-  durationMin: number;
-  status: string;
-  studentId: string;
-}
-
-interface DailyTx {
-  occurredAt: string;
-  type: 'income' | 'expense';
-  convertedAmount: number | null;
-}
+import { statusLabel, statusStyles } from '@/lib/utils';
+import type { RecentLesson, Summary, DailyTx } from '@/lib/types';
 
 interface Props {
   summary: Summary;
@@ -69,13 +40,6 @@ const dateFmt = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
 });
-
-const statusStyles: Record<string, string> = {
-  scheduled: 'bg-rp-iris/15 text-rp-iris',
-  completed: 'bg-rp-foam/15 text-rp-foam',
-  cancelled: 'bg-muted text-muted-foreground',
-  no_show: 'bg-destructive/15 text-destructive',
-};
 
 function buildSeries(
   txs: DailyTx[],
@@ -222,13 +186,13 @@ export function DashboardIsland({
         </div>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm font-medium">Cumulative net P/L</CardTitle>
             <CardDescription className="text-xs">
               {rangeLabel(range)} · running balance ({summary.targetCurrency})
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-1 pb-3">
+          <CardContent>
             <ChartContainer
               config={{ net: { label: 'Net', color: 'var(--rp-iris)' } } satisfies ChartConfig}
               className="aspect-auto h-56 w-full"
@@ -269,10 +233,10 @@ export function DashboardIsland({
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm font-medium">Recent lessons</CardTitle>
           </CardHeader>
-          <CardContent className="px-2 pb-2">
+          <CardContent>
             {recentLessons.length === 0 ? (
               <p className="px-2 py-4 text-sm text-muted-foreground">No lessons yet.</p>
             ) : (
@@ -293,7 +257,7 @@ export function DashboardIsland({
                         (statusStyles[l.status] ?? 'bg-muted text-muted-foreground')
                       }
                     >
-                      {l.status}
+                      {statusLabel[l.status]}
                     </span>
                   </li>
                 ))}

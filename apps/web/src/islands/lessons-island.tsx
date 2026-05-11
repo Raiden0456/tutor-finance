@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -20,20 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Clock } from 'lucide-react';
-
-interface StudentRef {
-  id: string;
-  name: string;
-}
-
-interface Lesson {
-  id: string;
-  studentId: string;
-  startsAt: string;
-  durationMin: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
-  notes?: string | null;
-}
+import type { Lesson, StudentRef } from '@/lib/types';
+import { statusLabel, statusStyles } from '@/lib/utils';
 
 interface Props {
   initial: Lesson[];
@@ -42,21 +30,11 @@ interface Props {
 
 const STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 
-const statusStyles: Record<Lesson['status'], string> = {
-  scheduled: 'bg-rp-iris/15 text-rp-iris',
-  completed: 'bg-rp-foam/15 text-rp-foam',
-  cancelled: 'bg-muted text-muted-foreground',
-  no_show: 'bg-destructive/15 text-destructive',
-};
-
-const statusLabel: Record<Lesson['status'], string> = {
-  scheduled: 'Scheduled',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  no_show: 'No-show',
-};
-
-const dayKeyFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+const dayKeyFmt = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
+});
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
 
 function groupByDay(lessons: Lesson[]): Array<{ key: string; label: string; items: Lesson[] }> {
@@ -106,16 +84,16 @@ export function LessonsIsland({ initial, students }: Props) {
             {initial.length === 0 ? 'No lessons yet' : `${initial.length} total`}
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveModal open={open} onOpenChange={setOpen}>
+          <ResponsiveModalTrigger asChild>
             <Button disabled={students.length === 0}>
               <Plus className="h-4 w-4" /> Log
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>New lesson</DialogTitle>
-            </DialogHeader>
+          </ResponsiveModalTrigger>
+          <ResponsiveModalContent className="max-w-md">
+            <ResponsiveModalHeader>
+              <ResponsiveModalTitle>New lesson</ResponsiveModalTitle>
+            </ResponsiveModalHeader>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -123,7 +101,7 @@ export function LessonsIsland({ initial, students }: Props) {
               }}
               className="flex min-h-0 flex-1 flex-col gap-4"
             >
-              <DialogBody className="grid gap-4">
+              <ResponsiveModalBody className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="studentId">Student</Label>
                   <Select name="studentId" defaultValue={students[0]?.id}>
@@ -139,7 +117,7 @@ export function LessonsIsland({ initial, students }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="startsAt">Starts at</Label>
                     <Input
@@ -183,15 +161,15 @@ export function LessonsIsland({ initial, students }: Props) {
                   <Label htmlFor="notes">Notes</Label>
                   <Input id="notes" name="notes" />
                 </div>
-              </DialogBody>
-              <DialogFooter>
+              </ResponsiveModalBody>
+              <ResponsiveModalFooter>
                 <Button type="submit" className="w-full sm:w-auto">
                   Create
                 </Button>
-              </DialogFooter>
+              </ResponsiveModalFooter>
             </form>
-          </DialogContent>
-        </Dialog>
+          </ResponsiveModalContent>
+        </ResponsiveModal>
       </header>
 
       {students.length === 0 ? (
@@ -211,10 +189,7 @@ export function LessonsIsland({ initial, students }: Props) {
               </h2>
               <ul className="flex flex-col gap-2">
                 {g.items.map((l) => (
-                  <li
-                    key={l.id}
-                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-                  >
+                  <li key={l.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-base font-medium">
@@ -234,7 +209,8 @@ export function LessonsIsland({ initial, students }: Props) {
                       </div>
                       <span
                         className={
-                          'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ' + statusStyles[l.status]
+                          'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ' +
+                          statusStyles[l.status]
                         }
                       >
                         {statusLabel[l.status]}

@@ -3,23 +3,7 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { StudentsIsland } from '@/islands/students-island';
 import { serverApi } from '@/lib/api';
 import type { Currency } from '@tutor-finance/shared';
-
-interface Student {
-  id: string;
-  name: string;
-  email?: string | null;
-  phone?: string | null;
-  hourlyRate: { amount: number; currency: Currency };
-  defaultCurrency: Currency;
-  notes?: string | null;
-  archivedAt?: string | null;
-}
-
-interface IncomeTx {
-  studentId: string | null;
-  type: 'income' | 'expense';
-  convertedAmount: number | null;
-}
+import type { Student, IncomeTx } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
@@ -44,6 +28,7 @@ const [students, transactions] = await Promise.all([
   }),
 ]);
 ---
+
 <AppLayout title="Students">
   <StudentsIsland
     client:load

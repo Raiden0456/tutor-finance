@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
-import {
-  RangeTabs,
-  resolveRange,
-  rangeLabel,
-  type RangeState,
-} from '@/components/range-tabs';
+import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,14 +13,14 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -35,42 +30,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, ArrowDownRight, ArrowUpRight, Pencil, Trash2, Pause, Play, Repeat } from 'lucide-react';
+import {
+  Plus,
+  ArrowDownRight,
+  ArrowUpRight,
+  Pencil,
+  Trash2,
+  Pause,
+  Play,
+  Repeat,
+} from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
-import { fromMinorUnits, SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
-
-interface Tx {
-  id: string;
-  type: 'income' | 'expense';
-  amount: number;
-  currency: Currency;
-  occurredAt: string;
-  category: string;
-  studentId?: string | null;
-  description?: string | null;
-  convertedAmount?: number | null;
-}
-
-type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-interface Recurring {
-  id: string;
-  amount: number;
-  currency: Currency;
-  category: string;
-  description: string | null;
-  frequency: Frequency;
-  startDate: string;
-  nextDueAt: string;
-  isActive: boolean;
-}
+import {
+  fromMinorUnits,
+  SUPPORTED_CURRENCIES,
+  toMinorUnits,
+  type Currency,
+} from '@tutor-finance/shared';
+import type { Tx, Frequency, Recurring } from '@/lib/types';
 
 interface Props {
   initial: Tx[];
   primaryCurrency: Currency;
   initialRecurring: Recurring[];
 }
-
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
@@ -115,9 +98,15 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
           to: to.toISOString(),
         },
       })
-      .then((data) => { if (!cancelled) setTxList(data); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .then((data) => {
+        if (!cancelled) setTxList(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [range, primaryCurrency]);
 
   const { topCategories, series, chartConfig } = useMemo(() => {
@@ -203,26 +192,31 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
             </p>
           </div>
           {tab === 'transactions' ? (
-            <Dialog open={txOpen} onOpenChange={setTxOpen}>
-              <DialogTrigger asChild>
+            <ResponsiveModal open={txOpen} onOpenChange={setTxOpen}>
+              <ResponsiveModalTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4" /> Add
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>New transaction</DialogTitle>
-                </DialogHeader>
+              </ResponsiveModalTrigger>
+              <ResponsiveModalContent className="max-w-md">
+                <ResponsiveModalHeader>
+                  <ResponsiveModalTitle>New transaction</ResponsiveModalTitle>
+                </ResponsiveModalHeader>
                 <form
-                  onSubmit={(e) => { e.preventDefault(); onCreate(e.currentTarget); }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onCreate(e.currentTarget);
+                  }}
                   className="flex min-h-0 flex-1 flex-col gap-4"
                 >
-                  <DialogBody className="grid gap-4">
+                  <ResponsiveModalBody className="grid gap-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-2">
                         <Label htmlFor="type">Type</Label>
                         <Select name="type" defaultValue="expense">
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="income">Income</SelectItem>
                             <SelectItem value="expense">Expense</SelectItem>
@@ -236,7 +230,9 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
                           name="occurredAt"
                           type="datetime-local"
                           required
-                          defaultValue={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                          defaultValue={new Date(
+                            Date.now() - new Date().getTimezoneOffset() * 60000,
+                          )
                             .toISOString()
                             .slice(0, 16)}
                         />
@@ -245,15 +241,26 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-2">
                         <Label htmlFor="amount">Amount</Label>
-                        <Input id="amount" name="amount" type="number" step="0.01" min="0.01" required />
+                        <Input
+                          id="amount"
+                          name="amount"
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          required
+                        />
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="currency">Currency</Label>
                         <Select name="currency" defaultValue={primaryCurrency}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             {SUPPORTED_CURRENCIES.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -261,19 +268,26 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="category">Category</Label>
-                      <Input id="category" name="category" required placeholder="supplies / software / refund …" />
+                      <Input
+                        id="category"
+                        name="category"
+                        required
+                        placeholder="supplies / software / refund …"
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="description">Description</Label>
                       <Input id="description" name="description" />
                     </div>
-                  </DialogBody>
-                  <DialogFooter>
-                    <Button type="submit" className="w-full sm:w-auto">Create</Button>
-                  </DialogFooter>
+                  </ResponsiveModalBody>
+                  <ResponsiveModalFooter>
+                    <Button type="submit" className="w-full sm:w-auto">
+                      Create
+                    </Button>
+                  </ResponsiveModalFooter>
                 </form>
-              </DialogContent>
-            </Dialog>
+              </ResponsiveModalContent>
+            </ResponsiveModal>
           ) : (
             <RecurringAddButton
               primaryCurrency={primaryCurrency}
@@ -282,19 +296,21 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
           )}
         </div>
 
-        {tab === 'transactions' && (
-          <RangeTabs value={range} onChange={setRange} />
-        )}
+        {tab === 'transactions' && <RangeTabs value={range} onChange={setRange} />}
 
         <TabSwitcher value={tab} onChange={setTab} />
       </header>
 
       {tab === 'transactions' ? (
         <div
-          className={'space-y-5 transition-opacity duration-150 ' + (loading ? 'opacity-60' : 'opacity-100')}
+          className={
+            'space-y-5 transition-opacity duration-150 ' + (loading ? 'opacity-60' : 'opacity-100')
+          }
         >
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total expenses</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Total expenses
+            </div>
             <div className="mt-1 text-xl font-semibold tabular-nums text-expense">
               {fmtMoney(totalExpense, primaryCurrency)}
             </div>
@@ -322,12 +338,15 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
           )}
         </div>
       ) : (
-        <RecurringList items={recurring} primaryCurrency={primaryCurrency} onChange={setRecurring} />
+        <RecurringList
+          items={recurring}
+          primaryCurrency={primaryCurrency}
+          onChange={setRecurring}
+        />
       )}
     </div>
   );
 }
-
 
 function TabSwitcher({
   value,
@@ -396,17 +415,19 @@ function RecurringAddButton({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button><Plus className="h-4 w-4" /> Add</Button>
-      </DialogTrigger>
+    <ResponsiveModal open={open} onOpenChange={setOpen}>
+      <ResponsiveModalTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4" /> Add
+        </Button>
+      </ResponsiveModalTrigger>
       <RecurringFormDialog
         title="New recurring expense"
         primaryCurrency={primaryCurrency}
         onSubmit={onCreate}
         onClose={() => setOpen(false)}
       />
-    </Dialog>
+    </ResponsiveModal>
   );
 }
 
@@ -445,12 +466,12 @@ function RecurringFormDialog({
     : new Date().toISOString().slice(0, 10);
 
   return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-      </DialogHeader>
+    <ResponsiveModalContent className="max-w-md">
+      <ResponsiveModalHeader>
+        <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
+      </ResponsiveModalHeader>
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
-        <DialogBody className="grid gap-4">
+        <ResponsiveModalBody className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="rec-amount">Amount</Label>
@@ -467,10 +488,14 @@ function RecurringFormDialog({
             <div className="grid gap-2">
               <Label htmlFor="rec-currency">Currency</Label>
               <Select name="currency" defaultValue={defaultCurrency}>
-                <SelectTrigger id="rec-currency"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="rec-currency">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -488,13 +513,19 @@ function RecurringFormDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="rec-description">Description</Label>
-            <Input id="rec-description" name="description" defaultValue={defaults?.description ?? ''} />
+            <Input
+              id="rec-description"
+              name="description"
+              defaultValue={defaults?.description ?? ''}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="rec-frequency">Frequency</Label>
               <Select name="frequency" defaultValue={defaults?.frequency ?? 'monthly'}>
-                <SelectTrigger id="rec-frequency"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="rec-frequency">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
@@ -505,15 +536,23 @@ function RecurringFormDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="rec-start">Start date</Label>
-              <Input id="rec-start" name="startDate" type="date" required defaultValue={defaultStart} />
+              <Input
+                id="rec-start"
+                name="startDate"
+                type="date"
+                required
+                defaultValue={defaultStart}
+              />
             </div>
           </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">Save</Button>
-        </DialogFooter>
+        </ResponsiveModalBody>
+        <ResponsiveModalFooter>
+          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+            Save
+          </Button>
+        </ResponsiveModalFooter>
       </form>
-    </DialogContent>
+    </ResponsiveModalContent>
   );
 }
 
@@ -529,7 +568,9 @@ function RecurringList({
   const [editing, setEditing] = useState<Recurring | null>(null);
 
   async function handleToggle(item: Recurring) {
-    const updated = await api.patch<Recurring>(`/recurring/${item.id}`, { isActive: !item.isActive });
+    const updated = await api.patch<Recurring>(`/recurring/${item.id}`, {
+      isActive: !item.isActive,
+    });
     onChange(items.map((r) => (r.id === item.id ? updated : r)));
   }
 
@@ -575,7 +616,7 @@ function RecurringList({
         ))}
       </ul>
       {editing && (
-        <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <ResponsiveModal open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
           <RecurringFormDialog
             title="Edit recurring expense"
             primaryCurrency={primaryCurrency}
@@ -583,7 +624,7 @@ function RecurringList({
             onSubmit={(form) => handleEdit(form, editing.id)}
             onClose={() => setEditing(null)}
           />
-        </Dialog>
+        </ResponsiveModal>
       )}
     </>
   );
@@ -616,7 +657,9 @@ function RecurringCard({
             (item.isActive ? 'bg-expense/12' : 'bg-muted')
           }
         >
-          <Repeat className={'h-5 w-5 ' + (item.isActive ? 'text-expense' : 'text-muted-foreground')} />
+          <Repeat
+            className={'h-5 w-5 ' + (item.isActive ? 'text-expense' : 'text-muted-foreground')}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
@@ -685,9 +728,15 @@ function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) 
   const accentBg = isIncome ? 'bg-income/12' : 'bg-expense/12';
   const accentBorder = isIncome ? 'border-l-income' : 'border-l-expense';
   return (
-    <li className={'rounded-2xl border border-border border-l-4 bg-card p-4 shadow-sm ' + accentBorder}>
+    <li
+      className={
+        'rounded-2xl border border-border border-l-4 bg-card p-4 shadow-sm ' + accentBorder
+      }
+    >
       <div className="flex items-start gap-3">
-        <div className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + accentBg}>
+        <div
+          className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + accentBg}
+        >
           <Icon className={'h-5 w-5 ' + accent} />
         </div>
         <div className="min-w-0 flex-1">
@@ -703,7 +752,9 @@ function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) 
               {tx.description || dateFmt.format(new Date(tx.occurredAt))}
             </span>
             {typeof tx.convertedAmount === 'number' && tx.currency !== primaryCurrency ? (
-              <span className="shrink-0 tabular-nums">≈ {fmtMoney(tx.convertedAmount, primaryCurrency)}</span>
+              <span className="shrink-0 tabular-nums">
+                ≈ {fmtMoney(tx.convertedAmount, primaryCurrency)}
+              </span>
             ) : (
               <span className="shrink-0">{dateFmt.format(new Date(tx.occurredAt))}</span>
             )}
@@ -727,13 +778,13 @@ function CategoryAreaChart({
 }) {
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <CardTitle className="text-sm font-medium">Expenses by category</CardTitle>
         <CardDescription className="text-xs">
           Daily totals · top {categories.length} categories ({currency})
         </CardDescription>
       </CardHeader>
-      <CardContent className="px-1 pb-3">
+      <CardContent>
         <ChartContainer config={config} className="aspect-auto h-56 w-full">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
@@ -756,7 +807,9 @@ function CategoryAreaChart({
             <YAxis axisLine={false} tickLine={false} width={40} />
             <ChartTooltip
               cursor={{ stroke: 'var(--border)' }}
-              content={<ChartTooltipContent indicator="dot" formatter={(v) => Number(v).toFixed(2)} />}
+              content={
+                <ChartTooltipContent indicator="dot" formatter={(v) => Number(v).toFixed(2)} />
+              }
             />
             <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />} />
             {categories.map((cat) => (

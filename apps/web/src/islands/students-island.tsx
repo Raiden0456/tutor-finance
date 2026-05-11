@@ -10,15 +10,15 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -42,23 +42,7 @@ import {
   toMinorUnits,
   type Currency,
 } from '@tutor-finance/shared';
-
-interface Student {
-  id: string;
-  name: string;
-  email?: string | null;
-  phone?: string | null;
-  hourlyRate: { amount: number; currency: Currency };
-  defaultCurrency: Currency;
-  notes?: string | null;
-  archivedAt?: string | null;
-}
-
-interface IncomeTx {
-  studentId: string | null;
-  type: 'income' | 'expense';
-  convertedAmount: number | null;
-}
+import type { Student, IncomeTx } from '@/lib/types';
 
 interface Props {
   initial: Student[];
@@ -75,7 +59,13 @@ function initials(name: string): string {
     .join('');
 }
 
-const AVATAR_TINTS = ['var(--rp-iris)', 'var(--rp-foam)', 'var(--rp-rose)', 'var(--rp-pine)', 'var(--rp-gold)'];
+const AVATAR_TINTS = [
+  'var(--rp-iris)',
+  'var(--rp-foam)',
+  'var(--rp-rose)',
+  'var(--rp-pine)',
+  'var(--rp-gold)',
+];
 
 function avatarTint(id: string): string {
   let hash = 0;
@@ -152,26 +142,26 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
             {empty ? 'No students yet' : `${students.length} active`}
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveModal open={open} onOpenChange={setOpen}>
+          <ResponsiveModalTrigger asChild>
             <Button onClick={startCreate} size="default">
               <Plus className="h-4 w-4" />
               <span>Add</span>
             </Button>
-          </DialogTrigger>
+          </ResponsiveModalTrigger>
           <StudentDialog editing={editing} onSubmit={handleSubmit} />
-        </Dialog>
+        </ResponsiveModal>
       </header>
 
       {topEarners.length > 0 ? (
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm font-medium">Top earners · this month</CardTitle>
             <CardDescription className="text-xs">
               Lesson income totals ({primaryCurrency})
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-1 pb-3">
+          <CardContent>
             <ChartContainer
               config={
                 {
@@ -199,10 +189,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
                 <ChartTooltip
                   cursor={{ fill: 'var(--accent)' }}
                   content={
-                    <ChartTooltipContent
-                      indicator="line"
-                      formatter={(v) => Number(v).toFixed(2)}
-                    />
+                    <ChartTooltipContent indicator="line" formatter={(v) => Number(v).toFixed(2)} />
                   }
                 />
                 <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="var(--color-total)" />
@@ -266,7 +253,10 @@ function StudentCard({
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="mr-2 h-4 w-4" /> Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onArchive} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={onArchive}
+              className="text-destructive focus:text-destructive"
+            >
               <Archive className="mr-2 h-4 w-4" /> Archive
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -287,7 +277,9 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-12 text-center">
       <p className="text-sm font-medium">No students yet</p>
-      <p className="mt-1 text-xs text-muted-foreground">Add your first one to start tracking lessons.</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Add your first one to start tracking lessons.
+      </p>
       <Button onClick={onAdd} className="mt-4">
         <Plus className="h-4 w-4" /> Add student
       </Button>
@@ -303,13 +295,13 @@ function StudentDialog({
   onSubmit: (form: HTMLFormElement) => void;
 }) {
   return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle>{editing ? 'Edit student' : 'New student'}</DialogTitle>
-        <DialogDescription>
+    <ResponsiveModalContent className="max-w-md">
+      <ResponsiveModalHeader>
+        <ResponsiveModalTitle>{editing ? 'Edit student' : 'New student'}</ResponsiveModalTitle>
+        <ResponsiveModalDescription>
           Hourly rate stored in minor units; enter major value (e.g. 30.00).
-        </DialogDescription>
-      </DialogHeader>
+        </ResponsiveModalDescription>
+      </ResponsiveModalHeader>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -317,7 +309,7 @@ function StudentDialog({
         }}
         className="flex min-h-0 flex-1 flex-col gap-4"
       >
-        <DialogBody className="grid gap-4">
+        <ResponsiveModalBody className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" required defaultValue={editing?.name ?? ''} />
@@ -365,13 +357,13 @@ function StudentDialog({
             <Label htmlFor="notes">Notes</Label>
             <Input id="notes" name="notes" defaultValue={editing?.notes ?? ''} />
           </div>
-        </DialogBody>
-        <DialogFooter>
+        </ResponsiveModalBody>
+        <ResponsiveModalFooter>
           <Button type="submit" className="w-full sm:w-auto">
             {editing ? 'Save' : 'Create'}
           </Button>
-        </DialogFooter>
+        </ResponsiveModalFooter>
       </form>
-    </DialogContent>
+    </ResponsiveModalContent>
   );
 }

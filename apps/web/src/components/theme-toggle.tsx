@@ -1,25 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 import { Moon, Sun, Laptop } from 'lucide-react';
 import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 type Theme = 'light' | 'dark' | 'system';
 
+const CYCLE: Theme[] = ['light', 'dark', 'system'];
+
 function applyTheme(t: Theme) {
-  const root = document.documentElement;
   const resolved =
     t === 'system'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light'
       : t;
-  root.setAttribute('data-theme', resolved);
+  document.documentElement.setAttribute('data-theme', resolved);
 }
+
+const ICONS: Record<Theme, JSX.Element> = {
+  light: <Sun className="h-4 w-4" />,
+  dark: <Moon className="h-4 w-4" />,
+  system: <Laptop className="h-4 w-4" />,
+};
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system');
@@ -30,31 +31,18 @@ export function ThemeToggle() {
     applyTheme(stored);
   }, []);
 
-  function pick(next: Theme) {
+  function cycle() {
+    const next = CYCLE[(CYCLE.indexOf(theme) + 1) % CYCLE.length];
     setTheme(next);
     localStorage.setItem('theme', next);
     applyTheme(next);
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Toggle theme">
-          <Sun className="h-4 w-4 dark:hidden" />
-          <Moon className="hidden h-4 w-4 dark:block" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => pick('light')}>
-          <Sun className="mr-2 h-4 w-4" /> Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => pick('dark')}>
-          <Moon className="mr-2 h-4 w-4" /> Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => pick('system')}>
-          <Laptop className="mr-2 h-4 w-4" /> System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={cycle}>
+      <span key={theme} className="theme-icon-animate">
+        {ICONS[theme]}
+      </span>
+    </Button>
   );
 }

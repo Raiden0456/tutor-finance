@@ -1,11 +1,16 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, lte, sql, type SQL } from 'drizzle-orm';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { lessons, students } from '../db/schema.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
-import type { CreateLessonDto, LessonFilterDto, LessonResponse, UpdateLessonDto } from './lessons.dto.js';
+import type {
+  CreateLessonDto,
+  LessonFilterDto,
+  LessonResponse,
+  UpdateLessonDto,
+} from './lessons.dto.js';
 
 type Row = typeof lessons.$inferSelect;
 
@@ -34,6 +39,8 @@ export class LessonsService {
   ) {}
 
   async list(userId: string, filter: LessonFilterDto | undefined): Promise<LessonResponse[]> {
+    await this.autoCompleteStale(userId);
+
     const conds: SQL[] = [eq(lessons.userId, userId)];
     if (filter?.studentId) conds.push(eq(lessons.studentId, filter.studentId));
     if (filter?.status) conds.push(eq(lessons.status, filter.status));
@@ -48,6 +55,28 @@ export class LessonsService {
       .orderBy(desc(lessons.startsAt))
       .limit(limit);
     return rows.map(toResponse);
+  }
+
+  private async autoCompleteStale(userId: string): Promise<void> {
+    // Find scheduled lessons where startsAt + durationMin is in the past
+    const stale = await this.db
+      .select()
+      .from(lessons)
+      .where(
+        and(
+          eq(lessons.userId, userId),
+          eq(lessons.status, 'scheduled'),
+          lt(sql`${lessons.startsAt} + (${lessons.durationMin} * interval '1 minute')`, sql`now()`),
+        ),
+      );
+
+    for (const row of stale) {
+      await this.db
+        .update(lessons)
+        .set({ status: 'completed' })
+        .where(and(eq(lessons.id, row.id), eq(lessons.userId, userId)));
+      await this.syncTransaction(userId, { ...row, status: 'completed' });
+    }
   }
 
   async findById(userId: string, id: string): Promise<LessonResponse> {

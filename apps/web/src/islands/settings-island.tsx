@@ -11,12 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
-
-interface Settings {
-  primaryCurrency: Currency;
-  theme: 'light' | 'dark' | 'system';
-  locale: 'en' | 'ru';
-}
+import type { Settings } from '@/lib/types';
 
 interface Props {
   initial: Settings;
@@ -54,7 +49,7 @@ export function SettingsIsland({ initial }: Props) {
         <p className="text-xs text-muted-foreground">Personalise the app</p>
       </header>
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader>
           <CardTitle className="text-sm font-medium">Preferences</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -73,19 +68,7 @@ export function SettingsIsland({ initial }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label>Theme</Label>
-            <Select value={theme} onValueChange={(v) => setTheme(v as Settings['theme'])}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">Light · Rose Pine Dawn</SelectItem>
-                <SelectItem value="dark">Dark · Rose Pine Moon</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+
           <div className="grid gap-2">
             <Label>Language</Label>
             <Select value={locale} onValueChange={(v) => setLocale(v as Settings['locale'])}>
