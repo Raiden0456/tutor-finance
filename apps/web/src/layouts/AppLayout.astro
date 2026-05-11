@@ -1,5 +1,6 @@
 ---
 import '@/styles/globals.css';
+import { ClientRouter } from 'astro:transitions';
 import { Sidebar, MobileTabBar } from '@/components/nav';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -13,6 +14,7 @@ const { title = 'Tutor Finance' } = Astro.props;
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const session = await getServerSession(cookie);
 const path = new URL(Astro.request.url).pathname;
+const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
 ---
 
 <!doctype html>
@@ -23,31 +25,40 @@ const path = new URL(Astro.request.url).pathname;
     <meta name="theme-color" content="#faf4ed" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#232136" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
+    <ClientRouter />
     <script is:inline>
       (function () {
-        try {
-          var t = localStorage.getItem('theme') || 'system';
-          var dark =
-            t === 'dark' ||
-            (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-        } catch (_) {}
+        function apply() {
+          try {
+            var t = localStorage.getItem('theme') || 'system';
+            document.cookie = 'theme=' + t + ';path=/;max-age=31536000;samesite=lax';
+            var dark =
+              t === 'dark' ||
+              (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          } catch (_) {}
+        }
+        apply();
+        document.addEventListener('astro:after-swap', apply);
       })();
     </script>
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
     <div class="flex min-h-screen">
-      <Sidebar current={path} client:load />
+      <Sidebar current={path} initialTheme={themeCookie} client:load />
       <div class="flex min-w-0 flex-1 flex-col">
         <header
-          class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-md md:px-6"
+          class="sticky top-0 z-30 flex h-14 items-center justify-between md:justify-end border-b border-border bg-card/80 px-4 backdrop-blur-md md:px-6"
           style="padding-top: env(safe-area-inset-top)"
         >
-          <div class="text-base font-semibold tracking-tight">{title}</div>
+          <h1 class="text-2xl font-bold md:hidden">Uchetka</h1>
+
           <div class="flex items-center gap-1">
             <span class="hidden text-sm text-muted-foreground md:inline">{session.user?.email}</span
             >
-            <ThemeToggle client:load />
+            <div class="md:hidden">
+              <ThemeToggle initialTheme={themeCookie} client:load />
+            </div>
             <SignOutButton client:load />
           </div>
         </header>

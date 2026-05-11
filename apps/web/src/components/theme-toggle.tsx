@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { Moon, Sun, Laptop } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -22,20 +22,38 @@ const ICONS: Record<Theme, JSX.Element> = {
   system: <Laptop className="h-4 w-4" />,
 };
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('system');
+const LABELS: Record<Theme, string> = { light: 'Light', dark: 'Dark', system: 'System' };
 
-  useEffect(() => {
-    const stored = (localStorage.getItem('theme') as Theme | null) ?? 'system';
-    setTheme(stored);
-    applyTheme(stored);
-  }, []);
+export function ThemeToggle({
+  initialTheme = 'system',
+  variant = 'icon',
+}: {
+  initialTheme?: Theme;
+  variant?: 'icon' | 'nav';
+}) {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   function cycle() {
     const next = CYCLE[(CYCLE.indexOf(theme) + 1) % CYCLE.length];
     setTheme(next);
     localStorage.setItem('theme', next);
+    document.cookie = `theme=${next};path=/;max-age=31536000;samesite=lax`;
     applyTheme(next);
+  }
+
+  if (variant === 'nav') {
+    return (
+      <button
+        type="button"
+        onClick={cycle}
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <span key={theme} className="theme-icon-animate h-4 w-4">
+          {ICONS[theme]}
+        </span>
+        <span>{LABELS[theme]}</span>
+      </button>
+    );
   }
 
   return (

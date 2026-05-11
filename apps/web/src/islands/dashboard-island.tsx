@@ -144,7 +144,7 @@ export function DashboardIsland({
             {rangeLabel(range)} · {currency}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col-reverse md:flex-row items-start gap-2">
           <RangeTabs value={range} onChange={setRange} />
           <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
             <SelectTrigger className="h-9 w-[88px] shrink-0">

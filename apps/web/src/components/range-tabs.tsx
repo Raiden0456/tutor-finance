@@ -83,7 +83,7 @@ export function RangeTabs({
   return (
     <div
       role="tablist"
-      className="flex flex-1 items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 text-xs font-medium"
+      className="flex w-full justify-between md:flex-none md:w-fit items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 text-xs font-medium"
     >
       {PRESETS.map((k) => {
         const active = value.kind === 'preset' && value.key === k;

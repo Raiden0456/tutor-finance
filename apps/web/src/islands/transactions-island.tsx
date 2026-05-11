@@ -296,9 +296,10 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
           )}
         </div>
 
-        {tab === 'transactions' && <RangeTabs value={range} onChange={setRange} />}
-
-        <TabSwitcher value={tab} onChange={setTab} />
+        <div className="flex flex-col gap-3 md:flex-row">
+          <TabSwitcher value={tab} onChange={setTab} />
+          {tab === 'transactions' && <RangeTabs value={range} onChange={setRange} />}
+        </div>
       </header>
 
       {tab === 'transactions' ? (
@@ -358,7 +359,7 @@ function TabSwitcher({
   return (
     <div
       role="tablist"
-      className="flex items-center gap-1 rounded-full bg-muted p-1 text-xs font-medium"
+      className="flex md:w-fit items-center gap-1 rounded-full bg-muted p-1 text-xs font-medium"
     >
       {(
         [
@@ -375,7 +376,7 @@ function TabSwitcher({
             aria-selected={active}
             onClick={() => onChange(key)}
             className={
-              'flex h-8 flex-1 items-center justify-center rounded-full px-3 transition-colors ' +
+              'flex h-8 flex-1 md:flex-auto items-center justify-center rounded-full px-3 transition-colors ' +
               (active
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground')
