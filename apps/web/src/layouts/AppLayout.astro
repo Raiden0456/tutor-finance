@@ -47,18 +47,22 @@ const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' |
     <div class="flex min-h-screen">
       <Sidebar current={path} initialTheme={themeCookie} client:load />
       <div class="flex min-w-0 flex-1 flex-col">
+        <!-- Mobile header -->
         <header
-          class="sticky top-0 z-30 flex h-14 items-center justify-between md:justify-end border-b border-border bg-card/80 px-4 backdrop-blur-md md:px-6"
+          id="mobile-header"
+          class="sticky top-0 z-30 flex h-14 items-center justify-between px-4 duration-200 bg-card/80 backdrop-blur-md md:hidden"
           style="padding-top: env(safe-area-inset-top)"
         >
-          <h1 class="text-2xl font-bold md:hidden">Uchetka</h1>
-
+          <h1 class="text-2xl font-bold">{title}</h1>
+          <ThemeToggle initialTheme={themeCookie} variant="button" client:load />
+        </header>
+        <!-- Desktop header -->
+        <header
+          class="sticky top-0 z-30 hidden h-14 items-center justify-end border-b border-border bg-card/80 px-6 backdrop-blur-md md:flex"
+          style="padding-top: env(safe-area-inset-top)"
+        >
           <div class="flex items-center gap-1">
-            <span class="hidden text-sm text-muted-foreground md:inline">{session.user?.email}</span
-            >
-            <div class="md:hidden">
-              <ThemeToggle initialTheme={themeCookie} client:load />
-            </div>
+            <span class="text-sm text-muted-foreground">{session.user?.email}</span>
             <SignOutButton client:load />
           </div>
         </header>

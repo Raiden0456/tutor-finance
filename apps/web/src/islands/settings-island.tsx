@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LogOut } from 'lucide-react';
 import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { Settings } from '@/lib/types';
 
@@ -23,6 +25,11 @@ export function SettingsIsland({ initial }: Props) {
   const [locale, setLocale] = useState(initial.locale);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function handleSignOut() {
+    await signOut();
+    window.location.href = '/login';
+  }
 
   async function save() {
     setSaving(true);
@@ -45,7 +52,7 @@ export function SettingsIsland({ initial }: Props) {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="hidden text-xl font-semibold tracking-tight md:block">Settings</h1>
         <p className="text-xs text-muted-foreground">Personalise the app</p>
       </header>
       <Card>
@@ -87,6 +94,18 @@ export function SettingsIsland({ initial }: Props) {
             </Button>
             {saved ? <span className="text-sm text-rp-foam">Saved.</span> : null}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="md:hidden">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Account</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </Button>
         </CardContent>
       </Card>
     </div>

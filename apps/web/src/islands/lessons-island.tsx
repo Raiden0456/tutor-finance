@@ -79,7 +79,7 @@ export function LessonsIsland({ initial, students }: Props) {
     <div className="space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Lessons</h1>
+          <h1 className="hidden text-xl font-semibold tracking-tight md:block">Lessons</h1>
           <p className="text-xs text-muted-foreground">
             {initial.length === 0 ? 'No lessons yet' : `${initial.length} total`}
           </p>

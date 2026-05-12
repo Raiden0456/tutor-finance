@@ -182,7 +182,7 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
       <header className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Transactions</h1>
+            <h1 className="hidden text-xl font-semibold tracking-tight md:block">Transactions</h1>
             <p className="text-xs text-muted-foreground">
               {tab === 'transactions'
                 ? `${rangeLabel(range)} · ${txList.length} entries`

@@ -139,7 +139,7 @@ export function DashboardIsland({
     <div className="space-y-5">
       <header className="space-y-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="hidden text-xl font-semibold tracking-tight md:block">Dashboard</h1>
           <p className="text-xs text-muted-foreground">
             {rangeLabel(range)} · {currency}
           </p>

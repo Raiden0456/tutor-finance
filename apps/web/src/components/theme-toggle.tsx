@@ -29,7 +29,7 @@ export function ThemeToggle({
   variant = 'icon',
 }: {
   initialTheme?: Theme;
-  variant?: 'icon' | 'nav';
+  variant?: 'icon' | 'nav' | 'button';
 }) {
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
@@ -53,6 +53,16 @@ export function ThemeToggle({
         </span>
         <span>{LABELS[theme]}</span>
       </button>
+    );
+  }
+
+  if (variant === 'button') {
+    return (
+      <Button variant="outline" size="icon-lg" aria-label="Toggle theme" onClick={cycle}>
+        <span key={theme} className="theme-icon-animate">
+          {ICONS[theme]}
+        </span>
+      </Button>
     );
   }
 
