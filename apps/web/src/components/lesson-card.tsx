@@ -38,6 +38,10 @@ export interface LessonCardProps {
 
 export function LessonCard({ lesson: initialLesson, studentName, onChanged }: LessonCardProps) {
   const [lesson, setLesson] = useState(initialLesson);
+  const [scheduledVisible, setScheduledVisible] = useState(
+    () => initialLesson.status === 'scheduled',
+  );
+  const [scheduledCollapsed, setScheduledCollapsed] = useState(false);
   const [dueVisible, setDueVisible] = useState(() => needsPayment(initialLesson.status));
   const [dueCollapsed, setDueCollapsed] = useState(false);
 
@@ -60,11 +64,18 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
 
   function onScheduledChange(newStatus: Lesson['status']) {
     setLesson((prev) => ({ ...prev, status: newStatus }));
-    if (needsPayment(newStatus)) {
-      setDueVisible(true);
-      setDueCollapsed(false);
-    }
-    onChanged?.();
+    if (newStatus === 'scheduled') return;
+    // Collapse the actions section first, then signal the parent.
+    // This prevents a height jump while the outer section is also animating out.
+    setScheduledCollapsed(true);
+    setTimeout(() => {
+      setScheduledVisible(false);
+      if (needsPayment(newStatus)) {
+        setDueVisible(true);
+        setDueCollapsed(false);
+      }
+      onChanged?.();
+    }, 420);
   }
 
   return (
@@ -100,10 +111,17 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
         </span>
       </div>
 
-      {/* Upcoming lesson actions */}
-      {lesson.status === 'scheduled' && (
-        <div className="mt-3 border-t border-border pt-3">
-          <ScheduledActions lesson={lesson} onStatusChange={onScheduledChange} />
+      {/* Upcoming lesson actions — animated collapse when status leaves 'scheduled' */}
+      {scheduledVisible && (
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-[400ms] ease-in-out',
+            scheduledCollapsed ? 'max-h-0 opacity-0' : 'max-h-[80px] opacity-100',
+          )}
+        >
+          <div className="mt-3 border-t border-border pt-3">
+            <ScheduledActions lesson={lesson} onStatusChange={onScheduledChange} />
+          </div>
         </div>
       )}
 

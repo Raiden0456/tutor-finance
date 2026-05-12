@@ -140,7 +140,7 @@ export function LessonsIsland({ initial, students }: Props) {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select name="status" defaultValue="due">
+                  <Select name="status" defaultValue="scheduled">
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

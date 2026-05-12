@@ -6,6 +6,7 @@ import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
+import { FinanceStat } from '@/components/finance-stat';
 import {
   ChartContainer,
   ChartTooltip,
@@ -47,16 +48,23 @@ import {
   toMinorUnits,
   type Currency,
 } from '@tutor-finance/shared';
-import type { Tx, Frequency, Recurring, Summary } from '@/lib/types';
+import type { Tx, Frequency, Recurring, Summary, StudentRef } from '@/lib/types';
 
 interface Props {
   initial: Tx[];
   primaryCurrency: Currency;
   initialRecurring: Recurring[];
   initialSummary: Summary;
+  students: StudentRef[];
 }
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+const INCOME_CATEGORIES = ['lesson', 'consultation', 'refund', 'other'] as const;
+const EXPENSE_CATEGORIES = [
+  'rent', 'software', 'supplies', 'utilities',
+  'transport', 'food', 'marketing', 'equipment', 'other',
+] as const;
 
 const FREQ_LABELS: Record<Frequency, string> = {
   daily: 'Daily',
@@ -78,6 +86,7 @@ export function TransactionsIsland({
   primaryCurrency,
   initialRecurring,
   initialSummary,
+  students,
 }: Props) {
   const [tab, setTab] = useState<'transactions' | 'recurring'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
@@ -87,7 +96,9 @@ export function TransactionsIsland({
   const [loading, setLoading] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
   const [recurring, setRecurring] = useState<Recurring[]>(initialRecurring);
+  const [txType, setTxType] = useState<'income' | 'expense'>('expense');
   const isFirst = useRef(true);
+  const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s.name])), [students]);
 
   useEffect(() => {
     if (isFirst.current) {
@@ -181,9 +192,10 @@ export function TransactionsIsland({
       amount: toMinorUnits(amountMajor, currency),
       currency,
       occurredAt: new Date(String(data.get('occurredAt'))).toISOString(),
-      category: String(data.get('category') ?? 'misc'),
+      category: String(data.get('category') ?? 'other'),
       description: String(data.get('description') ?? '').trim() || undefined,
     });
+    setTxType('expense');
     setTxOpen(false);
     window.location.reload();
   }
@@ -218,7 +230,13 @@ export function TransactionsIsland({
               </Select>
             )}
             {tab === 'transactions' ? (
-              <ResponsiveModal open={txOpen} onOpenChange={setTxOpen}>
+              <ResponsiveModal
+                open={txOpen}
+                onOpenChange={(open) => {
+                  setTxOpen(open);
+                  if (!open) setTxType('expense');
+                }}
+              >
                 <ResponsiveModalTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4" /> Add
@@ -239,7 +257,11 @@ export function TransactionsIsland({
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                           <Label htmlFor="type">Type</Label>
-                          <Select name="type" defaultValue="expense">
+                          <Select
+                            name="type"
+                            value={txType}
+                            onValueChange={(v) => setTxType(v as 'income' | 'expense')}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -294,12 +316,20 @@ export function TransactionsIsland({
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="category">Category</Label>
-                        <Input
-                          id="category"
-                          name="category"
-                          required
-                          placeholder="supplies / software / refund …"
-                        />
+                        <Select name="category" defaultValue="other" key={txType}>
+                          <SelectTrigger id="category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(
+                              (c) => (
+                                <SelectItem key={c} value={c} className="capitalize">
+                                  {c}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="description">Description</Label>
@@ -340,14 +370,18 @@ export function TransactionsIsland({
             }
           >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <TxStat
+              <FinanceStat
                 label="Planned"
                 value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
                 tone="planned"
               />
-              <TxStat label="Income" value={fmtMoney(totalIncome, currency)} tone="income" />
-              <TxStat label="Expenses" value={fmtMoney(totalExpense, currency)} tone="expense" />
-              <TxStat
+              <FinanceStat label="Income" value={fmtMoney(totalIncome, currency)} tone="income" />
+              <FinanceStat
+                label="Expenses"
+                value={fmtMoney(totalExpense, currency)}
+                tone="expense"
+              />
+              <FinanceStat
                 label="Net"
                 value={fmtMoney(totalIncome - totalExpense, currency)}
                 tone={totalIncome >= totalExpense ? 'income' : 'expense'}
@@ -370,7 +404,7 @@ export function TransactionsIsland({
               ) : (
                 <ul className="flex flex-col gap-2">
                   {txList.map((t) => (
-                    <TxCard key={t.id} tx={t} primaryCurrency={currency} />
+                    <TxCard key={t.id} tx={t} primaryCurrency={currency} studentMap={studentMap} />
                   ))}
                 </ul>
               )}
@@ -543,13 +577,21 @@ function RecurringFormDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="rec-category">Category</Label>
-            <Input
-              id="rec-category"
+            <Select
               name="category"
-              required
-              placeholder="rent / software / utilities …"
-              defaultValue={defaults?.category ?? ''}
-            />
+              defaultValue={defaults?.category ?? EXPENSE_CATEGORIES[0]}
+            >
+              <SelectTrigger id="rec-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c} className="capitalize">
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="rec-description">Description</Label>
@@ -770,12 +812,21 @@ function RecurringCard({
   );
 }
 
-function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) {
+function TxCard({
+  tx,
+  primaryCurrency,
+  studentMap,
+}: {
+  tx: Tx;
+  primaryCurrency: Currency;
+  studentMap: Map<string, string>;
+}) {
   const isIncome = tx.type === 'income';
   const Icon = isIncome ? ArrowUpRight : ArrowDownRight;
   const accent = isIncome ? 'text-income' : 'text-expense';
   const accentBg = isIncome ? 'bg-income/12' : 'bg-expense/12';
   const accentBorder = isIncome ? 'border-l-income' : 'border-l-expense';
+  const studentName = tx.studentId ? studentMap.get(tx.studentId) : null;
   return (
     <li
       className={
@@ -790,8 +841,13 @@ function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) 
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
-            <div className="min-w-0 truncate text-sm font-medium capitalize">{tx.category}</div>
-            <div className={'text-base font-semibold tabular-nums ' + accent}>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium capitalize">{tx.category}</div>
+              {studentName && (
+                <div className="truncate text-xs text-muted-foreground">{studentName}</div>
+              )}
+            </div>
+            <div className={'shrink-0 text-base font-semibold tabular-nums ' + accent}>
               {isIncome ? '+' : '−'}
               {fmtMoney(tx.amount, tx.currency)}
             </div>
@@ -811,27 +867,6 @@ function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) 
         </div>
       </div>
     </li>
-  );
-}
-
-function TxStat({
-  label,
-  value,
-  tone,
-  className,
-}: {
-  label: string;
-  value: string;
-  tone: 'planned' | 'income' | 'expense';
-  className?: string;
-}) {
-  const colour =
-    tone === 'income' ? 'text-income' : tone === 'planned' ? 'text-tf-indigo' : 'text-expense';
-  return (
-    <div className={'rounded-2xl border border-border bg-card p-4 shadow-sm ' + (className ?? '')}>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={'mt-1 text-xl font-semibold tabular-nums ' + colour}>{value}</div>
-    </div>
   );
 }
 

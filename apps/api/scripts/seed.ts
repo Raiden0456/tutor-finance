@@ -9,6 +9,7 @@ import {
   students,
   lessons,
   transactions,
+  recurringExpenses,
   userSettings,
 } from '../src/db/schema.js';
 
@@ -54,14 +55,29 @@ function randInt(min: number, max: number): number {
 function chance(p: number): boolean {
   return Math.random() < p;
 }
-function daysAgo(d: number, hour = 9, minute = 0): Date {
+/** Date exactly N days ago at a given hour */
+function daysAgo(d: number, hour = 10, minute = 0): Date {
   const dt = new Date();
   dt.setDate(dt.getDate() - d);
   dt.setHours(hour, minute, 0, 0);
   return dt;
 }
+/** Date N days in the future at a given hour */
+function daysFromNow(d: number, hour = 10, minute = 0): Date {
+  const dt = new Date();
+  dt.setDate(dt.getDate() + d);
+  dt.setHours(hour, minute, 0, 0);
+  return dt;
+}
+/** Payment date: 0-3 days after the lesson, but never in the future */
+function paymentDate(lessonDate: Date): Date {
+  const delay = randInt(0, 3);
+  const d = new Date(lessonDate);
+  d.setDate(d.getDate() + delay);
+  return d > new Date() ? new Date() : d;
+}
+
 const MAJOR = (n: number) => Math.round(n * 100);
-const MAJOR_RUB = (n: number) => Math.round(n * 100); // RUB minor units = 100 kop
 
 // ---------------------------------------------------------------------------
 // Data
@@ -93,8 +109,8 @@ const STUDENTS = [
     name: 'Dmitri Rose',
     email: 'dmitri@example.com',
     phone: '+7 916 555 0104',
-    rate: { amount: MAJOR_RUB(2500), currency: 'RUB' as const },
-    notes: 'Twice a week, 90 min',
+    rate: { amount: MAJOR(2500), currency: 'RUB' as const },
+    notes: 'Twice a week, 90 min sessions',
   },
   {
     name: 'Eva Gold',
@@ -103,31 +119,25 @@ const STUDENTS = [
     rate: { amount: MAJOR(28), currency: 'GBP' as const },
     notes: 'IELTS preparation',
   },
-  {
-    name: 'Felix Love',
-    email: 'felix@example.com',
-    phone: '+1 555 0106',
-    rate: { amount: MAJOR(20), currency: 'USD' as const },
-    notes: 'Casual, evenings only',
-  },
 ];
-
-const STATUSES = ['completed', 'completed', 'completed', 'completed', 'scheduled', 'cancelled', 'no_show'] as const;
 
 const EXPENSE_CATEGORIES = [
-  { name: 'subscriptions', amounts: [10, 12, 15, 25, 30], currency: 'USD' as const },
-  { name: 'software', amounts: [9, 19, 29, 49], currency: 'USD' as const },
-  { name: 'supplies', amounts: [4, 8, 12, 18, 25], currency: 'USD' as const },
-  { name: 'marketing', amounts: [50, 75, 120, 180], currency: 'USD' as const },
-  { name: 'transport', amounts: [8, 15, 22, 35], currency: 'USD' as const },
-  { name: 'equipment', amounts: [50, 90, 150, 280], currency: 'USD' as const },
-  { name: 'food', amounts: [12, 18, 25, 35], currency: 'EUR' as const },
+  { name: 'subscriptions', amounts: [10, 12, 15, 25], currency: 'USD' as const },
+  { name: 'software', amounts: [9, 19, 29], currency: 'USD' as const },
+  { name: 'supplies', amounts: [4, 8, 12, 18], currency: 'USD' as const },
+  { name: 'marketing', amounts: [50, 75, 120], currency: 'USD' as const },
+  { name: 'transport', amounts: [8, 15, 22], currency: 'USD' as const },
+  { name: 'food', amounts: [12, 18, 25], currency: 'EUR' as const },
 ];
 
-const STANDALONE_INCOME = [
-  { category: 'refund', amount: 25, currency: 'USD' as const },
-  { category: 'gift', amount: 50, currency: 'USD' as const },
-  { category: 'tip', amount: 15, currency: 'USD' as const },
+const LESSON_NOTES = [
+  'Reviewed past tenses, homework assigned',
+  'Speaking practice, good progress',
+  'Grammar focus: conditionals',
+  'Exam prep, mock test reviewed',
+  null,
+  null,
+  null,
 ];
 
 // ---------------------------------------------------------------------------
@@ -135,44 +145,38 @@ const STANDALONE_INCOME = [
 // ---------------------------------------------------------------------------
 
 async function main() {
-  // 1. user
-  let existing = (
-    await db.select().from(user).where(eq(user.email, SEED_EMAIL)).limit(1)
-  )[0];
+  // 1. Ensure user exists
+  let existing = (await db.select().from(user).where(eq(user.email, SEED_EMAIL)).limit(1))[0];
 
   if (!existing) {
-    console.log(`creating user ${SEED_EMAIL} via better-auth …`);
+    console.log(`Creating user ${SEED_EMAIL} via better-auth…`);
     await auth.api.signUpEmail({
       body: { email: SEED_EMAIL, password: SEED_PASSWORD, name: SEED_NAME },
       asResponse: false,
     });
-    existing = (
-      await db.select().from(user).where(eq(user.email, SEED_EMAIL)).limit(1)
-    )[0];
+    existing = (await db.select().from(user).where(eq(user.email, SEED_EMAIL)).limit(1))[0];
     if (!existing) throw new Error('user creation failed');
   } else {
-    console.log(`reusing existing user ${SEED_EMAIL}`);
+    console.log(`Reusing existing user ${SEED_EMAIL}`);
   }
 
   const userId = existing.id;
 
-  // 2. wipe prior domain data for this user (auth tables left alone)
-  console.log('wiping domain data …');
+  // 2. Wipe domain data
+  console.log('Wiping domain data…');
   await db.delete(transactions).where(eq(transactions.userId, userId));
   await db.delete(lessons).where(eq(lessons.userId, userId));
   await db.delete(students).where(eq(students.userId, userId));
+  await db.delete(recurringExpenses).where(eq(recurringExpenses.userId, userId));
 
-  // 3. settings
+  // 3. Settings
   await db
     .insert(userSettings)
     .values({ userId, primaryCurrency: 'USD', theme: 'system', locale: 'en' })
-    .onConflictDoUpdate({
-      target: userSettings.userId,
-      set: { primaryCurrency: 'USD' },
-    });
+    .onConflictDoUpdate({ target: userSettings.userId, set: { primaryCurrency: 'USD' } });
 
-  // 4. students
-  console.log('seeding students …');
+  // 4. Students
+  console.log('Seeding students…');
   const studentRows = await db
     .insert(students)
     .values(
@@ -189,88 +193,124 @@ async function main() {
     )
     .returning();
 
-  // 5. lessons (~ past 60 days, 2-4 per week per student)
-  console.log('seeding lessons …');
+  const studentById = new Map(studentRows.map((s) => [s.id, s]));
+
+  // 5. Lessons — past 60 days + today + upcoming
+  console.log('Seeding lessons…');
   const lessonRows: (typeof lessons.$inferInsert)[] = [];
+
+  // Past lessons (2–60 days ago): paid, partially_paid, due, cancelled, no_show
   for (const s of studentRows) {
-    for (let d = 60; d >= 0; d -= randInt(2, 5)) {
-      const status = rand(STATUSES);
-      const duration = chance(0.7) ? 60 : chance(0.5) ? 90 : 30;
+    for (let d = 60; d >= 2; d -= randInt(3, 7)) {
+      const hour = rand([9, 10, 11, 14, 15, 16, 17, 18] as const);
+      const duration = rand([45, 60, 60, 60, 90] as const);
+      // Weight heavily toward paid so transactions list has content
+      const status = rand([
+        'paid',
+        'paid',
+        'paid',
+        'paid',
+        'partially_paid',
+        'due',
+        'cancelled',
+        'no_show',
+      ] as const);
       lessonRows.push({
         userId,
         studentId: s.id,
-        startsAt: daysAgo(d, randInt(9, 19), rand([0, 30])),
+        startsAt: daysAgo(d, hour, rand([0, 30] as const)),
         durationMin: duration,
         status,
-        notes: chance(0.3) ? 'Reviewed homework, focus on tenses' : null,
+        paidAmount:
+          status === 'partially_paid' ? Math.round((s.hourlyRateAmount * duration) / 60 / 2) : null,
+        notes: rand(LESSON_NOTES),
       });
     }
   }
+
+  // Today's lessons — mix of scheduled (upcoming) and due (payment pending)
+  const todayHours = [9, 11, 14, 16, 18] as const;
+  for (let i = 0; i < Math.min(studentRows.length, 3); i++) {
+    const s = studentRows[i]!;
+    const hour = todayHours[i]!;
+    const isPast = hour < new Date().getHours();
+    lessonRows.push({
+      userId,
+      studentId: s.id,
+      startsAt: daysAgo(0, hour, 0),
+      durationMin: 60,
+      status: isPast ? 'due' : 'scheduled',
+      notes: null,
+    });
+  }
+
+  // Upcoming (future) lessons
+  for (const [i, s] of studentRows.entries()) {
+    if (i >= 3) break;
+    lessonRows.push({
+      userId,
+      studentId: s.id,
+      startsAt: daysFromNow(randInt(1, 5), rand([9, 10, 11, 14, 15, 16] as const), 0),
+      durationMin: rand([60, 90] as const),
+      status: 'scheduled',
+      notes: null,
+    });
+  }
+
   const insertedLessons = await db.insert(lessons).values(lessonRows).returning();
 
-  // 6. lesson-derived income transactions (replicate service logic)
-  console.log('seeding lesson income transactions …');
-  const studentById = new Map(studentRows.map((s) => [s.id, s]));
+  // 6. Transactions for paid/partially_paid lessons
+  //    occurredAt = payment date (shortly after lesson, never in future) — matches service logic
+  console.log('Seeding lesson income transactions…');
   const lessonTxRows: (typeof transactions.$inferInsert)[] = [];
+
   for (const l of insertedLessons) {
-    if (l.status !== 'completed') continue;
+    if (l.status !== 'paid' && l.status !== 'partially_paid') continue;
     const stu = studentById.get(l.studentId)!;
-    const amount = Math.round((stu.hourlyRateAmount * l.durationMin) / 60);
+    const amount =
+      l.status === 'partially_paid' && l.paidAmount !== null
+        ? l.paidAmount
+        : Math.round((stu.hourlyRateAmount * l.durationMin) / 60);
+
     lessonTxRows.push({
       userId,
       type: 'income',
       amount,
       currency: stu.hourlyRateCurrency,
-      occurredAt: l.startsAt,
+      occurredAt: paymentDate(l.startsAt),
       category: 'lesson',
       studentId: l.studentId,
       lessonId: l.id,
       description: l.notes,
     });
   }
-  if (lessonTxRows.length > 0) {
-    await db.insert(transactions).values(lessonTxRows);
-  }
 
-  // 7. standalone income (refunds, gifts, tips)
-  console.log('seeding standalone income …');
-  const standaloneIncome: (typeof transactions.$inferInsert)[] = [];
-  for (let i = 0; i < 4; i++) {
-    const e = rand(STANDALONE_INCOME);
-    standaloneIncome.push({
-      userId,
-      type: 'income',
-      amount: MAJOR(e.amount),
-      currency: e.currency,
-      occurredAt: daysAgo(randInt(0, 60), randInt(10, 18)),
-      category: e.category,
-    });
-  }
-  await db.insert(transactions).values(standaloneIncome);
+  if (lessonTxRows.length > 0) await db.insert(transactions).values(lessonTxRows);
 
-  // 8. expenses
-  console.log('seeding expenses …');
+  // 7. Expenses
+  console.log('Seeding expenses…');
   const expenseRows: (typeof transactions.$inferInsert)[] = [];
-  for (let i = 0; i < 28; i++) {
+
+  for (let i = 0; i < 25; i++) {
     const cat = rand(EXPENSE_CATEGORIES);
-    const amount = rand(cat.amounts);
     expenseRows.push({
       userId,
       type: 'expense',
-      amount: MAJOR(amount),
+      amount: MAJOR(rand(cat.amounts)),
       currency: cat.currency,
       occurredAt: daysAgo(randInt(0, 60), randInt(8, 22)),
       category: cat.name,
-      description: chance(0.4) ? cat.name + ' purchase' : null,
+      description: chance(0.35) ? cat.name + ' purchase' : null,
     });
   }
-  // recurring "subscriptions" — same date both months
+
+  // Fixed monthly subscriptions — same day each month
   for (const sub of [
     { name: 'Notion', amount: 10 },
     { name: 'Adobe CC', amount: 30 },
     { name: 'Zoom Pro', amount: 15 },
   ]) {
-    for (const d of [5, 35]) {
+    for (const d of [8, 38]) {
       expenseRows.push({
         userId,
         type: 'expense',
@@ -282,11 +322,83 @@ async function main() {
       });
     }
   }
+
   await db.insert(transactions).values(expenseRows);
 
-  console.log(
-    `\n✓ seed complete\n  user:   ${SEED_EMAIL} / ${SEED_PASSWORD}\n  students: ${studentRows.length}\n  lessons:  ${insertedLessons.length}\n  income tx: ${lessonTxRows.length + standaloneIncome.length}\n  expense tx: ${expenseRows.length}\n`,
-  );
+  // 8. Recurring expenses
+  console.log('Seeding recurring expenses…');
+  await db.insert(recurringExpenses).values([
+    {
+      userId,
+      amount: MAJOR(30),
+      currency: 'USD',
+      category: 'subscriptions',
+      description: 'Adobe CC',
+      frequency: 'monthly',
+      startDate: daysAgo(60),
+      nextDueAt: daysFromNow(22),
+      isActive: true,
+    },
+    {
+      userId,
+      amount: MAJOR(15),
+      currency: 'USD',
+      category: 'subscriptions',
+      description: 'Zoom Pro',
+      frequency: 'monthly',
+      startDate: daysAgo(60),
+      nextDueAt: daysFromNow(18),
+      isActive: true,
+    },
+    {
+      userId,
+      amount: MAJOR(10),
+      currency: 'USD',
+      category: 'subscriptions',
+      description: 'Notion',
+      frequency: 'monthly',
+      startDate: daysAgo(60),
+      nextDueAt: daysFromNow(15),
+      isActive: true,
+    },
+    {
+      userId,
+      amount: MAJOR(9),
+      currency: 'USD',
+      category: 'software',
+      description: 'GitHub Copilot',
+      frequency: 'monthly',
+      startDate: daysAgo(30),
+      nextDueAt: daysFromNow(5),
+      isActive: true,
+    },
+    {
+      userId,
+      amount: MAJOR(25),
+      currency: 'USD',
+      category: 'marketing',
+      description: 'Social media ads',
+      frequency: 'weekly',
+      startDate: daysAgo(14),
+      nextDueAt: daysFromNow(3),
+      isActive: false,
+    },
+  ]);
+
+  const paid = insertedLessons.filter((l) => l.status === 'paid').length;
+  const partial = insertedLessons.filter((l) => l.status === 'partially_paid').length;
+  const due = insertedLessons.filter((l) => l.status === 'due').length;
+  const scheduled = insertedLessons.filter((l) => l.status === 'scheduled').length;
+
+  console.log(`
+✓ Seed complete
+  user:        ${SEED_EMAIL} / ${SEED_PASSWORD}
+  students:    ${studentRows.length}
+  lessons:     ${insertedLessons.length} total (${paid} paid, ${partial} partial, ${due} due, ${scheduled} scheduled)
+  income tx:   ${lessonTxRows.length}
+  expense tx:  ${expenseRows.length}
+  recurring:   5
+`);
 }
 
 main()

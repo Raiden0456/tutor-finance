@@ -218,6 +218,7 @@ export class LessonsService {
   }
 
   private async syncTransaction(userId: string, lesson: Row) {
+    const occurredAt = new Date(); // payment received now, not when lesson was scheduled
     let amount: number;
     let currency: Currency;
 
@@ -257,7 +258,7 @@ export class LessonsService {
       studentId: lesson.studentId,
       amount,
       currency,
-      occurredAt: lesson.startsAt,
+      occurredAt,
       description: lesson.notes ?? undefined,
     });
   }

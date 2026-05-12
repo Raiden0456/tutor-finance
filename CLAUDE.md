@@ -26,6 +26,8 @@ pnpm build          # Build all packages in dependency order
 
 **Workspace-targeted commands:** `pnpm --filter @tutor-finance/api <cmd>` or `pnpm --filter @tutor-finance/web <cmd>`
 
+There are no tests in this codebase.
+
 ## Architecture
 
 Turborepo + pnpm monorepo. Build order enforced: `shared` → `auth` → `api` / `web`.
@@ -44,12 +46,13 @@ docker/           # docker-compose.yml (PostgreSQL 17)
 
 NestJS with class-based DI. Module pattern: controller → service → DTOs.
 
-- **Entry:** `src/main.ts` → `AppModule`
+- **Entry:** `src/main.ts` → `AppModule`. `bodyParser: false` is required for Better Auth — do not enable it.
 - **Global:** `DbModule` (pool singleton), `ValidationPipe` with implicit conversion
 - **Feature modules:** `Students`, `Lessons`, `Transactions`, `Settings`, `Dashboard`, `Fx`, `Recurring`, `Health`
 - **Config:** `src/config.ts` — `required()`, `optional()`, `num()`, `bool()` helpers; no `.env` loading libraries, Turbo passes env vars
 - **DB:** Drizzle ORM, schema at `src/db/schema.ts`, single `DATABASE_URL`
-- **Auth:** `@thallesp/nestjs-better-auth` — auth instance in `src/auth/auth.provider.ts`; CORS allows `PUBLIC_APP_URL` and `BETTER_AUTH_URL`
+- **Auth:** `@thallesp/nestjs-better-auth` — auth instance in `src/auth/auth.provider.ts`; CORS allows `PUBLIC_APP_URL` and `BETTER_AUTH_URL`. Use `@CurrentUser()` decorator on any controller route that requires an authenticated user.
+- **Scheduling:** `FxModule` refreshes exchange rates daily at 6am via `@Cron`; `RecurringModule` auto-generates expenses on schedule.
 
 ### Web (`apps/web`)
 
@@ -58,13 +61,14 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 - **Pages:** `src/pages/` (file-based routing)
 - **Islands:** `src/islands/` — hydrated React components
 - **Auth middleware:** `src/middleware.ts` — protects all routes except `/login`, `/sign-up`, `/forgot-password`, `/reset-password`
+- **API client:** `src/lib/api.ts` exports two versions — use the server variant (reads `SERVER_API_URL`) in `.astro` files and the client variant (reads `PUBLIC_API_URL`) inside React islands.
 - **Styling:** Tailwind v4 (Vite plugin) + shadcn/ui; theme: Rose Pine
 - **i18n:** `en` (default), `ru`
 
 ### Shared Packages
 
-- **`@tutor-finance/shared`:** Zod schemas, currency/money utilities, shared TypeScript types
-- **`@tutor-finance/auth`:** `createAuth()` factory, email abstraction (SMTP or Resend), email templates, auth client export
+- **`@tutor-finance/shared`:** Zod schemas, currency/money utilities, shared types. Supported currencies: USD, EUR, RUB, GBP, UAH, KZT, TRY, PLN, USDT, USDC. USDT/USDC are pinned 1:1 to USD.
+- **`@tutor-finance/auth`:** `createAuth()` factory, email abstraction (SMTP or Resend), email templates, auth client export.
 
 ## UI & Animation Rules
 
@@ -77,8 +81,10 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 ## Key Conventions
 
 - **Mobile-first, baseline 390px (iPhone 14).** Use cards over tables; dialogs use bottom-sheet pattern on mobile.
+- **Money is stored as minor units (integers).** Always use `toMinorUnits()` / `fromMinorUnits()` from `@tutor-finance/shared` when reading or writing monetary values. Never store or pass decimal amounts directly.
 - Tailwind v4 syntax — no `tailwind.config.js`, config lives in CSS via `@theme`.
 - Drizzle schema is the source of truth; always regenerate migrations after schema changes (`pnpm db:generate`).
 - Better Auth tables are managed separately — use `pnpm db:auth:generate` after auth config changes.
-- Auth email provider is selected by `AUTH_EMAIL_PROVIDER` env var (`smtp` or `resend`).
+- Auth email provider is selected by `AUTH_EMAIL_PROVIDER` env var (`smtp` or `resend`). Set `MAIL_FROM` for the sender address.
 - TypeScript strict mode everywhere; ES2022 target.
+- Git commits follow `type(scope): description` — types: `feat`, `fix`, `style`, `refactor`.

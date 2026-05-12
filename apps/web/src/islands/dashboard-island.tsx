@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, type Variants } from 'motion/react';
+import { FinanceStat } from '@/components/finance-stat';
 import { RangeTabs, resolveRange, inferRange, type RangeState } from '@/components/range-tabs';
 import {
   Select,
@@ -69,6 +70,41 @@ function fmtDuration(mins: number): string {
   const m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const SECTION_DURATION = 0.55;
+const SECTION_GAP = 0.1;
+
+/**
+ * Sequential section animation: when one section exits, the next waits for it
+ * to finish before entering. AnimatePresence `initial={false}` skips the delay
+ * on the very first paint.
+ */
+const sectionVariants: Variants = {
+  initial: { opacity: 0, height: 0 },
+  enter: {
+    opacity: 1,
+    height: 'auto',
+    transition: {
+      duration: SECTION_DURATION,
+      delay: SECTION_DURATION + SECTION_GAP,
+      ease: EASE,
+      opacity: {
+        duration: SECTION_DURATION,
+        delay: SECTION_DURATION + SECTION_GAP,
+      },
+    },
+  },
+  exit: {
+    opacity: 0,
+    height: 0,
+    transition: {
+      duration: SECTION_DURATION,
+      ease: EASE,
+      opacity: { duration: SECTION_DURATION * 0.6 },
+    },
+  },
+};
 
 export function DashboardIsland({
   summary: initialSummary,
@@ -207,10 +243,10 @@ export function DashboardIsland({
           <motion.div
             key="pending"
             layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            variants={sectionVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
             className="space-y-3 overflow-hidden"
           >
             <SectionHeader dot="bg-tf-indigo" label="Upcoming" count={pendingLessons.length} />
@@ -229,10 +265,10 @@ export function DashboardIsland({
           <motion.div
             key="due"
             layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            variants={sectionVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
             className="space-y-3 overflow-hidden"
           >
             <SectionHeader dot="bg-tf-pollen" label="Due Payment" count={dueLessons.length} />
@@ -251,10 +287,10 @@ export function DashboardIsland({
           <motion.div
             key="processed"
             layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            variants={sectionVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
             className="space-y-2 overflow-hidden"
           >
             <SectionHeader
@@ -276,10 +312,10 @@ export function DashboardIsland({
           <motion.div
             key="empty"
             layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            variants={sectionVariants}
+            initial="initial"
+            animate="enter"
+            exit="exit"
             className="overflow-hidden"
           >
             <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -324,15 +360,14 @@ export function DashboardIsland({
             tone="income"
           />
           <FinanceStat
-            label="Expense"
+            label="Expenses"
             value={fmtMoney(summary.expenseInTargetCurrency, summary.targetCurrency)}
             tone="expense"
           />
           <FinanceStat
             label="Net"
             value={fmtMoney(summary.netInTargetCurrency, summary.targetCurrency)}
-            tone="net"
-            className="col-span-2 sm:col-span-1"
+            tone={summary.netInTargetCurrency >= 0 ? 'income' : 'expense'}
           />
         </div>
       </div>
@@ -471,33 +506,6 @@ function ProcessedLessonRow({
       >
         {statusLabel[lesson.status]}
       </span>
-    </div>
-  );
-}
-
-function FinanceStat({
-  label,
-  value,
-  tone,
-  className,
-}: {
-  label: string;
-  value: string;
-  tone: 'planned' | 'income' | 'expense' | 'net';
-  className?: string;
-}) {
-  const colour =
-    tone === 'income'
-      ? 'text-income'
-      : tone === 'expense'
-        ? 'text-expense'
-        : tone === 'planned'
-          ? 'text-tf-indigo'
-          : 'text-net';
-  return (
-    <div className={'rounded-2xl border border-border bg-card p-4 shadow-sm ' + (className ?? '')}>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={'mt-1 text-xl font-semibold tabular-nums ' + colour}>{value}</div>
     </div>
   );
 }
