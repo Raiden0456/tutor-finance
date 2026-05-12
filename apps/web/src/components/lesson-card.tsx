@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ban, Banknote, CheckCircle2, Clock, MoreHorizontal, UserX } from 'lucide-react';
+import { Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, UserX } from 'lucide-react';
 import type { Lesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -120,7 +120,11 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
           )}
         >
           <div className="mt-3 border-t border-border pt-3">
-            <ScheduledActions lesson={lesson} onStatusChange={onScheduledChange} />
+            <ScheduledActions
+              lesson={lesson}
+              onStatusChange={onScheduledChange}
+              onRescheduled={onChanged}
+            />
           </div>
         </div>
       )}
@@ -298,13 +302,22 @@ function DuePaymentActions({
 function ScheduledActions({
   lesson,
   onStatusChange,
+  onRescheduled,
 }: {
   lesson: Lesson;
   onStatusChange: (status: Lesson['status']) => void;
+  onRescheduled?: () => void;
 }) {
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
   const [labelSuccess, setLabelSuccess] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+
+  const defaultDateTime = new Date(
+    new Date(lesson.startsAt).getTime() - new Date().getTimezoneOffset() * 60000,
+  )
+    .toISOString()
+    .slice(0, 16);
 
   function handleCompletedClick() {
     if (phase !== 'idle') return;
@@ -323,65 +336,125 @@ function ScheduledActions({
     api.patch(`/lessons/${lesson.id}`, { status }).catch(() => {});
   }
 
+  async function handleReschedule(form: HTMLFormElement) {
+    const data = new FormData(form);
+    const startsAt = new Date(String(data.get('startsAt'))).toISOString();
+    const durationMin = Number(data.get('durationMin'));
+    await api.patch(`/lessons/${lesson.id}`, { startsAt, durationMin });
+    setRescheduleOpen(false);
+    onRescheduled?.();
+  }
+
   return (
-    <div className="flex">
-      <button
-        type="button"
-        onClick={handleCompletedClick}
-        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.96]"
-      >
-        <span
+    <>
+      <div className="flex">
+        <button
+          type="button"
+          onClick={handleCompletedClick}
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.96]"
+        >
+          <span
+            className={cn(
+              'flex items-center gap-2 transition-opacity duration-150',
+              labelVisible ? 'opacity-100' : 'opacity-0',
+            )}
+          >
+            {labelSuccess ? (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                Completed
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                Mark as Completed
+              </>
+            )}
+          </span>
+        </button>
+
+        <div
           className={cn(
-            'flex items-center gap-2 transition-opacity duration-150',
-            labelVisible ? 'opacity-100' : 'opacity-0',
+            'overflow-hidden transition-all duration-300 ease-in-out',
+            phase === 'success' ? 'max-w-0 opacity-0' : 'max-w-[3rem] opacity-100',
           )}
         >
-          {labelSuccess ? (
-            <>
-              <CheckCircle2 className="h-4 w-4" />
-              Completed
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-4 w-4" />
-              Mark as Completed
-            </>
-          )}
-        </span>
-      </button>
-
-      <div
-        className={cn(
-          'overflow-hidden transition-all duration-300 ease-in-out',
-          phase === 'success' ? 'max-w-0 opacity-0' : 'max-w-[3rem] opacity-100',
-        )}
-      >
-        <div className="pl-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => changeStatus('no_show')}>
-                <UserX className="mr-2 h-4 w-4" />
-                No-show
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => changeStatus('cancelled')}
-                className="text-destructive focus:text-destructive"
-              >
-                <Ban className="mr-2 h-4 w-4" />
-                Cancel lesson
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="pl-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setRescheduleOpen(true)}>
+                  <CalendarClock className="mr-2 h-4 w-4" />
+                  Reschedule
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => changeStatus('no_show')}>
+                  <UserX className="mr-2 h-4 w-4" />
+                  No-show
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => changeStatus('cancelled')}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Cancel lesson
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
-    </div>
+
+      <ResponsiveModal open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
+        <ResponsiveModalContent className="max-w-sm">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Reschedule lesson</ResponsiveModalTitle>
+          </ResponsiveModalHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleReschedule(e.currentTarget);
+            }}
+            className="flex min-h-0 flex-1 flex-col gap-4"
+          >
+            <ResponsiveModalBody className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-startsAt">New date &amp; time</Label>
+                <Input
+                  id="reschedule-startsAt"
+                  name="startsAt"
+                  type="datetime-local"
+                  required
+                  defaultValue={defaultDateTime}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-duration">Duration (min)</Label>
+                <Input
+                  id="reschedule-duration"
+                  name="durationMin"
+                  type="number"
+                  min="1"
+                  required
+                  defaultValue={lesson.durationMin}
+                />
+              </div>
+            </ResponsiveModalBody>
+            <ResponsiveModalFooter>
+              <Button variant="outline" type="button" onClick={() => setRescheduleOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </ResponsiveModalFooter>
+          </form>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+    </>
   );
 }

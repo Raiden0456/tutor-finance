@@ -7,8 +7,15 @@ import type { Lesson, StudentRef } from '@/lib/types';
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 
+const now = new Date();
+const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+const initialMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
 const [lessons, studentsList] = await Promise.all([
-  api.get<Lesson[]>('/lessons', { query: { limit: 200 } }),
+  api.get<Lesson[]>('/lessons', {
+    query: { from: monthStart.toISOString(), to: monthEnd.toISOString(), limit: 500, orderDir: 'asc' },
+  }),
   api.get<StudentRef[]>('/students'),
 ]);
 
@@ -16,5 +23,5 @@ const students = studentsList.map((s) => ({ id: s.id, name: s.name }));
 ---
 
 <AppLayout title="Lessons">
-  <LessonsIsland client:load initial={lessons} students={students} />
+  <LessonsIsland client:load initial={lessons} students={students} initialMonthStr={initialMonthStr} />
 </AppLayout>

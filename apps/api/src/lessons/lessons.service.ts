@@ -98,12 +98,14 @@ export class LessonsService {
     if (filter?.to) conds.push(lte(lessons.startsAt, new Date(filter.to)));
 
     const limit = Math.min(filter?.limit ?? 200, 1000);
+    const offset = filter?.offset ?? 0;
     const rows = await this.db
       .select(JOIN_COLS)
       .from(lessons)
       .leftJoin(students, eq(lessons.studentId, students.id))
       .where(and(...conds))
       .orderBy(filter?.orderDir === 'asc' ? asc(lessons.startsAt) : desc(lessons.startsAt))
+      .offset(offset)
       .limit(limit);
     return rows.map((r) => toResponse(r as JoinRow));
   }
