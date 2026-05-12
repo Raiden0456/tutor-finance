@@ -19,7 +19,7 @@ const button = (url: string, label: string) => `
   <a href="${url}" style="display:inline-block; padding:12px 20px; background:#111827; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">${label}</a>`;
 
 export function resetPasswordTemplate(opts: { url: string; appName?: string }): MailContent {
-  const appName = opts.appName ?? 'Tutor Finance';
+  const appName = opts.appName ?? 'Uchetka';
   return {
     subject: `Reset your ${appName} password`,
     html: layout(

@@ -34,8 +34,8 @@ export const env = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
-  emailProvider: (optional('AUTH_EMAIL_PROVIDER', 'smtp') as 'smtp' | 'resend'),
-  mailFrom: optional('MAIL_FROM', 'Tutor Finance <noreply@tutor-finance.local>'),
+  emailProvider: optional('AUTH_EMAIL_PROVIDER', 'smtp') as 'smtp' | 'resend',
+  mailFrom: optional('MAIL_FROM', 'Uchetka <noreply@tutor-finance.local>'),
   smtp: {
     host: optional('SMTP_HOST', 'localhost'),
     port: num('SMTP_PORT', 1025),

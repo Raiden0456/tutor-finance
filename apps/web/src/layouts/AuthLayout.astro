@@ -6,8 +6,9 @@ interface Props {
   title?: string;
 }
 
-const { title = 'Tutor Finance' } = Astro.props;
+const { title = 'Uchetka' } = Astro.props;
 ---
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -16,6 +17,12 @@ const { title = 'Tutor Finance' } = Astro.props;
     <meta name="theme-color" content="#faf4ed" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#232136" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
     <script is:inline>
       (function () {
         try {
@@ -35,7 +42,7 @@ const { title = 'Tutor Finance' } = Astro.props;
     <div class="flex min-h-screen items-center justify-center px-4">
       <div class="w-full max-w-sm">
         <div class="mb-8 text-center">
-          <h1 class="text-2xl font-semibold tracking-tight">Tutor Finance</h1>
+          <h1 class="text-2xl font-semibold tracking-tight">Uchetka</h1>
           <p class="mt-1 text-sm text-muted-foreground">Track lessons, students &amp; income.</p>
         </div>
         <slot />

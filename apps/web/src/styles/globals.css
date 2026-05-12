@@ -4,56 +4,56 @@
 @custom-variant dark ([data-theme='dark'] &);
 
 /* ----------------------------------------------------------------------- */
-/* Tutor Finance palette                                                    */
+/* Uchetka palette                                                    */
 /*   light = Daybreak  · warm neutrals + Space Indigo primary              */
 /*   dark  = Midnight  · deep indigo base + Ocean Mist primary             */
 /* ----------------------------------------------------------------------- */
 
 :root {
   /* Brand accent colors (constant across themes) */
-  --tf-coral:  #ff7a59; /* Coral Glow   */
+  --tf-coral: #ff7a59; /* Coral Glow   */
   --tf-pollen: #ffcf56; /* Golden Pollen */
-  --tf-jade:   #22c55e; /* Jade Green   */
-  --tf-teal:   #14b8a6; /* Ocean Mist   */
+  --tf-jade: #22c55e; /* Jade Green   */
+  --tf-teal: #14b8a6; /* Ocean Mist   */
   --tf-indigo: #2d2a5f; /* Space Indigo */
 
   /* Daybreak surface scale */
-  --tf-base:    #fafaf9;
+  --tf-base: #fafaf9;
   --tf-surface: #ffffff;
   --tf-overlay: #f0eff8;
-  --tf-muted:   #6868a0;
-  --tf-subtle:  #4a4a7a;
-  --tf-text:    #1a1833;
-  --tf-hl-low:  #f5f5fa;
-  --tf-hl-med:  #e8e7f2;
+  --tf-muted: #6868a0;
+  --tf-subtle: #4a4a7a;
+  --tf-text: #1a1833;
+  --tf-hl-low: #f5f5fa;
+  --tf-hl-med: #e8e7f2;
   --tf-hl-high: #d4d3e8;
 
   /* shadcn semantic tokens */
-  --background:             var(--tf-base);
-  --foreground:             var(--tf-text);
-  --card:                   var(--tf-surface);
-  --card-foreground:        var(--tf-text);
-  --popover:                var(--tf-surface);
-  --popover-foreground:     var(--tf-text);
-  --primary:                var(--tf-indigo);
-  --primary-foreground:     #ffffff;
-  --secondary:              var(--tf-overlay);
-  --secondary-foreground:   var(--tf-indigo);
-  --muted:                  var(--tf-hl-low);
-  --muted-foreground:       var(--tf-muted);
-  --accent:                 var(--tf-hl-med);
-  --accent-foreground:      var(--tf-text);
-  --destructive:            var(--tf-coral);
+  --background: var(--tf-base);
+  --foreground: var(--tf-text);
+  --card: var(--tf-surface);
+  --card-foreground: var(--tf-text);
+  --popover: var(--tf-surface);
+  --popover-foreground: var(--tf-text);
+  --primary: var(--tf-indigo);
+  --primary-foreground: #ffffff;
+  --secondary: var(--tf-overlay);
+  --secondary-foreground: var(--tf-indigo);
+  --muted: var(--tf-hl-low);
+  --muted-foreground: var(--tf-muted);
+  --accent: var(--tf-hl-med);
+  --accent-foreground: var(--tf-text);
+  --destructive: var(--tf-coral);
   --destructive-foreground: #ffffff;
-  --border:                 var(--tf-hl-med);
-  --input:                  var(--tf-hl-med);
-  --ring:                   var(--tf-teal);
-  --radius:                 0.875rem;
+  --border: var(--tf-hl-med);
+  --input: var(--tf-hl-med);
+  --ring: var(--tf-teal);
+  --radius: 0.875rem;
 
   /* finance-domain colour tokens */
-  --income:  var(--tf-jade);
+  --income: var(--tf-jade);
   --expense: var(--tf-coral);
-  --net:     var(--tf-teal);
+  --net: var(--tf-teal);
 }
 
 [data-theme='dark'] {
@@ -61,39 +61,39 @@
      Key invariant: base < hl-low < surface < hl-med < hl-high < overlay
      This ensures bg-card is always lighter than bg-muted,
      so active/selected states visually pop above their container. */
-  --tf-base:    #09081a;
+  --tf-base: #09081a;
   --tf-surface: #1e1c42;
   --tf-overlay: #2d2a6a;
-  --tf-muted:   #5a5880;
-  --tf-subtle:  #8280a8;
-  --tf-text:    #e8e7f8;
-  --tf-hl-low:  #100f28;
-  --tf-hl-med:  #2d2a6a;
+  --tf-muted: #5a5880;
+  --tf-subtle: #8280a8;
+  --tf-text: #e8e7f8;
+  --tf-hl-low: #100f28;
+  --tf-hl-med: #2d2a6a;
   --tf-hl-high: #3e3b88;
 
-  --background:             var(--tf-base);
-  --foreground:             var(--tf-text);
-  --card:                   var(--tf-surface);
-  --card-foreground:        var(--tf-text);
-  --popover:                var(--tf-surface);
-  --popover-foreground:     var(--tf-text);
-  --primary:                var(--tf-teal);
-  --primary-foreground:     var(--tf-base);
-  --secondary:              var(--tf-overlay);
-  --secondary-foreground:   var(--tf-text);
-  --muted:                  var(--tf-hl-low);
-  --muted-foreground:       var(--tf-subtle);
-  --accent:                 var(--tf-hl-med);
-  --accent-foreground:      var(--tf-text);
-  --destructive:            var(--tf-coral);
+  --background: var(--tf-base);
+  --foreground: var(--tf-text);
+  --card: var(--tf-surface);
+  --card-foreground: var(--tf-text);
+  --popover: var(--tf-surface);
+  --popover-foreground: var(--tf-text);
+  --primary: var(--tf-teal);
+  --primary-foreground: var(--tf-base);
+  --secondary: var(--tf-overlay);
+  --secondary-foreground: var(--tf-text);
+  --muted: var(--tf-hl-low);
+  --muted-foreground: var(--tf-subtle);
+  --accent: var(--tf-hl-med);
+  --accent-foreground: var(--tf-text);
+  --destructive: var(--tf-coral);
   --destructive-foreground: #ffffff;
-  --border:                 var(--tf-hl-med);
-  --input:                  var(--tf-hl-med);
-  --ring:                   var(--tf-teal);
+  --border: var(--tf-hl-med);
+  --input: var(--tf-hl-med);
+  --ring: var(--tf-teal);
 
-  --income:  var(--tf-jade);
+  --income: var(--tf-jade);
   --expense: var(--tf-coral);
-  --net:     var(--tf-teal);
+  --net: var(--tf-teal);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -101,35 +101,35 @@
 /* ----------------------------------------------------------------------- */
 
 @theme inline {
-  --color-background:             var(--background);
-  --color-foreground:             var(--foreground);
-  --color-card:                   var(--card);
-  --color-card-foreground:        var(--card-foreground);
-  --color-popover:                var(--popover);
-  --color-popover-foreground:     var(--popover-foreground);
-  --color-primary:                var(--primary);
-  --color-primary-foreground:     var(--primary-foreground);
-  --color-secondary:              var(--secondary);
-  --color-secondary-foreground:   var(--secondary-foreground);
-  --color-muted:                  var(--muted);
-  --color-muted-foreground:       var(--muted-foreground);
-  --color-accent:                 var(--accent);
-  --color-accent-foreground:      var(--accent-foreground);
-  --color-destructive:            var(--destructive);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border:                 var(--border);
-  --color-input:                  var(--input);
-  --color-ring:                   var(--ring);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-  --color-income:  var(--income);
+  --color-income: var(--income);
   --color-expense: var(--expense);
-  --color-net:     var(--net);
+  --color-net: var(--net);
 
   /* Brand palette utilities */
-  --color-tf-coral:  var(--tf-coral);
+  --color-tf-coral: var(--tf-coral);
   --color-tf-pollen: var(--tf-pollen);
-  --color-tf-jade:   var(--tf-jade);
-  --color-tf-teal:   var(--tf-teal);
+  --color-tf-jade: var(--tf-jade);
+  --color-tf-teal: var(--tf-teal);
   --color-tf-indigo: var(--tf-indigo);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -137,7 +137,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ----------------------------------------------------------------------- */
