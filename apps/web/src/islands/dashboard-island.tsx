@@ -194,7 +194,7 @@ export function DashboardIsland({
           </CardHeader>
           <CardContent>
             <ChartContainer
-              config={{ net: { label: 'Net', color: 'var(--rp-iris)' } } satisfies ChartConfig}
+              config={{ net: { label: 'Net', color: 'var(--tf-teal)' } } satisfies ChartConfig}
               className="aspect-auto h-56 w-full"
             >
               <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

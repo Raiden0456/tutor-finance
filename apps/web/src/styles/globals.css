@@ -4,98 +4,96 @@
 @custom-variant dark ([data-theme='dark'] &);
 
 /* ----------------------------------------------------------------------- */
-/* Rose Pine palette                                                       */
-/*   light = Dawn  · https://rosepinetheme.com/palette/ingredients/        */
-/*   dark  = Moon                                                          */
+/* Tutor Finance palette                                                    */
+/*   light = Daybreak  · warm neutrals + Space Indigo primary              */
+/*   dark  = Midnight  · deep indigo base + Ocean Mist primary             */
 /* ----------------------------------------------------------------------- */
 
 :root {
-  /* Dawn */
-  --rp-base: #faf4ed;
-  --rp-surface: #fffaf3;
-  --rp-overlay: #f2e9e1;
-  --rp-muted: #9893a5;
-  --rp-subtle: #797593;
-  --rp-text: #575279;
-  --rp-love: #b4637a;
-  --rp-gold: #ea9d34;
-  --rp-rose: #d7827e;
-  --rp-pine: #286983;
-  --rp-foam: #56949f;
-  --rp-iris: #907aa9;
-  --rp-hl-low: #f4ede8;
-  --rp-hl-med: #dfdad9;
-  --rp-hl-high: #cecacd;
+  /* Brand accent colors (constant across themes) */
+  --tf-coral:  #ff7a59; /* Coral Glow   */
+  --tf-pollen: #ffcf56; /* Golden Pollen */
+  --tf-jade:   #22c55e; /* Jade Green   */
+  --tf-teal:   #14b8a6; /* Ocean Mist   */
+  --tf-indigo: #2d2a5f; /* Space Indigo */
 
-  /* shadcn semantic tokens (mapped from rose pine) */
-  --background: var(--rp-base);
-  --foreground: var(--rp-text);
-  --card: var(--rp-surface);
-  --card-foreground: var(--rp-text);
-  --popover: var(--rp-surface);
-  --popover-foreground: var(--rp-text);
-  --primary: var(--rp-iris);
-  --primary-foreground: var(--rp-base);
-  --secondary: var(--rp-hl-low);
-  --secondary-foreground: var(--rp-text);
-  --muted: var(--rp-hl-low);
-  --muted-foreground: var(--rp-subtle);
-  --accent: var(--rp-hl-med);
-  --accent-foreground: var(--rp-text);
-  --destructive: var(--rp-love);
-  --destructive-foreground: var(--rp-base);
-  --border: var(--rp-hl-med);
-  --input: var(--rp-hl-med);
-  --ring: var(--rp-iris);
-  --radius: 0.875rem;
+  /* Daybreak surface scale */
+  --tf-base:    #fafaf9;
+  --tf-surface: #ffffff;
+  --tf-overlay: #f0eff8;
+  --tf-muted:   #6868a0;
+  --tf-subtle:  #4a4a7a;
+  --tf-text:    #1a1833;
+  --tf-hl-low:  #f5f5fa;
+  --tf-hl-med:  #e8e7f2;
+  --tf-hl-high: #d4d3e8;
+
+  /* shadcn semantic tokens */
+  --background:             var(--tf-base);
+  --foreground:             var(--tf-text);
+  --card:                   var(--tf-surface);
+  --card-foreground:        var(--tf-text);
+  --popover:                var(--tf-surface);
+  --popover-foreground:     var(--tf-text);
+  --primary:                var(--tf-indigo);
+  --primary-foreground:     #ffffff;
+  --secondary:              var(--tf-overlay);
+  --secondary-foreground:   var(--tf-indigo);
+  --muted:                  var(--tf-hl-low);
+  --muted-foreground:       var(--tf-muted);
+  --accent:                 var(--tf-hl-med);
+  --accent-foreground:      var(--tf-text);
+  --destructive:            var(--tf-coral);
+  --destructive-foreground: #ffffff;
+  --border:                 var(--tf-hl-med);
+  --input:                  var(--tf-hl-med);
+  --ring:                   var(--tf-teal);
+  --radius:                 0.875rem;
 
   /* finance-domain colour tokens */
-  --income: var(--rp-pine);
-  --expense: var(--rp-love);
-  --net: var(--rp-iris);
+  --income:  var(--tf-jade);
+  --expense: var(--tf-coral);
+  --net:     var(--tf-teal);
 }
 
 [data-theme='dark'] {
-  /* Moon */
-  --rp-base: #232136;
-  --rp-surface: #2a273f;
-  --rp-overlay: #393552;
-  --rp-muted: #6e6a86;
-  --rp-subtle: #908caa;
-  --rp-text: #e0def4;
-  --rp-love: #eb6f92;
-  --rp-gold: #f6c177;
-  --rp-rose: #ea9a97;
-  --rp-pine: #3e8fb0;
-  --rp-foam: #9ccfd8;
-  --rp-iris: #c4a7e7;
-  --rp-hl-low: #2a283e;
-  --rp-hl-med: #44415a;
-  --rp-hl-high: #56526e;
+  /* Midnight surface scale
+     Key invariant: base < hl-low < surface < hl-med < hl-high < overlay
+     This ensures bg-card is always lighter than bg-muted,
+     so active/selected states visually pop above their container. */
+  --tf-base:    #09081a;
+  --tf-surface: #1e1c42;
+  --tf-overlay: #2d2a6a;
+  --tf-muted:   #5a5880;
+  --tf-subtle:  #8280a8;
+  --tf-text:    #e8e7f8;
+  --tf-hl-low:  #100f28;
+  --tf-hl-med:  #2d2a6a;
+  --tf-hl-high: #3e3b88;
 
-  --background: var(--rp-base);
-  --foreground: var(--rp-text);
-  --card: var(--rp-surface);
-  --card-foreground: var(--rp-text);
-  --popover: var(--rp-surface);
-  --popover-foreground: var(--rp-text);
-  --primary: var(--rp-iris);
-  --primary-foreground: var(--rp-base);
-  --secondary: var(--rp-overlay);
-  --secondary-foreground: var(--rp-text);
-  --muted: var(--rp-hl-low);
-  --muted-foreground: var(--rp-subtle);
-  --accent: var(--rp-hl-med);
-  --accent-foreground: var(--rp-text);
-  --destructive: var(--rp-love);
-  --destructive-foreground: var(--rp-base);
-  --border: var(--rp-hl-med);
-  --input: var(--rp-hl-med);
-  --ring: var(--rp-iris);
+  --background:             var(--tf-base);
+  --foreground:             var(--tf-text);
+  --card:                   var(--tf-surface);
+  --card-foreground:        var(--tf-text);
+  --popover:                var(--tf-surface);
+  --popover-foreground:     var(--tf-text);
+  --primary:                var(--tf-teal);
+  --primary-foreground:     var(--tf-base);
+  --secondary:              var(--tf-overlay);
+  --secondary-foreground:   var(--tf-text);
+  --muted:                  var(--tf-hl-low);
+  --muted-foreground:       var(--tf-subtle);
+  --accent:                 var(--tf-hl-med);
+  --accent-foreground:      var(--tf-text);
+  --destructive:            var(--tf-coral);
+  --destructive-foreground: #ffffff;
+  --border:                 var(--tf-hl-med);
+  --input:                  var(--tf-hl-med);
+  --ring:                   var(--tf-teal);
 
-  --income: var(--rp-foam);
-  --expense: var(--rp-love);
-  --net: var(--rp-iris);
+  --income:  var(--tf-jade);
+  --expense: var(--tf-coral);
+  --net:     var(--tf-teal);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -103,36 +101,36 @@
 /* ----------------------------------------------------------------------- */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
+  --color-background:             var(--background);
+  --color-foreground:             var(--foreground);
+  --color-card:                   var(--card);
+  --color-card-foreground:        var(--card-foreground);
+  --color-popover:                var(--popover);
+  --color-popover-foreground:     var(--popover-foreground);
+  --color-primary:                var(--primary);
+  --color-primary-foreground:     var(--primary-foreground);
+  --color-secondary:              var(--secondary);
+  --color-secondary-foreground:   var(--secondary-foreground);
+  --color-muted:                  var(--muted);
+  --color-muted-foreground:       var(--muted-foreground);
+  --color-accent:                 var(--accent);
+  --color-accent-foreground:      var(--accent-foreground);
+  --color-destructive:            var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-border:                 var(--border);
+  --color-input:                  var(--input);
+  --color-ring:                   var(--ring);
 
-  --color-income: var(--income);
+  --color-income:  var(--income);
   --color-expense: var(--expense);
-  --color-net: var(--net);
+  --color-net:     var(--net);
 
-  --color-rp-love: var(--rp-love);
-  --color-rp-gold: var(--rp-gold);
-  --color-rp-rose: var(--rp-rose);
-  --color-rp-pine: var(--rp-pine);
-  --color-rp-foam: var(--rp-foam);
-  --color-rp-iris: var(--rp-iris);
+  /* Brand palette utilities */
+  --color-tf-coral:  var(--tf-coral);
+  --color-tf-pollen: var(--tf-pollen);
+  --color-tf-jade:   var(--tf-jade);
+  --color-tf-teal:   var(--tf-teal);
+  --color-tf-indigo: var(--tf-indigo);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

@@ -7,8 +7,8 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export const statusStyles: Record<Lesson['status'], string> = {
-  scheduled: 'bg-rp-iris/15 text-rp-iris',
-  completed: 'bg-rp-foam/15 text-rp-foam',
+  scheduled: 'bg-tf-indigo/15 text-tf-indigo',
+  completed: 'bg-tf-teal/15 text-tf-teal',
   cancelled: 'bg-muted text-muted-foreground',
   no_show: 'bg-destructive/15 text-destructive',
 };

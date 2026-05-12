@@ -92,7 +92,7 @@ export function SettingsIsland({ initial }: Props) {
             <Button onClick={save} disabled={saving} className="w-full sm:w-auto">
               {saving ? 'Saving…' : 'Save'}
             </Button>
-            {saved ? <span className="text-sm text-rp-foam">Saved.</span> : null}
+            {saved ? <span className="text-sm text-tf-teal">Saved.</span> : null}
           </div>
         </CardContent>
       </Card>

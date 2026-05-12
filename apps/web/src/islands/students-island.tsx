@@ -60,11 +60,11 @@ function initials(name: string): string {
 }
 
 const AVATAR_TINTS = [
-  'var(--rp-iris)',
-  'var(--rp-foam)',
-  'var(--rp-rose)',
-  'var(--rp-pine)',
-  'var(--rp-gold)',
+  'var(--tf-indigo)',
+  'var(--tf-teal)',
+  'var(--tf-coral)',
+  'var(--tf-jade)',
+  'var(--tf-pollen)',
 ];
 
 function avatarTint(id: string): string {
@@ -165,7 +165,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
             <ChartContainer
               config={
                 {
-                  total: { label: 'Earned', color: 'var(--rp-iris)' },
+                  total: { label: 'Earned', color: 'var(--tf-indigo)' },
                 } satisfies ChartConfig
               }
               className="aspect-auto w-full"

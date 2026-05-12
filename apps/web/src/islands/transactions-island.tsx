@@ -65,11 +65,11 @@ const FREQ_LABELS: Record<Frequency, string> = {
 };
 
 const CATEGORY_PALETTE = [
-  'var(--rp-iris)',
-  'var(--rp-foam)',
-  'var(--rp-rose)',
-  'var(--rp-pine)',
-  'var(--rp-gold)',
+  'var(--tf-indigo)',
+  'var(--tf-teal)',
+  'var(--tf-coral)',
+  'var(--tf-jade)',
+  'var(--tf-pollen)',
 ];
 
 export function TransactionsIsland({ initial, primaryCurrency, initialRecurring }: Props) {
