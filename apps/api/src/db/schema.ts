@@ -119,6 +119,7 @@ export const lessons = pgTable(
     status: text('status').notNull(),
     priceOverrideAmount: integer('price_override_amount'),
     priceOverrideCurrency: text('price_override_currency'),
+    paidAmount: integer('paid_amount'),
     notes: text('notes'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')

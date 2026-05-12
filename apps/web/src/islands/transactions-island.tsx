@@ -45,12 +45,13 @@ import {
   toMinorUnits,
   type Currency,
 } from '@tutor-finance/shared';
-import type { Tx, Frequency, Recurring } from '@/lib/types';
+import type { Tx, Frequency, Recurring, Summary } from '@/lib/types';
 
 interface Props {
   initial: Tx[];
   primaryCurrency: Currency;
   initialRecurring: Recurring[];
+  initialSummary: Summary;
 }
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
@@ -70,11 +71,12 @@ const CATEGORY_PALETTE = [
   'var(--tf-pollen)',
 ];
 
-export function TransactionsIsland({ initial, primaryCurrency, initialRecurring }: Props) {
+export function TransactionsIsland({ initial, primaryCurrency, initialRecurring, initialSummary }: Props) {
   const [tab, setTab] = useState<'transactions' | 'recurring'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
   const [txList, setTxList] = useState<Tx[]>(initial);
+  const [summary, setSummary] = useState<Summary>(initialSummary);
   const [loading, setLoading] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
   const [recurring, setRecurring] = useState<Recurring[]>(initialRecurring);
@@ -88,17 +90,19 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
     let cancelled = false;
     const { from, to } = resolveRange(range);
     setLoading(true);
-    api
-      .get<Tx[]>('/transactions', {
-        query: {
-          limit: 1000,
-          target: currency,
-          from: from.toISOString(),
-          to: to.toISOString(),
-        },
-      })
-      .then((data) => {
-        if (!cancelled) setTxList(data);
+    Promise.all([
+      api.get<Tx[]>('/transactions', {
+        query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
+      }),
+      api.get<Summary>('/dashboard/summary', {
+        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+      }),
+    ])
+      .then(([txs, sum]) => {
+        if (!cancelled) {
+          setTxList(txs);
+          setSummary(sum);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -324,7 +328,12 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
             'space-y-5 transition-opacity duration-150 ' + (loading ? 'opacity-60' : 'opacity-100')
           }
         >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <TxStat
+              label="Planned"
+              value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
+              tone="planned"
+            />
             <TxStat
               label="Income"
               value={fmtMoney(totalIncome, currency)}
@@ -339,7 +348,6 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
               label="Net"
               value={fmtMoney(totalIncome - totalExpense, currency)}
               tone={totalIncome >= totalExpense ? 'income' : 'expense'}
-              className="col-span-2 sm:col-span-1"
             />
           </div>
 
@@ -799,10 +807,11 @@ function TxStat({
 }: {
   label: string;
   value: string;
-  tone: 'income' | 'expense';
+  tone: 'planned' | 'income' | 'expense';
   className?: string;
 }) {
-  const colour = tone === 'income' ? 'text-income' : 'text-expense';
+  const colour =
+    tone === 'income' ? 'text-income' : tone === 'planned' ? 'text-tf-indigo' : 'text-expense';
   return (
     <div className={'rounded-2xl border border-border bg-card p-4 shadow-sm ' + (className ?? '')}>
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>

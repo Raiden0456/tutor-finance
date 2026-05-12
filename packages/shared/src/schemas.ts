@@ -26,6 +26,9 @@ export const LessonStatusEnum = z.enum([
   'completed',
   'cancelled',
   'no_show',
+  'due',
+  'paid',
+  'partially_paid',
 ]);
 
 export const LessonInputSchema = z.object({

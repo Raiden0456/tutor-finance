@@ -11,6 +11,9 @@ export const statusStyles: Record<Lesson['status'], string> = {
   completed: 'bg-tf-teal/15 text-tf-teal',
   cancelled: 'bg-muted text-muted-foreground',
   no_show: 'bg-destructive/15 text-destructive',
+  due: 'bg-tf-pollen/15 text-tf-pollen',
+  paid: 'bg-tf-jade/15 text-tf-jade',
+  partially_paid: 'bg-tf-coral/15 text-tf-coral',
 };
 
 export const statusLabel: Record<Lesson['status'], string> = {
@@ -18,4 +21,7 @@ export const statusLabel: Record<Lesson['status'], string> = {
   completed: 'Completed',
   cancelled: 'Cancelled',
   no_show: 'No-show',
+  due: 'Due',
+  paid: 'Paid',
+  partially_paid: 'Partial',
 };

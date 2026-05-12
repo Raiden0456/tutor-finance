@@ -15,6 +15,13 @@
       "when": 1778491878024,
       "tag": "0001_foamy_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778598641958,
+      "tag": "0002_last_black_cat",
+      "breakpoints": true
     }
   ]
 }

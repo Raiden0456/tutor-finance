@@ -5,7 +5,9 @@ export interface Lesson {
   studentId: string;
   startsAt: string;
   durationMin: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'due' | 'paid' | 'partially_paid';
+  paidAmount: number | null;
+  effectivePrice: { amount: number; currency: Currency } | null;
   notes?: string | null;
 }
 
@@ -26,6 +28,7 @@ export interface Summary {
   incomeInTargetCurrency: number;
   expenseInTargetCurrency: number;
   netInTargetCurrency: number;
+  plannedIncomeInTargetCurrency: number;
   income: CurrencyTotal[];
   expense: CurrencyTotal[];
 }

@@ -5,6 +5,7 @@ import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorato
 import { TransactionsService } from '../transactions/transactions.service.js';
 import { FxService } from '../fx/fx.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { LessonsService } from '../lessons/lessons.service.js';
 
 class SummaryQueryDto {
   @IsDateString()
@@ -32,6 +33,7 @@ interface PeriodSummary {
   incomeInTargetCurrency: number;
   expenseInTargetCurrency: number;
   netInTargetCurrency: number;
+  plannedIncomeInTargetCurrency: number;
   targetCurrency: Currency;
 }
 
@@ -41,6 +43,7 @@ export class DashboardController {
     private readonly transactions: TransactionsService,
     private readonly fx: FxService,
     private readonly settings: SettingsService,
+    private readonly lessons: LessonsService,
   ) {}
 
   @Get('summary')
@@ -52,7 +55,11 @@ export class DashboardController {
     const targetCurrency = (q.target ?? settings.primaryCurrency) as Currency;
     const from = new Date(q.from);
     const to = new Date(q.to);
-    const rows = await this.transactions.monthSummary(user.id, from, to);
+
+    const [rows, plannedRaw] = await Promise.all([
+      this.transactions.monthSummary(user.id, from, to),
+      this.lessons.plannedIncomeRaw(user.id, from, to),
+    ]);
 
     const income: CurrencyTotal[] = [];
     const expense: CurrencyTotal[] = [];
@@ -72,7 +79,8 @@ export class DashboardController {
     } catch {
       rates = {};
     }
-    const sumIn = (rs: CurrencyTotal[]) => {
+
+    const sumIn = (rs: { amount: number; currency: Currency }[]) => {
       let acc = 0;
       for (const r of rs) {
         try {
@@ -84,8 +92,10 @@ export class DashboardController {
       }
       return acc;
     };
+
     const incomeT = sumIn(income);
     const expenseT = sumIn(expense);
+    const plannedT = sumIn(plannedRaw);
 
     return {
       from,
@@ -95,6 +105,7 @@ export class DashboardController {
       incomeInTargetCurrency: incomeT,
       expenseInTargetCurrency: expenseT,
       netInTargetCurrency: incomeT - expenseT,
+      plannedIncomeInTargetCurrency: plannedT,
       targetCurrency,
     };
   }

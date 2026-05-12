@@ -3,7 +3,15 @@ import { Type } from 'class-transformer';
 import { MoneyDto } from '../students/students.dto.js';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
 
-export const LESSON_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
+export const LESSON_STATUSES = [
+  'scheduled',
+  'completed',
+  'cancelled',
+  'no_show',
+  'due',
+  'paid',
+  'partially_paid',
+] as const;
 
 export class CreateLessonDto {
   @IsUUID()
@@ -42,6 +50,11 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsIn(LESSON_STATUSES as unknown as string[])
   status?: LessonStatus;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  paidAmount?: number;
 
   @IsOptional()
   @ValidateNested()
@@ -88,6 +101,8 @@ export interface LessonResponse {
   durationMin: number;
   status: LessonStatus;
   priceOverride: { amount: number; currency: Currency } | null;
+  paidAmount: number | null;
+  effectivePrice: { amount: number; currency: Currency } | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;

@@ -18,13 +18,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from '@/components/ui/responsive-modal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
-import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import { toMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import { statusLabel, statusStyles } from '@/lib/utils';
 import {
   Ban,
+  Banknote,
   CalendarClock,
+  CalendarDays,
   CheckCircle2,
   Clock,
   MoreHorizontal,
@@ -150,7 +163,13 @@ export function DashboardIsland({
   }, [todayStart, todayEnd]);
 
   const pendingLessons = todayLessons.filter((l) => l.status === 'scheduled');
-  const processedLessons = todayLessons.filter((l) => l.status !== 'scheduled');
+  const dueLessons = todayLessons.filter(
+    (l) => l.status === 'due' || l.status === 'partially_paid',
+  );
+  const processedLessons = todayLessons.filter(
+    (l) =>
+      l.status !== 'scheduled' && l.status !== 'due' && l.status !== 'partially_paid',
+  );
 
   const totalTodayMin = todayLessons.reduce((sum, l) => sum + l.durationMin, 0);
 
@@ -171,13 +190,20 @@ export function DashboardIsland({
           <CalendarClock className="h-3.5 w-3.5" />
           Today's overview
         </p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <MiniStat
             value={String(pendingLessons.length)}
-            label="Pending"
+            label="Upcoming"
+            color="text-tf-indigo"
+            bg="bg-tf-indigo/10"
+            icon={CalendarDays}
+          />
+          <MiniStat
+            value={String(dueLessons.length)}
+            label="Due Payment"
             color="text-tf-pollen"
             bg="bg-tf-pollen/10"
-            icon={Clock}
+            icon={Banknote}
           />
           <MiniStat
             value={String(processedLessons.length)}
@@ -196,12 +222,27 @@ export function DashboardIsland({
         </div>
       </div>
 
-      {/* Pending lessons */}
+      {/* Pending (upcoming) lessons */}
       {pendingLessons.length > 0 && (
         <div className="space-y-3">
-          <SectionHeader dot="bg-tf-pollen" label="Pending" count={pendingLessons.length} />
+          <SectionHeader dot="bg-tf-indigo" label="Upcoming" count={pendingLessons.length} />
           {pendingLessons.map((l) => (
             <PendingLessonCard
+              key={l.id}
+              lesson={l}
+              studentName={studentNames[l.studentId] ?? l.studentId}
+              onRefresh={refreshToday}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Due payment lessons */}
+      {dueLessons.length > 0 && (
+        <div className="space-y-3">
+          <SectionHeader dot="bg-tf-pollen" label="Due Payment" count={dueLessons.length} />
+          {dueLessons.map((l) => (
+            <DuePaymentCard
               key={l.id}
               lesson={l}
               studentName={studentNames[l.studentId] ?? l.studentId}
@@ -251,10 +292,15 @@ export function DashboardIsland({
 
         <div
           className={
-            'grid grid-cols-2 gap-3 transition-opacity duration-150 sm:grid-cols-3 ' +
+            'grid grid-cols-2 gap-3 transition-opacity duration-150 sm:grid-cols-4 ' +
             (loading ? 'opacity-60' : 'opacity-100')
           }
         >
+          <FinanceStat
+            label="Planned"
+            value={fmtMoney(summary.plannedIncomeInTargetCurrency, summary.targetCurrency)}
+            tone="planned"
+          />
           <FinanceStat
             label="Income"
             value={fmtMoney(summary.incomeInTargetCurrency, summary.targetCurrency)}
@@ -437,6 +483,163 @@ function PendingLessonCard({
   );
 }
 
+function DuePaymentCard({
+  lesson,
+  studentName,
+  onRefresh,
+}: {
+  lesson: RecentLesson;
+  studentName: string;
+  onRefresh: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [partialOpen, setPartialOpen] = useState(false);
+  const [partialInput, setPartialInput] = useState('');
+
+  const effectiveCurrency = lesson.effectivePrice?.currency ?? 'USD';
+
+  async function changeStatus(status: RecentLesson['status']) {
+    setBusy(true);
+    try {
+      await api.patch(`/lessons/${lesson.id}`, { status });
+      await onRefresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitPartial() {
+    const major = parseFloat(partialInput);
+    if (isNaN(major) || major <= 0) return;
+    setBusy(true);
+    try {
+      await api.patch(`/lessons/${lesson.id}`, {
+        status: 'partially_paid',
+        paidAmount: toMinorUnits(major, effectiveCurrency),
+      });
+      await onRefresh();
+      setPartialOpen(false);
+      setPartialInput('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isPartial = lesson.status === 'partially_paid';
+  const paidFormatted =
+    isPartial && lesson.paidAmount !== null
+      ? fmtMoney(lesson.paidAmount, effectiveCurrency)
+      : null;
+  const fullFormatted = lesson.effectivePrice
+    ? fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
+    : null;
+
+  return (
+    <>
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-base font-semibold">{studentName}</div>
+            <div className="mt-0.5 text-sm text-muted-foreground">
+              <Clock className="mr-1 inline h-3.5 w-3.5" />
+              {timeFmt.format(new Date(lesson.startsAt))} · {lesson.durationMin} min
+            </div>
+            {isPartial && paidFormatted && fullFormatted && (
+              <div className="mt-1 text-xs text-tf-coral">
+                Paid {paidFormatted} of {fullFormatted}
+              </div>
+            )}
+          </div>
+          <span
+            className={
+              'shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ' +
+              (statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground')
+            }
+          >
+            {statusLabel[lesson.status]}
+          </span>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => changeStatus('paid')}
+            disabled={busy}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <Banknote className="h-4 w-4" />
+            {isPartial ? 'Pay Remaining' : 'Mark as Paid'}
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={busy}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setPartialOpen(true)}>
+                <Banknote className="mr-2 h-4 w-4" />
+                Partial Payment
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => changeStatus('no_show')}>
+                <UserX className="mr-2 h-4 w-4" />
+                No-show
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => changeStatus('cancelled')}
+                className="text-destructive focus:text-destructive"
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Cancel lesson
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <ResponsiveModal open={partialOpen} onOpenChange={setPartialOpen}>
+        <ResponsiveModalContent className="max-w-sm">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Partial Payment</ResponsiveModalTitle>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody className="grid gap-4">
+            {fullFormatted && (
+              <p className="text-sm text-muted-foreground">
+                Full lesson price: <span className="font-medium text-foreground">{fullFormatted}</span>
+              </p>
+            )}
+            <div className="grid gap-2">
+              <Label>Amount received ({effectiveCurrency})</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                value={partialInput}
+                onChange={(e) => setPartialInput(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
+            <Button variant="outline" onClick={() => setPartialOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitPartial} disabled={busy || !partialInput}>
+              Save
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+    </>
+  );
+}
+
 function ProcessedLessonRow({
   lesson,
   studentName,
@@ -472,11 +675,17 @@ function FinanceStat({
 }: {
   label: string;
   value: string;
-  tone: 'income' | 'expense' | 'net';
+  tone: 'planned' | 'income' | 'expense' | 'net';
   className?: string;
 }) {
   const colour =
-    tone === 'income' ? 'text-income' : tone === 'expense' ? 'text-expense' : 'text-net';
+    tone === 'income'
+      ? 'text-income'
+      : tone === 'expense'
+        ? 'text-expense'
+        : tone === 'planned'
+          ? 'text-tf-indigo'
+          : 'text-net';
   return (
     <div className={'rounded-2xl border border-border bg-card p-4 shadow-sm ' + (className ?? '')}>
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
