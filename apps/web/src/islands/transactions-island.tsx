@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -75,6 +73,7 @@ const CATEGORY_PALETTE = [
 export function TransactionsIsland({ initial, primaryCurrency, initialRecurring }: Props) {
   const [tab, setTab] = useState<'transactions' | 'recurring'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
+  const [currency, setCurrency] = useState<Currency>(primaryCurrency);
   const [txList, setTxList] = useState<Tx[]>(initial);
   const [loading, setLoading] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
@@ -93,7 +92,7 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
       .get<Tx[]>('/transactions', {
         query: {
           limit: 1000,
-          target: primaryCurrency,
+          target: currency,
           from: from.toISOString(),
           to: to.toISOString(),
         },
@@ -107,58 +106,59 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
     return () => {
       cancelled = true;
     };
-  }, [range, primaryCurrency]);
+  }, [range, currency]);
 
-  const { topCategories, series, chartConfig } = useMemo(() => {
+  const { pieData, incomeExpenseSeries } = useMemo(() => {
     const totals = new Map<string, number>();
-    for (const t of txList) {
-      if (t.type !== 'expense') continue;
-      const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
-      totals.set(t.category, (totals.get(t.category) ?? 0) + v);
-    }
-    const top = Array.from(totals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([cat]) => cat);
+    const ieMap = new Map<string, { income: number; expense: number }>();
 
-    const dayMap = new Map<string, Record<string, number>>();
     for (const t of txList) {
-      if (t.type !== 'expense') continue;
       const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
       if (!v) continue;
-      const cat = top.includes(t.category) ? t.category : 'other';
       const k = new Date(t.occurredAt).toISOString().slice(0, 10);
-      const row = dayMap.get(k) ?? {};
-      row[cat] = (row[cat] ?? 0) + v;
-      dayMap.set(k, row);
-    }
 
-    const sortedDays = Array.from(dayMap.keys()).sort();
-    const seriesData = sortedDays.map((k) => {
-      const row = dayMap.get(k)!;
-      const point: Record<string, string | number> = { date: dateFmt.format(new Date(k)) };
-      for (const cat of top) {
-        point[cat] = Math.round(fromMinorUnits(row[cat] ?? 0, primaryCurrency) * 100) / 100;
-      }
-      return point;
-    });
+      const ieRow = ieMap.get(k) ?? { income: 0, expense: 0 };
+      if (t.type === 'income') ieRow.income += v;
+      else ieRow.expense += v;
+      ieMap.set(k, ieRow);
 
-    const cfg: ChartConfig = {};
-    top.forEach((cat, i) => {
-      cfg[cat] = { label: cat, color: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]! };
-    });
-
-    return { topCategories: top, series: seriesData, chartConfig: cfg };
-  }, [txList, primaryCurrency]);
-
-  const totalExpense = useMemo(() => {
-    let expense = 0;
-    for (const t of txList) {
       if (t.type === 'expense') {
-        expense += typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
+        totals.set(t.category, (totals.get(t.category) ?? 0) + v);
       }
     }
-    return expense;
+
+    const pie = Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cat, amt], i) => ({
+        name: cat,
+        amount: Math.round(fromMinorUnits(amt, currency) * 100) / 100,
+        fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]!,
+      }));
+
+    const ie = Array.from(ieMap.keys())
+      .sort()
+      .map((k) => {
+        const row = ieMap.get(k)!;
+        return {
+          date: dateFmt.format(new Date(k)),
+          income: Math.round(fromMinorUnits(row.income, currency) * 100) / 100,
+          expense: Math.round(fromMinorUnits(row.expense, currency) * 100) / 100,
+        };
+      });
+
+    return { pieData: pie, incomeExpenseSeries: ie };
+  }, [txList, currency]);
+
+  const { totalExpense, totalIncome } = useMemo(() => {
+    let expense = 0;
+    let income = 0;
+    for (const t of txList) {
+      const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
+      if (t.type === 'expense') expense += v;
+      else income += v;
+    }
+    return { totalExpense: expense, totalIncome: income };
   }, [txList]);
 
   async function onCreate(form: HTMLFormElement) {
@@ -191,6 +191,21 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
                   : `${recurring.length} rules`}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            {tab === 'transactions' && (
+              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                <SelectTrigger className="h-9 w-[88px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           {tab === 'transactions' ? (
             <ResponsiveModal open={txOpen} onOpenChange={setTxOpen}>
               <ResponsiveModalTrigger asChild>
@@ -294,6 +309,7 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
               onCreated={(r) => setRecurring((prev) => [...prev, r])}
             />
           )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row">
@@ -308,23 +324,32 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
             'space-y-5 transition-opacity duration-150 ' + (loading ? 'opacity-60' : 'opacity-100')
           }
         >
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Total expenses
-            </div>
-            <div className="mt-1 text-xl font-semibold tabular-nums text-expense">
-              {fmtMoney(totalExpense, primaryCurrency)}
-            </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <TxStat
+              label="Income"
+              value={fmtMoney(totalIncome, currency)}
+              tone="income"
+            />
+            <TxStat
+              label="Expenses"
+              value={fmtMoney(totalExpense, currency)}
+              tone="expense"
+            />
+            <TxStat
+              label="Net"
+              value={fmtMoney(totalIncome - totalExpense, currency)}
+              tone={totalIncome >= totalExpense ? 'income' : 'expense'}
+              className="col-span-2 sm:col-span-1"
+            />
           </div>
 
-          {topCategories.length > 0 && series.length > 0 ? (
-            <CategoryAreaChart
-              categories={topCategories}
-              data={series}
-              config={chartConfig}
-              currency={primaryCurrency}
-            />
-          ) : null}
+          {incomeExpenseSeries.length > 0 && (
+            <IncomeExpenseBarChart data={incomeExpenseSeries} currency={currency} />
+          )}
+
+          {pieData.length > 0 && (
+            <CategoryPieChart data={pieData} currency={currency} />
+          )}
 
           {txList.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -333,7 +358,7 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring 
           ) : (
             <ul className="flex flex-col gap-2">
               {txList.map((t) => (
-                <TxCard key={t.id} tx={t} primaryCurrency={primaryCurrency} />
+                <TxCard key={t.id} tx={t} primaryCurrency={currency} />
               ))}
             </ul>
           )}
@@ -766,37 +791,48 @@ function TxCard({ tx, primaryCurrency }: { tx: Tx; primaryCurrency: Currency }) 
   );
 }
 
-function CategoryAreaChart({
-  categories,
+function TxStat({
+  label,
+  value,
+  tone,
+  className,
+}: {
+  label: string;
+  value: string;
+  tone: 'income' | 'expense';
+  className?: string;
+}) {
+  const colour = tone === 'income' ? 'text-income' : 'text-expense';
+  return (
+    <div className={'rounded-2xl border border-border bg-card p-4 shadow-sm ' + (className ?? '')}>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={'mt-1 text-xl font-semibold tabular-nums ' + colour}>{value}</div>
+    </div>
+  );
+}
+
+const ieBarConfig = {
+  income: { label: 'Income', color: 'var(--tf-jade)' },
+  expense: { label: 'Expenses', color: 'var(--tf-coral)' },
+} satisfies ChartConfig;
+
+function IncomeExpenseBarChart({
   data,
-  config,
   currency,
 }: {
-  categories: string[];
-  data: Record<string, string | number>[];
-  config: ChartConfig;
+  data: { date: string; income: number; expense: number }[];
   currency: Currency;
 }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Expenses by category</CardTitle>
-        <CardDescription className="text-xs">
-          Daily totals · top {categories.length} categories ({currency})
-        </CardDescription>
+        <CardTitle className="text-sm font-medium">Income vs Expenses</CardTitle>
+        <CardDescription className="text-xs">Daily totals ({currency})</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="aspect-auto h-56 w-full">
-          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <defs>
-              {categories.map((cat) => (
-                <linearGradient id={`fill-${cat}`} key={cat} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={`var(--color-${cat})`} stopOpacity={0.6} />
-                  <stop offset="100%" stopColor={`var(--color-${cat})`} stopOpacity={0.05} />
-                </linearGradient>
-              ))}
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <ChartContainer config={ieBarConfig} className="aspect-auto h-56 w-full">
+          <BarChart accessibilityLayer data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
             <XAxis
               dataKey="date"
               axisLine={false}
@@ -805,27 +841,77 @@ function CategoryAreaChart({
               interval="preserveStartEnd"
               minTickGap={24}
             />
-            <YAxis axisLine={false} tickLine={false} width={40} />
             <ChartTooltip
-              cursor={{ stroke: 'var(--border)' }}
+              cursor={false}
               content={
-                <ChartTooltipContent indicator="dot" formatter={(v) => Number(v).toFixed(2)} />
+                <ChartTooltipContent
+                  indicator="dashed"
+                  formatter={(v) => Number(v).toFixed(2)}
+                />
               }
             />
-            <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />} />
-            {categories.map((cat) => (
-              <Area
-                key={cat}
-                type="natural"
-                dataKey={cat}
-                stackId="expense"
-                stroke={`var(--color-${cat})`}
-                strokeWidth={1.5}
-                fill={`url(#fill-${cat})`}
-              />
-            ))}
-          </AreaChart>
+            <Bar dataKey="income" fill="var(--color-income)" radius={4} />
+            <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
+          </BarChart>
         </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+const pieCfg: ChartConfig = {
+  amount: { label: 'Expenses' },
+};
+
+function CategoryPieChart({
+  data,
+  currency,
+}: {
+  data: { name: string; amount: number; fill: string }[];
+  currency: Currency;
+}) {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="items-center pb-0">
+        <CardTitle className="text-sm font-medium">Expenses by category</CardTitle>
+        <CardDescription className="text-xs">Top {data.length} categories ({currency})</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ChartContainer
+          config={pieCfg}
+          className="mx-auto aspect-square max-h-[220px] [&_.recharts-pie-label-text]:fill-foreground"
+        >
+          <PieChart>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  nameKey="name"
+                  hideLabel
+                  formatter={(v) => Number(v).toFixed(2)}
+                />
+              }
+            />
+            <Pie
+              data={data}
+              dataKey="amount"
+              nameKey="name"
+              label={({ percent }) =>
+                (percent ?? 0) > 0.05 ? `${((percent ?? 0) * 100).toFixed(0)}%` : ''
+              }
+              labelLine={false}
+            />
+          </PieChart>
+        </ChartContainer>
+      </CardContent>
+      <CardContent className="pt-0 pb-4">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+          {data.map((item) => (
+            <div key={item.name} className="flex items-center gap-1.5 text-xs">
+              <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.fill }} />
+              <span className="capitalize text-muted-foreground">{item.name}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

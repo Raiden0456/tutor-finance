@@ -2,43 +2,50 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { DashboardIsland } from '@/islands/dashboard-island';
 import { serverApi } from '@/lib/api';
-import type { Summary, RecentLesson, DailyTx } from '@/lib/types';
+import type { Summary, RecentLesson } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 
 const now = new Date();
-const from = new Date(now.getFullYear(), now.getMonth(), 1);
-const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+// 7-day range for summary (matches the island's default preset)
+const to = new Date(now);
+to.setHours(23, 59, 59, 999);
+const from = new Date(now);
+from.setDate(from.getDate() - 6);
+from.setHours(0, 0, 0, 0);
 
 const summary = await api.get<Summary>('/dashboard/summary', {
   query: { from: from.toISOString(), to: to.toISOString() },
 });
 
-const recentLessons = await api.get<RecentLesson[]>('/lessons', { query: { limit: 5 } });
+// Today's date bounds
+const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+const todayLessons = await api.get<RecentLesson[]>('/lessons', {
+  query: { from: todayStart.toISOString(), to: todayEnd.toISOString(), orderDir: 'asc', limit: 20 },
+});
+
+const nextLessonList = await api.get<RecentLesson[]>('/lessons', {
+  query: { status: 'scheduled', from: now.toISOString(), orderDir: 'asc', limit: 1 },
+});
+const nextLesson = nextLessonList[0] ?? null;
 
 const studentsList = await api.get<{ id: string; name: string }[]>('/students', {
   query: { includeArchived: true },
 });
 const studentNames: Record<string, string> = {};
 for (const s of studentsList) studentNames[s.id] = s.name;
-
-const dailyTransactions = await api.get<DailyTx[]>('/transactions', {
-  query: {
-    from: from.toISOString(),
-    to: to.toISOString(),
-    limit: 1000,
-    target: summary.targetCurrency,
-  },
-});
 ---
 
 <AppLayout title="Dashboard">
   <DashboardIsland
     client:load
     summary={summary}
-    recentLessons={recentLessons}
+    nextLesson={nextLesson}
+    todayLessons={todayLessons}
     studentNames={studentNames}
-    dailyTransactions={dailyTransactions}
   />
 </AppLayout>

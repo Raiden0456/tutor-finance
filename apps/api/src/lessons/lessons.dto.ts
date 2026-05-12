@@ -75,6 +75,10 @@ export class LessonFilterDto {
   @Min(1)
   @Max(1000)
   limit?: number;
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  orderDir?: 'asc' | 'desc';
 }
 
 export interface LessonResponse {

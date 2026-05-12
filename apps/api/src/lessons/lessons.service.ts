@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, gte, lt, lte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, lte, sql, type SQL } from 'drizzle-orm';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
@@ -52,7 +52,7 @@ export class LessonsService {
       .select()
       .from(lessons)
       .where(and(...conds))
-      .orderBy(desc(lessons.startsAt))
+      .orderBy(filter?.orderDir === 'asc' ? asc(lessons.startsAt) : desc(lessons.startsAt))
       .limit(limit);
     return rows.map(toResponse);
   }

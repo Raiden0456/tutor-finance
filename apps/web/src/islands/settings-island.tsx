@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LogOut } from 'lucide-react';
+import { Check, LogOut } from 'lucide-react';
 import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { Settings } from '@/lib/types';
 
@@ -34,19 +34,15 @@ export function SettingsIsland({ initial }: Props) {
   async function save() {
     setSaving(true);
     setSaved(false);
-    await api.patch('/settings/me', { primaryCurrency, theme, locale });
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('theme', theme);
-      const resolved =
-        theme === 'system'
-          ? window.matchMedia('(prefers-color-scheme: dark)').matches
-            ? 'dark'
-            : 'light'
-          : theme;
-      document.documentElement.setAttribute('data-theme', resolved);
-    }
+    // Read the current theme from localStorage so a toggle made elsewhere isn't overwritten
+    const currentTheme =
+      (typeof window !== 'undefined'
+        ? (localStorage.getItem('theme') as Settings['theme'] | null)
+        : null) ?? theme;
+    await api.patch('/settings/me', { primaryCurrency, theme: currentTheme, locale });
     setSaving(false);
     setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   }
 
   return (
@@ -88,11 +84,19 @@ export function SettingsIsland({ initial }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-3 pt-2">
+          <div className="pt-2">
             <Button onClick={save} disabled={saving} className="w-full sm:w-auto">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? (
+                'Saving…'
+              ) : saved ? (
+                <>
+                  <Check className="mr-1.5 h-4 w-4" />
+                  Saved
+                </>
+              ) : (
+                'Save'
+              )}
             </Button>
-            {saved ? <span className="text-sm text-tf-teal">Saved.</span> : null}
           </div>
         </CardContent>
       </Card>
