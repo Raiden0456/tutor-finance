@@ -46,7 +46,7 @@ export function SettingsIsland({ initial }: Props) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       <header>
         <h1 className="hidden text-xl font-semibold tracking-tight md:block">Settings</h1>
         <p className="text-xs text-muted-foreground">Personalise the app</p>
@@ -106,7 +106,11 @@ export function SettingsIsland({ initial }: Props) {
           <CardTitle className="text-sm font-medium">Account</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive" onClick={handleSignOut}>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-destructive hover:text-destructive"
+            onClick={handleSignOut}
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </Button>

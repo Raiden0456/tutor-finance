@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { requestPasswordReset } from '@/lib/auth-client';
 import { PUBLIC_APP_URL } from '@/lib/env';
 import { Button } from '@/components/ui/button';
+import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -15,7 +16,10 @@ export function ForgotPasswordForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await requestPasswordReset({ email, redirectTo: `${PUBLIC_APP_URL}/reset-password` });
+    const res = await requestPasswordReset({
+      email,
+      redirectTo: `${PUBLIC_APP_URL}/reset-password`,
+    });
     setLoading(false);
     if (res.error) {
       setError(res.error.message ?? 'Could not send reset email');
@@ -26,7 +30,7 @@ export function ForgotPasswordForm() {
 
   if (done) {
     return (
-      <p className="text-center text-sm">
+      <p className="animate-in fade-in slide-in-from-bottom-2 text-center text-sm duration-300">
         If an account exists for <strong>{email}</strong>, a reset link has been sent.
       </p>
     );
@@ -44,7 +48,9 @@ export function ForgotPasswordForm() {
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Collapse open={!!error}>
+        <p className="pt-1 text-sm text-destructive">{error}</p>
+      </Collapse>
       <Button type="submit" disabled={loading}>
         {loading ? 'Sending…' : 'Send reset link'}
       </Button>

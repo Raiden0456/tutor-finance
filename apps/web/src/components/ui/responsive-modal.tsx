@@ -53,7 +53,7 @@ function ResponsiveModalContent({
 }: React.ComponentProps<typeof DialogContent>) {
   const isMobile = React.useContext(ModalContext);
   return isMobile ? (
-    <DrawerContent className={className}>{children}</DrawerContent>
+    <DrawerContent>{children}</DrawerContent>
   ) : (
     <DialogContent className={className} {...props}>
       {children}

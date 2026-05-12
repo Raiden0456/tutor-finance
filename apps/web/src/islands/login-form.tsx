@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { signIn } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
@@ -81,11 +82,11 @@ function LoginFields({
         />
       </Field>
 
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
+      <Collapse open={!!error}>
+        <p role="alert" className="pt-1 text-sm text-destructive">
           {error}
         </p>
-      )}
+      </Collapse>
 
       <Field>
         <Button type="submit" disabled={loading}>

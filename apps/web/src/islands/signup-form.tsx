@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { signUp } from '@/lib/auth-client';
 import { PUBLIC_APP_URL } from '@/lib/env';
 import { Button } from '@/components/ui/button';
+import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -29,12 +30,7 @@ export function SignupForm() {
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
@@ -60,7 +56,9 @@ export function SignupForm() {
         />
         <p className="text-xs text-muted-foreground">At least 8 characters.</p>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Collapse open={!!error}>
+        <p className="pt-1 text-sm text-destructive">{error}</p>
+      </Collapse>
       <Button type="submit" disabled={loading}>
         {loading ? 'Creating account…' : 'Create account'}
       </Button>

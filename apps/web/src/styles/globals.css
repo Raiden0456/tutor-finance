@@ -71,6 +71,11 @@
   --tf-hl-med: #2d2a6a;
   --tf-hl-high: #3e3b88;
 
+  /* Indigo accent gets brightened in dark mode so text/icon
+     utilities (text-tf-indigo, bg-tf-indigo/10) remain readable
+     against the dark surface. */
+  --tf-indigo: #a5a3f5;
+
   --background: var(--tf-base);
   --foreground: var(--tf-text);
   --card: var(--tf-surface);
@@ -164,6 +169,57 @@
 .theme-icon-animate {
   display: flex;
   animation: theme-icon-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Page-enter staggered fade-in                                            */
+/*   Add `page-enter` to a container; its direct children fade + slide in  */
+/*   in sequence on mount.                                                 */
+/* ----------------------------------------------------------------------- */
+
+@keyframes page-enter-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter > * {
+  animation: page-enter-in 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.page-enter > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.page-enter > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.page-enter > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.page-enter > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.page-enter > *:nth-child(5) {
+  animation-delay: 240ms;
+}
+.page-enter > *:nth-child(6) {
+  animation-delay: 300ms;
+}
+.page-enter > *:nth-child(7) {
+  animation-delay: 360ms;
+}
+.page-enter > *:nth-child(n + 8) {
+  animation-delay: 420ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter > * {
+    animation: none;
+  }
 }
 
 /* ----------------------------------------------------------------------- */

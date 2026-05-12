@@ -66,6 +66,14 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 - **`@tutor-finance/shared`:** Zod schemas, currency/money utilities, shared TypeScript types
 - **`@tutor-finance/auth`:** `createAuth()` factory, email abstraction (SMTP or Resend), email templates, auth client export
 
+## UI & Animation Rules
+
+- **All elements that change visibility or state MUST have smooth transitions/animations.** No abrupt show/hide, no instant layout shifts.
+- Use Tailwind `transition-*` utilities as baseline (`transition-all duration-200 ease-in-out` or similar).
+- For enter/exit animations (conditional rendering), use `AnimatePresence` from Framer Motion or CSS-based approaches that handle unmounting gracefully.
+- Loading states, skeleton screens, error states — all transitions must be smooth.
+- This applies to: dropdowns, modals, dialogs, tooltips, collapsibles, tabs, conditional form sections, badges, counters, everything.
+
 ## Key Conventions
 
 - **Mobile-first, baseline 390px (iPhone 14).** Use cards over tables; dialogs use bottom-sheet pattern on mobile.

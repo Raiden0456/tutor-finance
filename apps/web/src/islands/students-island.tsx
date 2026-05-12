@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapse } from '@/components/ui/collapse';
 import {
   ChartContainer,
   ChartTooltip,
@@ -134,7 +135,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
   }
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="hidden text-xl font-semibold tracking-tight md:block">Students</h1>
@@ -153,7 +154,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
         </ResponsiveModal>
       </header>
 
-      {topEarners.length > 0 ? (
+      <Collapse open={topEarners.length > 0}>
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Top earners · this month</CardTitle>
@@ -197,22 +198,27 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
             </ChartContainer>
           </CardContent>
         </Card>
-      ) : null}
+      </Collapse>
 
-      {empty ? (
-        <EmptyState onAdd={startCreate} />
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {students.map((s) => (
-            <StudentCard
-              key={s.id}
-              student={s}
-              onEdit={() => startEdit(s)}
-              onArchive={() => archive(s.id)}
-            />
-          ))}
-        </ul>
-      )}
+      <div
+        key={empty ? 'empty' : 'list'}
+        className="animate-in fade-in slide-in-from-bottom-1 duration-300"
+      >
+        {empty ? (
+          <EmptyState onAdd={startCreate} />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {students.map((s) => (
+              <StudentCard
+                key={s.id}
+                student={s}
+                onEdit={() => startEdit(s)}
+                onArchive={() => archive(s.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

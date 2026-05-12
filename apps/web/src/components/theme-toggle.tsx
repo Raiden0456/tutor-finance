@@ -46,7 +46,7 @@ export function ThemeToggle({
       <button
         type="button"
         onClick={cycle}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       >
         <span key={theme} className="theme-icon-animate h-4 w-4">
           {ICONS[theme]}
@@ -58,7 +58,13 @@ export function ThemeToggle({
 
   if (variant === 'button') {
     return (
-      <Button variant="outline" size="icon-lg" aria-label="Toggle theme" onClick={cycle}>
+      <Button
+        className="transition-all duration-150 active:scale-90"
+        variant="outline"
+        size="icon-lg"
+        aria-label="Toggle theme"
+        onClick={cycle}
+      >
         <span key={theme} className="theme-icon-animate">
           {ICONS[theme]}
         </span>

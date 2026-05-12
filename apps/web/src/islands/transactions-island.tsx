@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapse } from '@/components/ui/collapse';
 import {
   ChartContainer,
   ChartTooltip,
@@ -71,7 +72,12 @@ const CATEGORY_PALETTE = [
   'var(--tf-pollen)',
 ];
 
-export function TransactionsIsland({ initial, primaryCurrency, initialRecurring, initialSummary }: Props) {
+export function TransactionsIsland({
+  initial,
+  primaryCurrency,
+  initialRecurring,
+  initialSummary,
+}: Props) {
   const [tab, setTab] = useState<'transactions' | 'recurring'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
@@ -182,7 +188,7 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring,
   }
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       <header className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -210,174 +216,176 @@ export function TransactionsIsland({ initial, primaryCurrency, initialRecurring,
                 </SelectContent>
               </Select>
             )}
-          {tab === 'transactions' ? (
-            <ResponsiveModal open={txOpen} onOpenChange={setTxOpen}>
-              <ResponsiveModalTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4" /> Add
-                </Button>
-              </ResponsiveModalTrigger>
-              <ResponsiveModalContent className="max-w-md">
-                <ResponsiveModalHeader>
-                  <ResponsiveModalTitle>New transaction</ResponsiveModalTitle>
-                </ResponsiveModalHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    onCreate(e.currentTarget);
-                  }}
-                  className="flex min-h-0 flex-1 flex-col gap-4"
-                >
-                  <ResponsiveModalBody className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="grid gap-2">
-                        <Label htmlFor="type">Type</Label>
-                        <Select name="type" defaultValue="expense">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="income">Income</SelectItem>
-                            <SelectItem value="expense">Expense</SelectItem>
-                          </SelectContent>
-                        </Select>
+            {tab === 'transactions' ? (
+              <ResponsiveModal open={txOpen} onOpenChange={setTxOpen}>
+                <ResponsiveModalTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4" /> Add
+                  </Button>
+                </ResponsiveModalTrigger>
+                <ResponsiveModalContent className="max-w-md">
+                  <ResponsiveModalHeader>
+                    <ResponsiveModalTitle>New transaction</ResponsiveModalTitle>
+                  </ResponsiveModalHeader>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      onCreate(e.currentTarget);
+                    }}
+                    className="flex min-h-0 flex-1 flex-col gap-4"
+                  >
+                    <ResponsiveModalBody className="grid gap-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-2">
+                          <Label htmlFor="type">Type</Label>
+                          <Select name="type" defaultValue="expense">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="income">Income</SelectItem>
+                              <SelectItem value="expense">Expense</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="occurredAt">Date</Label>
+                          <Input
+                            id="occurredAt"
+                            name="occurredAt"
+                            type="datetime-local"
+                            required
+                            defaultValue={new Date(
+                              Date.now() - new Date().getTimezoneOffset() * 60000,
+                            )
+                              .toISOString()
+                              .slice(0, 16)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-2">
+                          <Label htmlFor="amount">Amount</Label>
+                          <Input
+                            id="amount"
+                            name="amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            required
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="currency">Currency</Label>
+                          <Select name="currency" defaultValue={primaryCurrency}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SUPPORTED_CURRENCIES.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="occurredAt">Date</Label>
+                        <Label htmlFor="category">Category</Label>
                         <Input
-                          id="occurredAt"
-                          name="occurredAt"
-                          type="datetime-local"
+                          id="category"
+                          name="category"
                           required
-                          defaultValue={new Date(
-                            Date.now() - new Date().getTimezoneOffset() * 60000,
-                          )
-                            .toISOString()
-                            .slice(0, 16)}
+                          placeholder="supplies / software / refund …"
                         />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-2">
-                        <Label htmlFor="amount">Amount</Label>
-                        <Input
-                          id="amount"
-                          name="amount"
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          required
-                        />
+                        <Label htmlFor="description">Description</Label>
+                        <Input id="description" name="description" />
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="currency">Currency</Label>
-                        <Select name="currency" defaultValue={primaryCurrency}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SUPPORTED_CURRENCIES.map((c) => (
-                              <SelectItem key={c} value={c}>
-                                {c}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="category">Category</Label>
-                      <Input
-                        id="category"
-                        name="category"
-                        required
-                        placeholder="supplies / software / refund …"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Input id="description" name="description" />
-                    </div>
-                  </ResponsiveModalBody>
-                  <ResponsiveModalFooter>
-                    <Button type="submit" className="w-full sm:w-auto">
-                      Create
-                    </Button>
-                  </ResponsiveModalFooter>
-                </form>
-              </ResponsiveModalContent>
-            </ResponsiveModal>
-          ) : (
-            <RecurringAddButton
-              primaryCurrency={primaryCurrency}
-              onCreated={(r) => setRecurring((prev) => [...prev, r])}
-            />
-          )}
+                    </ResponsiveModalBody>
+                    <ResponsiveModalFooter>
+                      <Button type="submit" className="w-full sm:w-auto">
+                        Create
+                      </Button>
+                    </ResponsiveModalFooter>
+                  </form>
+                </ResponsiveModalContent>
+              </ResponsiveModal>
+            ) : (
+              <RecurringAddButton
+                primaryCurrency={primaryCurrency}
+                onCreated={(r) => setRecurring((prev) => [...prev, r])}
+              />
+            )}
           </div>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row">
           <TabSwitcher value={tab} onChange={setTab} />
-          {tab === 'transactions' && <RangeTabs value={range} onChange={setRange} />}
+          <Collapse open={tab === 'transactions'} className="md:flex-1">
+            <RangeTabs value={range} onChange={setRange} />
+          </Collapse>
         </div>
       </header>
 
-      {tab === 'transactions' ? (
-        <div
-          className={
-            'space-y-5 transition-opacity duration-150 ' + (loading ? 'opacity-60' : 'opacity-100')
-          }
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <TxStat
-              label="Planned"
-              value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
-              tone="planned"
-            />
-            <TxStat
-              label="Income"
-              value={fmtMoney(totalIncome, currency)}
-              tone="income"
-            />
-            <TxStat
-              label="Expenses"
-              value={fmtMoney(totalExpense, currency)}
-              tone="expense"
-            />
-            <TxStat
-              label="Net"
-              value={fmtMoney(totalIncome - totalExpense, currency)}
-              tone={totalIncome >= totalExpense ? 'income' : 'expense'}
-            />
-          </div>
-
-          {incomeExpenseSeries.length > 0 && (
-            <IncomeExpenseBarChart data={incomeExpenseSeries} currency={currency} />
-          )}
-
-          {pieData.length > 0 && (
-            <CategoryPieChart data={pieData} currency={currency} />
-          )}
-
-          {txList.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-              No transactions in this period.
+      <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
+        {tab === 'transactions' ? (
+          <div
+            className={
+              'space-y-5 transition-opacity duration-150 ' +
+              (loading ? 'opacity-60' : 'opacity-100')
+            }
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <TxStat
+                label="Planned"
+                value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
+                tone="planned"
+              />
+              <TxStat label="Income" value={fmtMoney(totalIncome, currency)} tone="income" />
+              <TxStat label="Expenses" value={fmtMoney(totalExpense, currency)} tone="expense" />
+              <TxStat
+                label="Net"
+                value={fmtMoney(totalIncome - totalExpense, currency)}
+                tone={totalIncome >= totalExpense ? 'income' : 'expense'}
+              />
             </div>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {txList.map((t) => (
-                <TxCard key={t.id} tx={t} primaryCurrency={currency} />
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <RecurringList
-          items={recurring}
-          primaryCurrency={primaryCurrency}
-          onChange={setRecurring}
-        />
-      )}
+
+            <Collapse open={incomeExpenseSeries.length > 0}>
+              <IncomeExpenseBarChart data={incomeExpenseSeries} currency={currency} />
+            </Collapse>
+
+            <Collapse open={pieData.length > 0}>
+              <CategoryPieChart data={pieData} currency={currency} />
+            </Collapse>
+
+            <div
+              key={txList.length === 0 ? 'empty' : 'list'}
+              className="animate-in fade-in duration-300"
+            >
+              {txList.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+                  No transactions in this period.
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {txList.map((t) => (
+                    <TxCard key={t.id} tx={t} primaryCurrency={currency} />
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : (
+          <RecurringList
+            items={recurring}
+            primaryCurrency={primaryCurrency}
+            onChange={setRecurring}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -732,18 +740,20 @@ function RecurringCard({
           </button>
           {confirmDelete ? (
             <button
+              key="confirm"
               type="button"
               onClick={() => onDelete(item.id)}
-              className="flex h-8 items-center gap-1 rounded-full bg-destructive/15 px-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+              className="animate-in fade-in zoom-in-95 flex h-8 items-center gap-1 rounded-full bg-destructive/15 px-2 text-xs font-medium text-destructive transition-colors duration-150 hover:bg-destructive hover:text-destructive-foreground"
             >
               Confirm
             </button>
           ) : (
             <button
+              key="delete"
               type="button"
               onClick={() => setConfirmDelete(true)}
               onBlur={() => setConfirmDelete(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+              className="animate-in fade-in zoom-in-95 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-destructive/15 hover:text-destructive"
               aria-label="Delete"
             >
               <Trash2 className="h-4 w-4" />
@@ -840,7 +850,11 @@ function IncomeExpenseBarChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={ieBarConfig} className="aspect-auto h-56 w-full">
-          <BarChart accessibilityLayer data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <BarChart
+            accessibilityLayer
+            data={data}
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          >
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="date"
@@ -853,10 +867,7 @@ function IncomeExpenseBarChart({
             <ChartTooltip
               cursor={false}
               content={
-                <ChartTooltipContent
-                  indicator="dashed"
-                  formatter={(v) => Number(v).toFixed(2)}
-                />
+                <ChartTooltipContent indicator="dashed" formatter={(v) => Number(v).toFixed(2)} />
               }
             />
             <Bar dataKey="income" fill="var(--color-income)" radius={4} />
@@ -883,7 +894,9 @@ function CategoryPieChart({
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
         <CardTitle className="text-sm font-medium">Expenses by category</CardTitle>
-        <CardDescription className="text-xs">Top {data.length} categories ({currency})</CardDescription>
+        <CardDescription className="text-xs">
+          Top {data.length} categories ({currency})
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -916,7 +929,10 @@ function CategoryPieChart({
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
           {data.map((item) => (
             <div key={item.name} className="flex items-center gap-1.5 text-xs">
-              <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.fill }} />
+              <div
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ background: item.fill }}
+              />
               <span className="capitalize text-muted-foreground">{item.name}</span>
             </div>
           ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { resetPassword } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
+import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -35,7 +36,7 @@ export function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="flex flex-col gap-4 text-center text-sm">
+      <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 text-center text-sm duration-300">
         <p>Password updated. You can now sign in.</p>
         <a href="/login" className="underline-offset-4 hover:underline">
           Go to sign in
@@ -57,7 +58,9 @@ export function ResetPasswordForm() {
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Collapse open={!!error}>
+        <p className="pt-1 text-sm text-destructive">{error}</p>
+      </Collapse>
       <Button type="submit" disabled={loading}>
         {loading ? 'Updating…' : 'Update password'}
       </Button>
