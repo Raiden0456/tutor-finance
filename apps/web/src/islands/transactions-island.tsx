@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapse } from '@/components/ui/collapse';
+import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import {
   ChartContainer,
   ChartTooltip,
@@ -330,7 +331,7 @@ export function TransactionsIsland({
         </div>
       </header>
 
-      <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
+      <FadeSwap motionKey={tab}>
         {tab === 'transactions' ? (
           <div
             className={
@@ -361,10 +362,7 @@ export function TransactionsIsland({
               <CategoryPieChart data={pieData} currency={currency} />
             </Collapse>
 
-            <div
-              key={txList.length === 0 ? 'empty' : 'list'}
-              className="animate-in fade-in duration-300"
-            >
+            <FadeSwap motionKey={txList.length === 0 ? 'empty' : 'list'}>
               {txList.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
                   No transactions in this period.
@@ -376,7 +374,7 @@ export function TransactionsIsland({
                   ))}
                 </ul>
               )}
-            </div>
+            </FadeSwap>
           </div>
         ) : (
           <RecurringList
@@ -385,7 +383,7 @@ export function TransactionsIsland({
             onChange={setRecurring}
           />
         )}
-      </div>
+      </FadeSwap>
     </div>
   );
 }
@@ -636,39 +634,41 @@ function RecurringList({
     setEditing(null);
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-        No recurring expenses yet. Add one to automate regular costs.
-      </div>
-    );
-  }
-
   return (
-    <>
-      <ul className="flex flex-col gap-2">
-        {items.map((r) => (
-          <RecurringCard
-            key={r.id}
-            item={r}
-            onToggle={handleToggle}
-            onEdit={setEditing}
-            onDelete={handleDelete}
-          />
-        ))}
-      </ul>
-      {editing && (
-        <ResponsiveModal open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-          <RecurringFormDialog
-            title="Edit recurring expense"
-            primaryCurrency={primaryCurrency}
-            defaults={editing}
-            onSubmit={(form) => handleEdit(form, editing.id)}
-            onClose={() => setEditing(null)}
-          />
-        </ResponsiveModal>
+    <FadeSwap motionKey={items.length === 0 ? 'empty' : 'list'}>
+      {items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+          No recurring expenses yet. Add one to automate regular costs.
+        </div>
+      ) : (
+        <>
+          <ul className="flex flex-col gap-2">
+            <AnimatePresence initial={false}>
+              {items.map((r) => (
+                <RecurringCard
+                  key={r.id}
+                  item={r}
+                  onToggle={handleToggle}
+                  onEdit={setEditing}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </AnimatePresence>
+          </ul>
+          {editing && (
+            <ResponsiveModal open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+              <RecurringFormDialog
+                title="Edit recurring expense"
+                primaryCurrency={primaryCurrency}
+                defaults={editing}
+                onSubmit={(form) => handleEdit(form, editing.id)}
+                onClose={() => setEditing(null)}
+              />
+            </ResponsiveModal>
+          )}
+        </>
       )}
-    </>
+    </FadeSwap>
   );
 }
 
@@ -686,9 +686,14 @@ function RecurringCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <li
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: -8 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       className={
-        'rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity ' +
+        'overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity ' +
         (item.isActive ? 'opacity-100' : 'opacity-60')
       }
     >
@@ -761,7 +766,7 @@ function RecurringCard({
           )}
         </div>
       </div>
-    </li>
+    </motion.li>
   );
 }
 

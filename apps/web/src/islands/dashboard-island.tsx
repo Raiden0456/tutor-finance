@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { RangeTabs, resolveRange, inferRange, type RangeState } from '@/components/range-tabs';
 import {
   Select,
@@ -201,59 +202,92 @@ export function DashboardIsland({
         </div>
       </div>
 
-      {/* Pending (upcoming) lessons */}
-      {pendingLessons.length > 0 && (
-        <div className="space-y-3">
-          <SectionHeader dot="bg-tf-indigo" label="Upcoming" count={pendingLessons.length} />
-          {pendingLessons.map((l) => (
-            <LessonCard
-              key={l.id}
-              lesson={l}
-              studentName={studentNames[l.studentId] ?? l.studentId}
-              onChanged={refreshToday}
-            />
-          ))}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {pendingLessons.length > 0 && (
+          <motion.div
+            key="pending"
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-3 overflow-hidden"
+          >
+            <SectionHeader dot="bg-tf-indigo" label="Upcoming" count={pendingLessons.length} />
+            {pendingLessons.map((l) => (
+              <LessonCard
+                key={l.id}
+                lesson={l}
+                studentName={studentNames[l.studentId] ?? l.studentId}
+                onChanged={refreshToday}
+              />
+            ))}
+          </motion.div>
+        )}
 
-      {/* Due payment lessons */}
-      {dueLessons.length > 0 && (
-        <div className="space-y-3">
-          <SectionHeader dot="bg-tf-pollen" label="Due Payment" count={dueLessons.length} />
-          {dueLessons.map((l) => (
-            <LessonCard
-              key={l.id}
-              lesson={l}
-              studentName={studentNames[l.studentId] ?? l.studentId}
-              onChanged={refreshToday}
-            />
-          ))}
-        </div>
-      )}
+        {dueLessons.length > 0 && (
+          <motion.div
+            key="due"
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-3 overflow-hidden"
+          >
+            <SectionHeader dot="bg-tf-pollen" label="Due Payment" count={dueLessons.length} />
+            {dueLessons.map((l) => (
+              <LessonCard
+                key={l.id}
+                lesson={l}
+                studentName={studentNames[l.studentId] ?? l.studentId}
+                onChanged={refreshToday}
+              />
+            ))}
+          </motion.div>
+        )}
 
-      {/* Processed lessons */}
-      {processedLessons.length > 0 && (
-        <div className="space-y-2">
-          <SectionHeader
-            dot="bg-muted-foreground"
-            label="Processed"
-            count={processedLessons.length}
-          />
-          {processedLessons.map((l) => (
-            <ProcessedLessonRow
-              key={l.id}
-              lesson={l}
-              studentName={studentNames[l.studentId] ?? l.studentId}
+        {processedLessons.length > 0 && (
+          <motion.div
+            key="processed"
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-2 overflow-hidden"
+          >
+            <SectionHeader
+              dot="bg-muted-foreground"
+              label="Processed"
+              count={processedLessons.length}
             />
-          ))}
-        </div>
-      )}
+            {processedLessons.map((l) => (
+              <ProcessedLessonRow
+                key={l.id}
+                lesson={l}
+                studentName={studentNames[l.studentId] ?? l.studentId}
+              />
+            ))}
+          </motion.div>
+        )}
 
-      {todayLessons.length === 0 && !nextLesson && (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-          No lessons today. Enjoy your day off!
-        </div>
-      )}
+        {todayLessons.length === 0 && !nextLesson && (
+          <motion.div
+            key="empty"
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+              No lessons today. Enjoy your day off!
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Financial summary */}
       <div className="space-y-3 border-t border-border pt-5">

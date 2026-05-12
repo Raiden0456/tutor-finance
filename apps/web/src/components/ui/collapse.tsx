@@ -1,39 +1,69 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 /**
- * Smooth show/hide using the CSS grid `grid-rows-[0fr → 1fr]` trick.
- * Keeps last children mounted during exit so text doesn't disappear before the
- * collapse finishes. Pure CSS — no AnimatePresence required.
+ * Smooth collapse/expand using Motion. Animates height + opacity, exits gracefully.
  */
 export function Collapse({
   open,
   children,
   className,
-  duration = 300,
+  duration = 0.25,
 }: {
   open: boolean;
   children: ReactNode;
   className?: string;
   duration?: number;
 }) {
-  const [cached, setCached] = useState<ReactNode>(children);
-
-  useEffect(() => {
-    if (open) setCached(children);
-  }, [open, children]);
-
   return (
-    <div
-      className={cn(
-        'grid transition-[grid-template-rows,opacity] ease-out',
-        open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
-        className,
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          key="collapse-content"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration, ease: EASE }}
+          className={cn('overflow-hidden', className)}
+          aria-hidden={!open}
+        >
+          {children}
+        </motion.div>
       )}
-      style={{ transitionDuration: `${duration}ms` }}
-      aria-hidden={!open}
-    >
-      <div className="min-h-0 overflow-hidden">{open ? children : cached}</div>
-    </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Crossfade between mutually-exclusive states. Pass a stable `motionKey` that
+ * changes when the content should swap.
+ */
+export function FadeSwap({
+  motionKey,
+  children,
+  className,
+  duration = 0.2,
+}: {
+  motionKey: string | number;
+  children: ReactNode;
+  className?: string;
+  duration?: number;
+}) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={motionKey}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration, ease: EASE }}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }

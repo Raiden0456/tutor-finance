@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapse } from '@/components/ui/collapse';
+import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import {
   ChartContainer,
   ChartTooltip,
@@ -200,25 +201,24 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
         </Card>
       </Collapse>
 
-      <div
-        key={empty ? 'empty' : 'list'}
-        className="animate-in fade-in slide-in-from-bottom-1 duration-300"
-      >
+      <FadeSwap motionKey={empty ? 'empty' : 'list'}>
         {empty ? (
           <EmptyState onAdd={startCreate} />
         ) : (
           <ul className="flex flex-col gap-3">
-            {students.map((s) => (
-              <StudentCard
-                key={s.id}
-                student={s}
-                onEdit={() => startEdit(s)}
-                onArchive={() => archive(s.id)}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {students.map((s) => (
+                <StudentCard
+                  key={s.id}
+                  student={s}
+                  onEdit={() => startEdit(s)}
+                  onArchive={() => archive(s.id)}
+                />
+              ))}
+            </AnimatePresence>
           </ul>
         )}
-      </div>
+      </FadeSwap>
     </div>
   );
 }
@@ -234,7 +234,14 @@ function StudentCard({
 }) {
   const tint = useMemo(() => avatarTint(student.id), [student.id]);
   return (
-    <li className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: -12 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      className="overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+    >
       <div className="flex items-center gap-3">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-primary-foreground"
@@ -275,7 +282,7 @@ function StudentCard({
           <span className="ml-1 text-xs font-normal text-muted-foreground">/ hr</span>
         </span>
       </div>
-    </li>
+    </motion.li>
   );
 }
 

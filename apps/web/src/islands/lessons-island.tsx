@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { FadeSwap } from '@/components/ui/collapse';
 import {
   ResponsiveModal,
   ResponsiveModalBody,
@@ -167,9 +168,10 @@ export function LessonsIsland({ initial, students }: Props) {
         </ResponsiveModal>
       </header>
 
-      <div
-        key={students.length === 0 ? 'no-students' : initial.length === 0 ? 'no-lessons' : 'list'}
-        className="animate-in fade-in slide-in-from-bottom-1 duration-300"
+      <FadeSwap
+        motionKey={
+          students.length === 0 ? 'no-students' : initial.length === 0 ? 'no-lessons' : 'list'
+        }
       >
         {students.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -199,7 +201,7 @@ export function LessonsIsland({ initial, students }: Props) {
             ))}
           </div>
         )}
-      </div>
+      </FadeSwap>
     </div>
   );
 }
