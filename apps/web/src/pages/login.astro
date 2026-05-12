@@ -9,6 +9,6 @@ if (session.user) {
   return Astro.redirect('/');
 }
 ---
-<AuthLayout title="Sign in">
+<AuthLayout title="Sign in" wide>
   <LoginForm client:load />
 </AuthLayout>
