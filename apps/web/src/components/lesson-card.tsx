@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, UserX } from 'lucide-react';
+import { AlertTriangle, Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, UserX } from 'lucide-react';
 import type { Lesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -39,11 +39,12 @@ function needsPayment(status: Lesson['status']) {
 export interface LessonCardProps {
   lesson: Lesson;
   studentName: string;
+  overlapping?: boolean;
   /** Optional callback fired after a status change (after the local animation completes). */
   onChanged?: () => void;
 }
 
-export function LessonCard({ lesson: initialLesson, studentName, onChanged }: LessonCardProps) {
+export function LessonCard({ lesson: initialLesson, studentName, overlapping, onChanged }: LessonCardProps) {
   const [lesson, setLesson] = useState(initialLesson);
   const [scheduledVisible, setScheduledVisible] = useState(
     () => initialLesson.status === 'scheduled',
@@ -87,11 +88,15 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
   }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-border bg-card p-4 shadow-sm duration-300">
+    <div className={cn(
+      'animate-in fade-in slide-in-from-bottom-2 rounded-2xl border bg-card p-4 shadow-sm duration-300',
+      overlapping ? 'border-amber-500/50 bg-amber-500/[0.03]' : 'border-border',
+    )}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-medium">{studentName}</div>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+            {overlapping && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
             <Clock className="h-3.5 w-3.5" />
             <span>{timeFmt.format(new Date(lesson.startsAt))}</span>
             <span>·</span>
