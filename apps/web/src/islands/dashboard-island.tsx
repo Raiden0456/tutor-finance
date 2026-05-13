@@ -132,6 +132,13 @@ export function DashboardIsland({
     d.setHours(23, 59, 59, 999);
     return d;
   }, []);
+  const weekEnd = useMemo(() => {
+    const d = new Date();
+    const daysUntilSunday = d.getDay() === 0 ? 0 : 7 - d.getDay();
+    d.setDate(d.getDate() + daysUntilSunday);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
 
   useEffect(() => {
     if (isFirst.current) {
@@ -160,7 +167,7 @@ export function DashboardIsland({
     const now = new Date();
     const [nextL, todayL] = await Promise.all([
       api.get<RecentLesson[]>('/lessons', {
-        query: { status: 'scheduled', from: now.toISOString(), orderDir: 'asc', limit: 1 },
+        query: { status: 'scheduled', from: now.toISOString(), to: weekEnd.toISOString(), orderDir: 'asc', limit: 1 },
       }),
       api.get<RecentLesson[]>('/lessons', {
         query: {
@@ -173,7 +180,10 @@ export function DashboardIsland({
     ]);
     setNextLesson(nextL[0] ?? null);
     setTodayLessons(todayL);
-  }, [todayStart, todayEnd]);
+  }, [todayStart, todayEnd, weekEnd]);
+
+  const displayNextLesson =
+    nextLesson && new Date(nextLesson.startsAt) <= weekEnd ? nextLesson : null;
 
   const pendingLessons = todayLessons.filter((l) => l.status === 'scheduled');
   const dueLessons = todayLessons.filter(
@@ -198,7 +208,7 @@ export function DashboardIsland({
       </div>
 
       {/* Next lesson hero */}
-      <NextLessonHero lesson={nextLesson} studentNames={studentNames} />
+      <NextLessonHero lesson={displayNextLesson} studentNames={studentNames} />
 
       {/* Today overview */}
       <div>
@@ -433,10 +443,10 @@ function NextLessonHero({
             </div>
             <div>
               <p className="text-sm font-medium text-white/80">All clear</p>
-              <p className="mt-0.5 text-xl font-semibold leading-tight">No upcoming sessions</p>
-              <p className="mt-1 text-sm text-white/70">
-                Nothing on the schedule. Take a breather.
+              <p className="mt-0.5 text-xl font-semibold leading-tight">
+                Nothing on schedule this week
               </p>
+              <p className="mt-1 text-sm text-white/70">The week is clear. Enjoy the time off!</p>
             </div>
           </div>
         )}

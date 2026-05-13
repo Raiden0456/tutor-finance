@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
-import { fmtMoney } from '@/lib/format';
-import { toMinorUnits } from '@tutor-finance/shared';
+import { fmtMajor, fmtMoney } from '@/lib/format';
+import { SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import {
   ResponsiveModal,
@@ -18,9 +18,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, UserX } from 'lucide-react';
+import { Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, UserX } from 'lucide-react';
 import type { Lesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -44,6 +51,7 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
   const [scheduledCollapsed, setScheduledCollapsed] = useState(false);
   const [dueVisible, setDueVisible] = useState(() => needsPayment(initialLesson.status));
   const [dueCollapsed, setDueCollapsed] = useState(false);
+  const [editPriceOpen, setEditPriceOpen] = useState(false);
 
   function onPaymentComplete(newStatus: Lesson['status'], newPaidAmount?: number | null) {
     setLesson((prev) => ({
@@ -89,6 +97,11 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
             <span>·</span>
             <span>{lesson.durationMin} min</span>
           </div>
+          {lesson.effectivePrice && lesson.status !== 'partially_paid' && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
+            </div>
+          )}
           {lesson.status === 'partially_paid' &&
             lesson.paidAmount !== null &&
             lesson.effectivePrice && (
@@ -124,6 +137,7 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
               lesson={lesson}
               onStatusChange={onScheduledChange}
               onRescheduled={onChanged}
+              onEditPriceClick={() => setEditPriceOpen(true)}
             />
           </div>
         </div>
@@ -138,10 +152,17 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
           )}
         >
           <div className="mt-3 border-t border-border pt-3">
-            <DuePaymentActions lesson={lesson} onComplete={onPaymentComplete} />
+            <DuePaymentActions lesson={lesson} onComplete={onPaymentComplete} onEditPriceClick={() => setEditPriceOpen(true)} />
           </div>
         </div>
       )}
+
+      <EditPriceModal
+        open={editPriceOpen}
+        onOpenChange={setEditPriceOpen}
+        lesson={lesson}
+        onSaved={(newPrice) => setLesson((prev) => ({ ...prev, effectivePrice: newPrice }))}
+      />
     </div>
   );
 }
@@ -149,9 +170,11 @@ export function LessonCard({ lesson: initialLesson, studentName, onChanged }: Le
 function DuePaymentActions({
   lesson,
   onComplete,
+  onEditPriceClick,
 }: {
   lesson: Lesson;
   onComplete: (status: Lesson['status'], paidAmount?: number | null) => void;
+  onEditPriceClick: () => void;
 }) {
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
@@ -243,6 +266,10 @@ function DuePaymentActions({
                   <Banknote className="mr-2 h-4 w-4" />
                   Partial Payment
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={onEditPriceClick}>
+                  <PencilLine className="mr-2 h-4 w-4" />
+                  Edit Price
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                   <UserX className="mr-2 h-4 w-4" />
                   No-show
@@ -303,10 +330,12 @@ function ScheduledActions({
   lesson,
   onStatusChange,
   onRescheduled,
+  onEditPriceClick,
 }: {
   lesson: Lesson;
   onStatusChange: (status: Lesson['status']) => void;
   onRescheduled?: () => void;
+  onEditPriceClick: () => void;
 }) {
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
@@ -394,6 +423,10 @@ function ScheduledActions({
                   <CalendarClock className="mr-2 h-4 w-4" />
                   Reschedule
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={onEditPriceClick}>
+                  <PencilLine className="mr-2 h-4 w-4" />
+                  Edit Price
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                   <UserX className="mr-2 h-4 w-4" />
                   No-show
@@ -456,5 +489,87 @@ function ScheduledActions({
         </ResponsiveModalContent>
       </ResponsiveModal>
     </>
+  );
+}
+
+function EditPriceModal({
+  open,
+  onOpenChange,
+  lesson,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lesson: Lesson;
+  onSaved: (price: { amount: number; currency: Currency }) => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>('USD');
+
+  useEffect(() => {
+    if (open) {
+      setAmount(
+        lesson.effectivePrice
+          ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
+          : '',
+      );
+      setCurrency((lesson.effectivePrice?.currency as Currency | undefined) ?? 'USD');
+    }
+  }, [open]);
+
+  function handleSave() {
+    const major = parseFloat(amount);
+    if (isNaN(major) || major <= 0) return;
+    const minorAmount = toMinorUnits(major, currency);
+    onOpenChange(false);
+    onSaved({ amount: minorAmount, currency });
+    api.patch(`/lessons/${lesson.id}`, { priceOverride: { amount: minorAmount, currency } }).catch(() => {});
+  }
+
+  return (
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-w-sm">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>Edit Price</ResponsiveModalTitle>
+        </ResponsiveModalHeader>
+        <ResponsiveModalBody className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Currency</Label>
+            <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Amount ({currency})</Label>
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </ResponsiveModalBody>
+        <ResponsiveModalFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!amount}>
+            Save
+          </Button>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
