@@ -15,7 +15,7 @@ import {
   subDays,
   subMonths,
 } from 'date-fns';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle,
   CalendarRange,
@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Loader2,
   Plus,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,15 @@ interface Props {
 }
 
 type SelectionMode = 'single' | 'range';
+
+interface SlotDraft {
+  id: string;
+  studentId: string;
+  date: Date;
+  time: string;
+  durationMin: number;
+  status: 'scheduled' | 'due' | 'paid';
+}
 
 const CREATE_STATUSES = ['scheduled', 'due', 'paid'] as const;
 const WEEK_START = { weekStartsOn: 1 } as const;
@@ -106,6 +116,13 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
   const [createTime, setCreateTime] = useState('10:00');
   const [createDurationMin, setCreateDurationMin] = useState(60);
   const [createViewMonth, setCreateViewMonth] = useState(() => startOfMonth(todayDate));
+  const [createStudentId, setCreateStudentId] = useState(students[0]?.id ?? '');
+  const [batchMode, setBatchMode] = useState(false);
+  const [slots, setSlots] = useState<SlotDraft[]>([]);
+  const [focusedSlotId, setFocusedSlotId] = useState<string | null>(null);
+  const [createProgress, setCreateProgress] = useState<{ done: number; total: number } | null>(null);
+  const [createErrors, setCreateErrors] = useState<string[]>([]);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
   const loadedMonthsRef = useRef(new Set([initialMonthStr]));
 
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s.name])), [students]);
@@ -127,6 +144,30 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
         .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()),
     [monthLessons, rangeStart, effectiveEnd],
   );
+
+  const createDayLessons = useMemo(() => {
+    if (!createOpen) return [];
+    const key = dayKey(createDate);
+    return monthLessons
+      .filter((l) => dayKey(new Date(l.startsAt)) === key)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [createOpen, createDate, monthLessons]);
+
+  const focusedSlot = useMemo(
+    () => slots.find((s) => s.id === focusedSlotId) ?? null,
+    [slots, focusedSlotId],
+  );
+
+  const slotOverlapIds = useMemo(() => {
+    if (!batchMode) return new Set<string>();
+    const synthetic = slots.map((s) => {
+      const [h, m] = s.time.split(':').map(Number);
+      const d = new Date(s.date);
+      d.setHours(h, m, 0, 0);
+      return { id: s.id, startsAt: d.toISOString(), durationMin: s.durationMin } as Lesson;
+    });
+    return findOverlaps([...monthLessons, ...synthetic]);
+  }, [batchMode, slots, monthLessons]);
 
   const createOverlapLesson = useMemo(() => {
     if (!createTime) return null;
@@ -234,6 +275,13 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
     setCreateViewMonth(startOfMonth(rangeStart));
     setCreateTime('10:00');
     setCreateDurationMin(60);
+    setCreateStudentId(students[0]?.id ?? '');
+    setBatchMode(false);
+    setSlots([]);
+    setFocusedSlotId(null);
+    setCreateProgress(null);
+    setCreateErrors([]);
+    setCreateSubmitting(false);
     setCreateOpen(true);
   }
 
@@ -243,7 +291,7 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
     const startsAt = new Date(createDate);
     startsAt.setHours(h, m, 0, 0);
     await api.post('/lessons', {
-      studentId: String(data.get('studentId')),
+      studentId: createStudentId,
       startsAt: startsAt.toISOString(),
       durationMin: createDurationMin,
       status: String(data.get('status') ?? 'scheduled'),
@@ -251,6 +299,66 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
     });
     setCreateOpen(false);
     await reloadRange();
+  }
+
+  function handleAddSlot() {
+    const prev = slots.at(-1);
+    const newSlot: SlotDraft = {
+      id: crypto.randomUUID(),
+      studentId: batchMode ? (prev?.studentId ?? students[0]?.id ?? '') : createStudentId,
+      date: createDate,
+      time: batchMode ? (prev?.time ?? createTime) : createTime,
+      durationMin: batchMode ? (prev?.durationMin ?? createDurationMin) : createDurationMin,
+      status: 'scheduled',
+    };
+    if (!batchMode) {
+      const firstSlot: SlotDraft = {
+        id: crypto.randomUUID(),
+        studentId: createStudentId,
+        date: createDate,
+        time: createTime,
+        durationMin: createDurationMin,
+        status: 'scheduled',
+      };
+      setBatchMode(true);
+      setSlots([firstSlot, newSlot]);
+      setFocusedSlotId(newSlot.id);
+    } else {
+      setSlots((s) => [...s, newSlot]);
+      setFocusedSlotId(newSlot.id);
+    }
+  }
+
+  async function onBatchCreate() {
+    setCreateSubmitting(true);
+    setCreateErrors([]);
+    setCreateProgress({ done: 0, total: slots.length });
+    const errs: string[] = [];
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i];
+      const [h, m] = s.time.split(':').map(Number);
+      const startsAt = new Date(s.date);
+      startsAt.setHours(h, m, 0, 0);
+      try {
+        await api.post('/lessons', {
+          studentId: s.studentId,
+          startsAt: startsAt.toISOString(),
+          durationMin: s.durationMin,
+          status: s.status,
+        });
+      } catch {
+        errs.push(`Slot ${i + 1} (${format(s.date, 'd MMM')} ${s.time}) failed`);
+      }
+      setCreateProgress({ done: i + 1, total: slots.length });
+    }
+    setCreateSubmitting(false);
+    setCreateErrors(errs);
+    const distinctStarts = [...new Set(slots.map((s) => monthKey(s.date)))].map(
+      (mk) => startOfMonth(new Date(mk + '-01')),
+    );
+    for (const d of distinctStarts) loadedMonthsRef.current.delete(monthKey(d));
+    await Promise.all(distinctStarts.map((d) => loadMonth(d, true)));
+    if (errs.length === 0) setCreateOpen(false);
   }
 
   return (
@@ -308,103 +416,200 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
       <ResponsiveModal open={createOpen} onOpenChange={setCreateOpen}>
         <ResponsiveModalContent className="max-w-md">
           <ResponsiveModalHeader>
-            <ResponsiveModalTitle>New lesson</ResponsiveModalTitle>
+            <ResponsiveModalTitle>
+              {batchMode ? `Log ${slots.length} lessons` : 'New lesson'}
+            </ResponsiveModalTitle>
           </ResponsiveModalHeader>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              onCreate(e.currentTarget);
+              if (!batchMode) onCreate(e.currentTarget);
             }}
             className="flex min-h-0 flex-1 flex-col gap-4"
           >
-            <ResponsiveModalBody className="grid gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label>Student</Label>
-                  <Select name="studentId" defaultValue={students[0]?.id}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
+            <ResponsiveModalBody className="flex flex-col gap-4">
+              {/* ─── Mode panels ─── */}
+              <AnimatePresence initial={false} mode="wait">
+                {!batchMode ? (
+                  <motion.div
+                    key="single"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col gap-4"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-2">
+                        <Label>Student</Label>
+                        <Select
+                          name="studentId"
+                          value={createStudentId}
+                          onValueChange={setCreateStudentId}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {students.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Status</Label>
+                        <Select name="status" defaultValue="scheduled">
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CREATE_STATUSES.map((s) => (
+                              <SelectItem key={s} value={s}>{statusLabel[s]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Date</Label>
+                      <CreateCalendar
+                        selectedDate={createDate}
+                        viewMonth={createViewMonth}
+                        daysWithLessons={daysWithLessons}
+                        onSelect={(d) => { setCreateDate(d); loadMonth(d); }}
+                        onMonthChange={(d) => { setCreateViewMonth(d); loadMonth(d); }}
+                      />
+                      <FadeSwap motionKey={dayKey(createDate)} duration={0.18}>
+                        {createDayLessons.length > 0
+                          ? <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
+                          : null}
+                      </FadeSwap>
+                    </div>
+                    <div className="grid gap-3 grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="createTime">Time</Label>
+                        <Input
+                          id="createTime"
+                          type="time"
+                          value={createTime}
+                          onChange={(e) => setCreateTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="createDurationMin">Duration (min)</Label>
+                        <Input
+                          id="createDurationMin"
+                          type="number"
+                          min="1"
+                          value={createDurationMin}
+                          onChange={(e) => setCreateDurationMin(Number(e.target.value))}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="notes">Notes</Label>
+                      <Input id="notes" name="notes" />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="batch"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col gap-3"
+                  >
+                    <CreateCalendar
+                      selectedDate={focusedSlot?.date ?? createDate}
+                      viewMonth={createViewMonth}
+                      daysWithLessons={daysWithLessons}
+                      onSelect={(d) => {
+                        setCreateDate(d);
+                        loadMonth(d);
+                        if (focusedSlotId) {
+                          setSlots((prev) =>
+                            prev.map((s) => s.id === focusedSlotId ? { ...s, date: d } : s),
+                          );
+                        }
+                      }}
+                      onMonthChange={(d) => { setCreateViewMonth(d); loadMonth(d); }}
+                    />
+                    <FadeSwap motionKey={dayKey(focusedSlot?.date ?? createDate)} duration={0.18}>
+                      {createDayLessons.length > 0
+                        ? <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
+                        : null}
+                    </FadeSwap>
+                    <div className="flex flex-col gap-2">
+                      {slots.map((slot) => (
+                        <SlotCard
+                          key={slot.id}
+                          slot={slot}
+                          students={students}
+                          isFocused={focusedSlotId === slot.id}
+                          hasOverlap={slotOverlapIds.has(slot.id)}
+                          canDelete={slots.length > 1}
+                          onFocus={() => {
+                            setFocusedSlotId(slot.id);
+                            setCreateDate(slot.date);
+                            setCreateViewMonth(startOfMonth(slot.date));
+                          }}
+                          onChange={(patch) =>
+                            setSlots((prev) =>
+                              prev.map((s) => s.id === slot.id ? { ...s, ...patch } : s),
+                            )
+                          }
+                          onDelete={() => {
+                            const next = slots.filter((s) => s.id !== slot.id);
+                            if (next.length <= 1) {
+                              const remaining = next[0];
+                              if (remaining) {
+                                setCreateStudentId(remaining.studentId);
+                                setCreateDate(remaining.date);
+                                setCreateTime(remaining.time);
+                                setCreateDurationMin(remaining.durationMin);
+                                setCreateViewMonth(startOfMonth(remaining.date));
+                              }
+                              setBatchMode(false);
+                              setSlots([]);
+                              setFocusedSlotId(null);
+                              return;
+                            }
+                            const idx = slots.findIndex((s) => s.id === slot.id);
+                            const nextFocus = next[Math.min(idx, next.length - 1)];
+                            setFocusedSlotId(nextFocus.id);
+                            setSlots(next);
+                          }}
+                        />
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Status</Label>
-                  <Select name="status" defaultValue="scheduled">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CREATE_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {statusLabel[s]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Date</Label>
-                <CreateCalendar
-                  selectedDate={createDate}
-                  viewMonth={createViewMonth}
-                  daysWithLessons={daysWithLessons}
-                  onSelect={(d) => {
-                    setCreateDate(d);
-                    loadMonth(d);
-                  }}
-                  onMonthChange={(d) => {
-                    setCreateViewMonth(d);
-                    loadMonth(d);
-                  }}
-                />
-              </div>
-              <div className="grid gap-3 grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="createTime">Time</Label>
-                  <Input
-                    id="createTime"
-                    type="time"
-                    value={createTime}
-                    onChange={(e) => setCreateTime(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="createDurationMin">Duration (min)</Label>
-                  <Input
-                    id="createDurationMin"
-                    type="number"
-                    min="1"
-                    value={createDurationMin}
-                    onChange={(e) => setCreateDurationMin(Number(e.target.value))}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Input id="notes" name="notes" />
-              </div>
-            </ResponsiveModalBody>
-            <ResponsiveModalFooter className="flex-col items-stretch gap-2">
-              <div
-                className={cn(
-                  'grid transition-all duration-200 ease-out',
-                  createOverlapLesson ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                    </div>
+                  </motion.div>
                 )}
+              </AnimatePresence>
+
+              {/* ─── Add slot button ─── */}
+              <button
+                type="button"
+                onClick={handleAddSlot}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary transition-opacity hover:opacity-70 active:opacity-50"
               >
-                <div className="min-h-0 overflow-hidden">
-                  <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {createOverlapLesson && (
+                <Plus className="h-3.5 w-3.5" />
+                Add slot
+              </button>
+            </ResponsiveModalBody>
+
+            <ResponsiveModalFooter className="flex-col items-stretch gap-2">
+              {/* Overlap warning — single mode */}
+              <AnimatePresence>
+                {createOverlapLesson && !batchMode && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>
                         Overlaps with{' '}
                         <span className="font-medium">
@@ -412,12 +617,56 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
                         </span>
                         {' '}at {format(new Date(createOverlapLesson.startsAt), 'HH:mm')}
                       </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <Button type="submit" className="w-full sm:w-auto">
-                Create
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Batch progress */}
+              <AnimatePresence>
+                {createProgress && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating {createProgress.done} of {createProgress.total}…
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Batch errors */}
+              <AnimatePresence>
+                {createErrors.length > 0 && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-col gap-0.5 rounded-lg bg-destructive/10 px-3 py-2.5">
+                      {createErrors.map((e, i) => (
+                        <p key={i} className="text-xs text-destructive">{e}</p>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <Button
+                type={batchMode ? 'button' : 'submit'}
+                onClick={batchMode ? onBatchCreate : undefined}
+                disabled={createSubmitting || (batchMode && slots.some((s) => !s.studentId))}
+                className="w-full sm:w-auto"
+              >
+                {createSubmitting
+                  ? `Creating ${createProgress?.done ?? 0}/${createProgress?.total ?? 0}…`
+                  : batchMode
+                    ? `Create ${slots.length} lesson${slots.length !== 1 ? 's' : ''}`
+                    : 'Create'}
               </Button>
             </ResponsiveModalFooter>
           </form>
@@ -830,6 +1079,152 @@ function DayDetail({
           </div>
         )}
       </FadeSwap>
+    </div>
+  );
+}
+
+// ─── Day schedule preview ─────────────────────────────────────────────────────
+
+function DaySchedulePreview({
+  lessons,
+  studentMap,
+}: {
+  lessons: Lesson[];
+  studentMap: Map<string, string>;
+}) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+      <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Schedule for this day</p>
+      <ul className="divide-y divide-border/40">
+        {lessons.map((l) => (
+          <li key={l.id} className="flex items-center gap-2 py-1.5 text-xs">
+            <span className="w-10 shrink-0 tabular-nums font-medium">
+              {format(new Date(l.startsAt), 'HH:mm')}
+            </span>
+            <span className="flex-1 truncate text-foreground/80">
+              {studentMap.get(l.studentId) ?? l.studentId}
+            </span>
+            <span className="shrink-0 text-muted-foreground">{l.durationMin}m</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Slot card (batch mode) ───────────────────────────────────────────────────
+
+function SlotCard({
+  slot,
+  students,
+  isFocused,
+  hasOverlap,
+  canDelete,
+  onFocus,
+  onChange,
+  onDelete,
+}: {
+  slot: SlotDraft;
+  students: StudentRef[];
+  isFocused: boolean;
+  hasOverlap: boolean;
+  canDelete: boolean;
+  onFocus: () => void;
+  onChange: (patch: Partial<SlotDraft>) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      onClick={onFocus}
+      className={cn(
+        'rounded-xl border p-2.5 transition-all duration-200',
+        isFocused ? 'border-primary/50 bg-primary/[0.03] shadow-sm' : 'border-border/50 bg-muted/20',
+        hasOverlap && 'border-amber-500/50 bg-amber-500/[0.05]',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Student */}
+        <Select
+          value={slot.studentId}
+          onValueChange={(v) => onChange({ studentId: v })}
+        >
+          <SelectTrigger className="h-7 w-auto min-w-[100px] flex-1 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {students.map((s) => (
+              <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Date chip */}
+        <button
+          type="button"
+          onClick={onFocus}
+          className={cn(
+            'h-7 rounded-lg px-2.5 text-xs font-medium transition-all duration-150',
+            isFocused
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-foreground hover:bg-muted/70',
+          )}
+        >
+          {format(slot.date, 'd MMM EEE')}
+        </button>
+
+        {/* Time */}
+        <Input
+          type="time"
+          value={slot.time}
+          onChange={(e) => onChange({ time: e.target.value })}
+          className="h-7 w-24 text-xs"
+        />
+
+        {/* Duration */}
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="1"
+            value={slot.durationMin}
+            onChange={(e) => onChange({ durationMin: Number(e.target.value) })}
+            className="h-7 w-14 text-xs"
+          />
+          <span className="text-xs text-muted-foreground">m</span>
+        </div>
+
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={!canDelete}
+          className={cn(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-150',
+            canDelete
+              ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+              : 'pointer-events-none opacity-30',
+          )}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Overlap indicator */}
+      <AnimatePresence>
+        {hasOverlap && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-1.5 pt-2 text-[11px] text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              Time overlap detected
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
