@@ -1,10 +1,8 @@
 import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
-import { SUPPORTED_CURRENCIES, type Currency, type TransactionType } from '@tutor-finance/shared';
-
-export const TRANSACTION_TYPES = ['income', 'expense'] as const;
+import { SUPPORTED_CURRENCIES, TransactionTypeEnum, type Currency, type TransactionType } from '@tutor-finance/shared';
 
 export class CreateTransactionDto {
-  @IsIn(TRANSACTION_TYPES as unknown as string[])
+  @IsIn(TransactionTypeEnum.options as unknown as string[])
   type!: TransactionType;
 
   @IsInt()
@@ -60,7 +58,7 @@ export class UpdateTransactionDto {
 
 export class TransactionFilterDto {
   @IsOptional()
-  @IsIn(TRANSACTION_TYPES as unknown as string[])
+  @IsIn(TransactionTypeEnum.options as unknown as string[])
   type?: TransactionType;
 
   @IsOptional()

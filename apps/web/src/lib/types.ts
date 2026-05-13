@@ -1,25 +1,30 @@
-import type { Currency } from '@tutor-finance/shared';
+import type {
+  Currency,
+  LessonStatus,
+  TransactionType,
+  Theme,
+  Locale,
+  Frequency,
+  Money,
+  CurrencyTotal,
+} from '@tutor-finance/shared';
+
+export type { CurrencyTotal, Frequency };
 
 export interface Lesson {
   id: string;
   studentId: string;
   startsAt: string;
   durationMin: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'due' | 'paid' | 'partially_paid';
+  status: LessonStatus;
   paidAmount: number | null;
-  effectivePrice: { amount: number; currency: Currency } | null;
+  effectivePrice: Money | null;
   notes?: string | null;
 }
 
 export type RecentLesson = Omit<Lesson, 'notes'>;
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-
-export interface CurrencyTotal {
-  currency: Currency;
-  amount: number;
-  count: number;
-}
 
 export interface Summary {
   from: string;
@@ -35,7 +40,7 @@ export interface Summary {
 
 export interface DailyTx {
   occurredAt: string;
-  type: 'income' | 'expense';
+  type: TransactionType;
   convertedAmount: number | null;
 }
 
@@ -51,7 +56,7 @@ export interface Student {
   name: string;
   email?: string | null;
   phone?: string | null;
-  hourlyRate: { amount: number; currency: Currency };
+  hourlyRate: Money;
   defaultCurrency: Currency;
   notes?: string | null;
   archivedAt?: string | null;
@@ -59,7 +64,7 @@ export interface Student {
 
 export interface IncomeTx {
   studentId: string | null;
-  type: 'income' | 'expense';
+  type: TransactionType;
   convertedAmount: number | null;
 }
 
@@ -67,15 +72,15 @@ export interface IncomeTx {
 
 export interface Settings {
   primaryCurrency: Currency;
-  theme: 'light' | 'dark' | 'system';
-  locale: 'en' | 'ru';
+  theme: Theme;
+  locale: Locale;
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────
 
 export interface Tx {
   id: string;
-  type: 'income' | 'expense';
+  type: TransactionType;
   amount: number;
   currency: Currency;
   occurredAt: string;
@@ -84,8 +89,6 @@ export interface Tx {
   description?: string | null;
   convertedAmount?: number | null;
 }
-
-export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Recurring {
   id: string;

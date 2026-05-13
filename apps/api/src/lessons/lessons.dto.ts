@@ -1,17 +1,7 @@
 import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MoneyDto } from '../students/students.dto.js';
-import type { Currency, LessonStatus } from '@tutor-finance/shared';
-
-export const LESSON_STATUSES = [
-  'scheduled',
-  'completed',
-  'cancelled',
-  'no_show',
-  'due',
-  'paid',
-  'partially_paid',
-] as const;
+import { LessonStatusEnum, type Currency, type LessonStatus } from '@tutor-finance/shared';
 
 export class CreateLessonDto {
   @IsUUID()
@@ -24,7 +14,7 @@ export class CreateLessonDto {
   @Min(1)
   durationMin!: number;
 
-  @IsIn(LESSON_STATUSES as unknown as string[])
+  @IsIn(LessonStatusEnum.options as unknown as string[])
   status!: LessonStatus;
 
   @IsOptional()
@@ -48,7 +38,7 @@ export class UpdateLessonDto {
   durationMin?: number;
 
   @IsOptional()
-  @IsIn(LESSON_STATUSES as unknown as string[])
+  @IsIn(LessonStatusEnum.options as unknown as string[])
   status?: LessonStatus;
 
   @IsOptional()
@@ -72,7 +62,7 @@ export class LessonFilterDto {
   studentId?: string;
 
   @IsOptional()
-  @IsIn(LESSON_STATUSES as unknown as string[])
+  @IsIn(LessonStatusEnum.options as unknown as string[])
   status?: LessonStatus;
 
   @IsOptional()

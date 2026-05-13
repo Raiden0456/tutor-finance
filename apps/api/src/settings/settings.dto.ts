@@ -1,8 +1,5 @@
 import { IsIn, IsOptional } from 'class-validator';
-import { SUPPORTED_CURRENCIES, type Currency, type Locale, type Theme } from '@tutor-finance/shared';
-
-export const THEMES = ['light', 'dark', 'system'] as const;
-export const LOCALES = ['en', 'ru'] as const;
+import { SUPPORTED_CURRENCIES, ThemeEnum, LocaleEnum, type Currency, type Locale, type Theme } from '@tutor-finance/shared';
 
 export class UpdateSettingsDto {
   @IsOptional()
@@ -10,11 +7,11 @@ export class UpdateSettingsDto {
   primaryCurrency?: Currency;
 
   @IsOptional()
-  @IsIn(THEMES as unknown as string[])
+  @IsIn(ThemeEnum.options as unknown as string[])
   theme?: Theme;
 
   @IsOptional()
-  @IsIn(LOCALES as unknown as string[])
+  @IsIn(LocaleEnum.options as unknown as string[])
   locale?: Locale;
 }
 

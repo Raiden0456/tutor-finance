@@ -1,8 +1,5 @@
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
-import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
-
-export const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
-export type Frequency = (typeof FREQUENCIES)[number];
+import { SUPPORTED_CURRENCIES, FrequencyEnum, type Currency, type Frequency } from '@tutor-finance/shared';
 
 export class CreateRecurringDto {
   @IsInt()
@@ -20,7 +17,7 @@ export class CreateRecurringDto {
   @IsString()
   description?: string;
 
-  @IsIn(FREQUENCIES as unknown as string[])
+  @IsIn(FrequencyEnum.options as unknown as string[])
   frequency!: Frequency;
 
   @IsOptional()
@@ -48,7 +45,7 @@ export class UpdateRecurringDto {
   description?: string;
 
   @IsOptional()
-  @IsIn(FREQUENCIES as unknown as string[])
+  @IsIn(FrequencyEnum.options as unknown as string[])
   frequency?: Frequency;
 
   @IsOptional()

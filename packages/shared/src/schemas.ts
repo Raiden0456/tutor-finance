@@ -55,6 +55,7 @@ export const TransactionInputSchema = z.object({
 
 export const ThemeEnum = z.enum(['light', 'dark', 'system']);
 export const LocaleEnum = z.enum(['en', 'ru']);
+export const FrequencyEnum = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
 
 export const UserSettingsInputSchema = z.object({
   primaryCurrency: currencyEnum,

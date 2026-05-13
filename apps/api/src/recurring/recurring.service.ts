@@ -1,13 +1,12 @@
 import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
-import type { Currency } from '@tutor-finance/shared';
+import type { Currency, Frequency } from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { recurringExpenses, transactions } from '../db/schema.js';
 import type {
   CreateRecurringDto,
-  Frequency,
   RecurringResponse,
   UpdateRecurringDto,
 } from './recurring.dto.js';

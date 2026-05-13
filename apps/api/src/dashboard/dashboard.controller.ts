@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
-import { convertMoney, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import { convertMoney, SUPPORTED_CURRENCIES, type Currency, type CurrencyTotal } from '@tutor-finance/shared';
 import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorator.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import { FxService } from '../fx/fx.service.js';
@@ -17,12 +17,6 @@ class SummaryQueryDto {
   @IsOptional()
   @IsIn(SUPPORTED_CURRENCIES as unknown as string[])
   target?: Currency;
-}
-
-interface CurrencyTotal {
-  currency: Currency;
-  amount: number;
-  count: number;
 }
 
 interface PeriodSummary {
