@@ -1,0 +1,94 @@
+import { format, isSameDay } from 'date-fns';
+import { motion } from 'motion/react';
+import { Archive, CalendarRange, ChevronDown, Loader2, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type { SelectionMode } from '../shared';
+
+export function CalendarHeader({
+  rangeStart,
+  rangeEnd,
+  selectionMode,
+  monthExpanded,
+  loading,
+  showArchive,
+  onToggleMonth,
+  onToggleMode,
+  onToggleArchive,
+  onLog,
+  disabledLog,
+}: {
+  rangeStart: Date;
+  rangeEnd: Date | null;
+  selectionMode: SelectionMode;
+  monthExpanded: boolean;
+  loading: boolean;
+  showArchive: boolean;
+  onToggleMonth: () => void;
+  onToggleMode: () => void;
+  onToggleArchive: () => void;
+  onLog: () => void;
+  disabledLog: boolean;
+}) {
+  const isRange = selectionMode === 'range' && rangeEnd && !isSameDay(rangeStart, rangeEnd);
+
+  return (
+    <div className="flex items-center justify-between gap-2 pt-3 pb-2">
+      {/* Left: month label + range span */}
+      <button
+        onClick={onToggleMonth}
+        className="flex min-w-0 items-center gap-1.5 transition-opacity active:opacity-60"
+        aria-expanded={monthExpanded}
+      >
+        <span className="text-base font-semibold tracking-tight">
+          {format(rangeStart, 'MMMM yyyy')}
+        </span>
+        <motion.span
+          animate={{ rotate: monthExpanded ? 180 : 0 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="text-muted-foreground"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </motion.span>
+        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {isRange && rangeEnd && (
+          <span className="ml-1 truncate text-xs text-muted-foreground">
+            {format(rangeStart, 'd MMM')} – {format(rangeEnd, 'd MMM')}
+          </span>
+        )}
+      </button>
+
+      {/* Right: mode toggle + archive + log */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          onClick={onToggleMode}
+          title={selectionMode === 'range' ? 'Single day mode' : 'Range mode'}
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
+            selectionMode === 'range'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          <CalendarRange className="h-4 w-4" />
+        </button>
+        <button
+          onClick={onToggleArchive}
+          title={showArchive ? 'Back to schedule' : 'View archive'}
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
+            showArchive
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          <Archive className="h-4 w-4" />
+        </button>
+        <Button size="sm" disabled={disabledLog || showArchive} onClick={onLog}>
+          <Plus className="h-4 w-4" />
+          Log
+        </Button>
+      </div>
+    </div>
+  );
+}
