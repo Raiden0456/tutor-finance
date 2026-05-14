@@ -1,21 +1,32 @@
-export function TabSwitcher({
+import { motion } from 'motion/react';
+
+export interface TabItem<T extends string> {
+  key: T;
+  label: string;
+}
+
+export function TabSwitcher<T extends string>({
   value,
   onChange,
+  tabs,
+  groupId,
 }: {
-  value: 'transactions' | 'recurring';
-  onChange: (v: 'transactions' | 'recurring') => void;
+  value: T;
+  onChange: (v: T) => void;
+  tabs: ReadonlyArray<TabItem<T>>;
+  /**
+   * Unique id for the sliding pill `layoutId`. Required when multiple TabSwitchers
+   * are mounted simultaneously so motion doesn't try to animate one pill across instances.
+   */
+  groupId?: string;
 }) {
+  const pillId = `tab-pill-${groupId ?? 'default'}`;
   return (
     <div
       role="tablist"
       className="flex md:w-fit items-center gap-1 rounded-full bg-muted p-1 text-xs font-medium"
     >
-      {(
-        [
-          { key: 'transactions', label: 'Transactions' },
-          { key: 'recurring', label: 'Recurring' },
-        ] as const
-      ).map(({ key, label }) => {
+      {tabs.map(({ key, label }) => {
         const active = value === key;
         return (
           <button
@@ -25,13 +36,19 @@ export function TabSwitcher({
             aria-selected={active}
             onClick={() => onChange(key)}
             className={
-              'flex h-8 flex-1 md:flex-auto items-center justify-center rounded-full px-3 transition-colors ' +
-              (active
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground')
+              'relative flex h-8 flex-1 md:flex-auto items-center justify-center rounded-full px-3 transition-colors duration-200 ' +
+              (active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')
             }
           >
-            {label}
+            {active && (
+              <motion.span
+                layoutId={pillId}
+                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
+                style={{ originY: 0 }}
+              />
+            )}
+            <span className="relative z-10 whitespace-nowrap">{label}</span>
           </button>
         );
       })}

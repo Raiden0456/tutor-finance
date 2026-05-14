@@ -129,7 +129,13 @@ export function DashboardIsland({
     const now = new Date();
     const [nextL, todayL] = await Promise.all([
       api.get<RecentLesson[]>('/lessons', {
-        query: { status: 'scheduled', from: now.toISOString(), to: weekEnd.toISOString(), orderDir: 'asc', limit: 1 },
+        query: {
+          status: 'scheduled',
+          from: now.toISOString(),
+          to: weekEnd.toISOString(),
+          orderDir: 'asc',
+          limit: 1,
+        },
       }),
       api.get<RecentLesson[]>('/lessons', {
         query: {
@@ -300,7 +306,7 @@ export function DashboardIsland({
       {/* Financial summary */}
       <div className="space-y-3 border-t border-border pt-5">
         <div className="flex flex-col-reverse items-start gap-2 md:flex-row">
-          <RangeTabs value={range} onChange={setRange} />
+          <RangeTabs value={range} onChange={setRange} groupId="dashboard" />
           <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
             <SelectTrigger className="h-9 w-[88px] shrink-0">
               <SelectValue />

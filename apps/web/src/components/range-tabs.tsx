@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { CalendarRange } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
@@ -53,10 +54,13 @@ export function inferRange(fromIso: string, toIso: string): RangeState {
 export function RangeTabs({
   value,
   onChange,
+  groupId,
 }: {
   value: RangeState;
   onChange: (r: RangeState) => void;
+  groupId?: string;
 }) {
+  const pillId = `range-tabs-pill-${groupId ?? 'default'}`;
   const [open, setOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     value.kind === 'custom' ? { from: value.from, to: value.to } : undefined,
@@ -95,13 +99,18 @@ export function RangeTabs({
             aria-selected={active}
             onClick={() => onChange({ kind: 'preset', key: k })}
             className={
-              'flex h-8 shrink-0 items-center justify-center rounded-full px-3 transition-colors ' +
-              (active
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground')
+              'relative flex h-8 shrink-0 items-center justify-center rounded-full px-3 transition-colors duration-200 ' +
+              (active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')
             }
           >
-            {PRESET_LABELS[k]}
+            {active && (
+              <motion.span
+                layoutId={pillId}
+                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
+              />
+            )}
+            <span className="relative z-10">{PRESET_LABELS[k]}</span>
           </button>
         );
       })}
@@ -112,14 +121,19 @@ export function RangeTabs({
             role="tab"
             aria-selected={customActive}
             className={
-              'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 transition-colors ' +
-              (customActive
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground')
+              'relative flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 transition-colors duration-200 ' +
+              (customActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')
             }
           >
-            <CalendarRange className="h-3.5 w-3.5" />
-            <span className="whitespace-nowrap">{customLabel}</span>
+            {customActive && (
+              <motion.span
+                layoutId={pillId}
+                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
+              />
+            )}
+            <CalendarRange className="relative z-10 h-3.5 w-3.5" />
+            <span className="relative z-10 whitespace-nowrap">{customLabel}</span>
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-auto p-0">

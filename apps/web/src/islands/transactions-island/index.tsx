@@ -37,6 +37,7 @@ import { TxCard } from './tx-card';
 import { IncomeExpenseBarChart, CategoryPieChart } from './charts';
 import { RecurringAddButton } from './recurring/add-button';
 import { RecurringList } from './recurring/list';
+import { ComparisonView } from './comparison';
 
 interface Props {
   initial: Tx[];
@@ -53,7 +54,7 @@ export function TransactionsIsland({
   initialSummary,
   students,
 }: Props) {
-  const [tab, setTab] = useState<'transactions' | 'recurring'>('transactions');
+  const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
   const [txList, setTxList] = useState<Tx[]>(initial);
@@ -174,13 +175,15 @@ export function TransactionsIsland({
             <p className="text-xs text-muted-foreground">
               {tab === 'transactions'
                 ? `${rangeLabel(range)} · ${txList.length} entries`
-                : recurring.length === 0
-                  ? 'No recurring expenses'
-                  : `${recurring.length} rules`}
+                : tab === 'recurring'
+                  ? recurring.length === 0
+                    ? 'No recurring expenses'
+                    : `${recurring.length} rules`
+                  : 'Growth & period comparison'}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {tab === 'transactions' && (
+            {(tab === 'transactions' || tab === 'analytics') && (
               <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
                 <SelectTrigger className="h-9 w-[88px] shrink-0">
                   <SelectValue />
@@ -194,7 +197,7 @@ export function TransactionsIsland({
                 </SelectContent>
               </Select>
             )}
-            {tab === 'transactions' ? (
+            {tab === 'analytics' ? null : tab === 'transactions' ? (
               <ResponsiveModal
                 open={txOpen}
                 onOpenChange={(open) => {
@@ -319,9 +322,18 @@ export function TransactionsIsland({
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row">
-          <TabSwitcher value={tab} onChange={setTab} />
-          <Collapse open={tab === 'transactions'} className="md:flex-1">
-            <RangeTabs value={range} onChange={setRange} />
+          <TabSwitcher
+            value={tab}
+            onChange={setTab}
+            groupId="tx-main"
+            tabs={[
+              { key: 'transactions', label: 'Transactions' },
+              { key: 'recurring', label: 'Recurring' },
+              { key: 'analytics', label: 'Analytics' },
+            ]}
+          />
+          <Collapse open={tab === 'transactions'} className="md:flex-1" duration={0.18}>
+            <RangeTabs value={range} onChange={setRange} groupId="tx-list" />
           </Collapse>
         </div>
       </header>
@@ -375,12 +387,14 @@ export function TransactionsIsland({
               )}
             </FadeSwap>
           </div>
-        ) : (
+        ) : tab === 'recurring' ? (
           <RecurringList
             items={recurring}
             primaryCurrency={primaryCurrency}
             onChange={setRecurring}
           />
+        ) : (
+          <ComparisonView currency={currency} />
         )}
       </FadeSwap>
     </div>
