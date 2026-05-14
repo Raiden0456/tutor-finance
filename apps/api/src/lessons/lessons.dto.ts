@@ -1,5 +1,5 @@
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, Max, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, Max, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { MoneyDto } from '../students/students.dto.js';
 import { LessonStatusEnum, type Currency, type LessonStatus } from '@tutor-finance/shared';
 
@@ -87,6 +87,11 @@ export class LessonFilterDto {
   @IsOptional()
   @IsIn(['asc', 'desc'])
   orderDir?: 'asc' | 'desc';
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  showArchived?: boolean;
 }
 
 export interface LessonResponse {
@@ -99,6 +104,7 @@ export interface LessonResponse {
   paidAmount: number | null;
   effectivePrice: { amount: number; currency: Currency } | null;
   notes: string | null;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

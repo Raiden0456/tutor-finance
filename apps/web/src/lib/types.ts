@@ -20,6 +20,7 @@ export interface Lesson {
   paidAmount: number | null;
   effectivePrice: Money | null;
   notes?: string | null;
+  archivedAt?: string | null;
 }
 
 export type RecentLesson = Omit<Lesson, 'notes'>;

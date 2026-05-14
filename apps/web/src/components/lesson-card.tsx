@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, UserX } from 'lucide-react';
+import { AlertTriangle, Archive, Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, Trash2, UserX } from 'lucide-react';
 import type { Lesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -40,11 +40,13 @@ export interface LessonCardProps {
   lesson: Lesson;
   studentName: string;
   overlapping?: boolean;
-  /** Optional callback fired after a status change (after the local animation completes). */
+  isArchived?: boolean;
   onChanged?: () => void;
+  onArchived?: () => void;
+  onDeleted?: () => void;
 }
 
-export function LessonCard({ lesson: initialLesson, studentName, overlapping, onChanged }: LessonCardProps) {
+export function LessonCard({ lesson: initialLesson, studentName, overlapping, isArchived, onChanged, onArchived, onDeleted }: LessonCardProps) {
   const [lesson, setLesson] = useState(initialLesson);
   const [scheduledVisible, setScheduledVisible] = useState(
     () => initialLesson.status === 'scheduled',
@@ -119,14 +121,22 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, on
             <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{lesson.notes}</div>
           ) : null}
         </div>
-        <span
-          className={cn(
-            'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium',
-            statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground',
-          )}
-        >
-          {statusLabel[lesson.status]}
-        </span>
+        <div className="flex shrink-0 items-start gap-1.5">
+          <span
+            className={cn(
+              'rounded-full px-2.5 py-1 text-[11px] font-medium',
+              statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground',
+            )}
+          >
+            {statusLabel[lesson.status]}
+          </span>
+          <LessonCardMenu
+            lesson={lesson}
+            isArchived={isArchived}
+            onArchived={onArchived}
+            onDeleted={onDeleted}
+          />
+        </div>
       </div>
 
       {/* Upcoming lesson actions — animated collapse when status leaves 'scheduled' */}
@@ -169,6 +179,101 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, on
         onSaved={(newPrice) => setLesson((prev) => ({ ...prev, effectivePrice: newPrice }))}
       />
     </div>
+  );
+}
+
+function LessonCardMenu({
+  lesson,
+  isArchived,
+  onArchived,
+  onDeleted,
+}: {
+  lesson: Lesson;
+  isArchived?: boolean;
+  onArchived?: () => void;
+  onDeleted?: () => void;
+}) {
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function handleArchive() {
+    setBusy(true);
+    try {
+      await api.post(`/lessons/${lesson.id}/archive`);
+      onArchived?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true);
+    try {
+      await api.delete(`/lessons/${lesson.id}`);
+      onDeleted?.();
+      setConfirmDeleteOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isPaid = lesson.status === 'paid' || lesson.status === 'partially_paid';
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-accent hover:text-muted-foreground"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {!isArchived && (
+            <DropdownMenuItem onClick={handleArchive} disabled={busy}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            onClick={() => setConfirmDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ResponsiveModal open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <ResponsiveModalContent className="max-w-sm">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Delete lesson?</ResponsiveModalTitle>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody>
+            <p className="text-sm text-muted-foreground">
+              This permanently deletes the lesson
+              {isPaid ? ' and its income transaction' : ''}.
+              This action cannot be undone.
+            </p>
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={busy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+    </>
   );
 }
 

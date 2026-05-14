@@ -40,6 +40,22 @@ export class LessonsController {
     return this.service.update(user.id, id, patch);
   }
 
+  @Post(':id/archive')
+  async archive(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<LessonResponse> {
+    return this.service.archive(user.id, id);
+  }
+
+  @Delete('archive')
+  async deleteArchive(
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<{ ok: boolean; count: number }> {
+    const count = await this.service.deleteArchive(user.id);
+    return { ok: true, count };
+  }
+
   @Delete(':id')
   async remove(
     @CurrentUser() user: CurrentUserData,

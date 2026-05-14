@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, lt, lte, not, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, not, sql, type SQL } from 'drizzle-orm';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
@@ -25,6 +25,7 @@ const JOIN_COLS = {
   priceOverrideCurrency: lessons.priceOverrideCurrency,
   paidAmount: lessons.paidAmount,
   notes: lessons.notes,
+  archivedAt: lessons.archivedAt,
   createdAt: lessons.createdAt,
   updatedAt: lessons.updatedAt,
   studentHourlyRateAmount: students.hourlyRateAmount,
@@ -42,6 +43,7 @@ type JoinRow = {
   priceOverrideCurrency: string | null;
   paidAmount: number | null;
   notes: string | null;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   studentHourlyRateAmount: number | null;
@@ -74,6 +76,7 @@ function toResponse(r: JoinRow): LessonResponse {
     paidAmount: r.paidAmount ?? null,
     effectivePrice,
     notes: r.notes,
+    archivedAt: r.archivedAt,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
@@ -92,6 +95,13 @@ export class LessonsService {
     await this.autoCompleteStale(userId);
 
     const conds: SQL[] = [eq(lessons.userId, userId)];
+
+    if (filter?.showArchived) {
+      conds.push(isNotNull(lessons.archivedAt));
+    } else {
+      conds.push(isNull(lessons.archivedAt));
+    }
+
     if (filter?.studentId) conds.push(eq(lessons.studentId, filter.studentId));
     if (filter?.status) conds.push(eq(lessons.status, filter.status));
     if (filter?.from) conds.push(gte(lessons.startsAt, new Date(filter.from)));
@@ -118,6 +128,7 @@ export class LessonsService {
         and(
           eq(lessons.userId, userId),
           eq(lessons.status, 'scheduled'),
+          isNull(lessons.archivedAt),
           lt(sql`${lessons.startsAt} + (${lessons.durationMin} * interval '1 minute')`, sql`now()`),
         ),
       );
@@ -212,11 +223,44 @@ export class LessonsService {
 
   async remove(userId: string, id: string): Promise<boolean> {
     const row = await this.findRowById(userId, id);
-    await this.db.delete(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, userId)));
-    if (['completed', 'paid', 'partially_paid'].includes(row.status)) {
-      await this.transactions.deleteForLesson(userId, row.id);
+    if (PAYMENT_STATUSES.includes(row.status)) {
+      await this.transactions.deleteForLesson(userId, id);
     }
+    await this.db.delete(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, userId)));
     return true;
+  }
+
+  async archive(userId: string, id: string): Promise<LessonResponse> {
+    const row = await this.findRowById(userId, id);
+    const [updated] = await this.db
+      .update(lessons)
+      .set({ archivedAt: new Date() })
+      .where(and(eq(lessons.id, id), eq(lessons.userId, userId)))
+      .returning();
+    if (!updated) throw new NotFoundException('Lesson not found');
+    if (PAYMENT_STATUSES.includes(row.status)) {
+      await this.transactions.deleteForLesson(userId, id);
+    }
+    return this.findById(userId, id);
+  }
+
+  async deleteArchive(userId: string): Promise<number> {
+    const archived = await this.db
+      .select({ id: lessons.id, status: lessons.status })
+      .from(lessons)
+      .where(and(eq(lessons.userId, userId), isNotNull(lessons.archivedAt)));
+
+    for (const row of archived) {
+      if (PAYMENT_STATUSES.includes(row.status)) {
+        await this.transactions.deleteForLesson(userId, row.id);
+      }
+    }
+
+    await this.db
+      .delete(lessons)
+      .where(and(eq(lessons.userId, userId), isNotNull(lessons.archivedAt)));
+
+    return archived.length;
   }
 
   private async syncTransaction(userId: string, lesson: Row) {
@@ -283,6 +327,7 @@ export class LessonsService {
       .where(
         and(
           eq(lessons.userId, userId),
+          isNull(lessons.archivedAt),
           gte(lessons.startsAt, from),
           lte(lessons.startsAt, to),
           not(inArray(lessons.status, ['cancelled', 'no_show'])),

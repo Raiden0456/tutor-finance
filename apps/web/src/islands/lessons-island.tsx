@@ -18,12 +18,14 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle,
+  Archive,
   CalendarRange,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Plus,
+  Trash2,
   X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -123,6 +125,9 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
   const [createProgress, setCreateProgress] = useState<{ done: number; total: number } | null>(null);
   const [createErrors, setCreateErrors] = useState<string[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [archivedLessons, setArchivedLessons] = useState<Lesson[]>([]);
+  const [loadingArchive, setLoadingArchive] = useState(false);
   const loadedMonthsRef = useRef(new Set([initialMonthStr]));
 
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s.name])), [students]);
@@ -216,6 +221,22 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
       await loadMonth(rangeEnd, true);
     }
   }, [rangeStart, rangeEnd, loadMonth]);
+
+  const loadArchive = useCallback(async () => {
+    setLoadingArchive(true);
+    try {
+      const data = await api.get<Lesson[]>('/lessons', { query: { showArchived: 'true', limit: '500' } });
+      setArchivedLessons(data);
+    } finally {
+      setLoadingArchive(false);
+    }
+  }, []);
+
+  function toggleArchive() {
+    const next = !showArchive;
+    setShowArchive(next);
+    if (next) loadArchive();
+  }
 
   const rsMonthKey = monthKey(rangeStart);
   useEffect(() => {
@@ -370,8 +391,10 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
           selectionMode={selectionMode}
           monthExpanded={monthExpanded}
           loading={loadingMonth}
+          showArchive={showArchive}
           onToggleMonth={() => setMonthExpanded((x) => !x)}
           onToggleMode={toggleMode}
+          onToggleArchive={toggleArchive}
           onLog={openCreate}
           disabledLog={students.length === 0}
         />
@@ -401,17 +424,28 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
         </Collapse>
       </div>
 
-      <DayDetail
-        rangeStart={rangeStart}
-        rangeEnd={rangeEnd}
-        selectionMode={selectionMode}
-        lessons={selectedLessons}
-        studentMap={studentMap}
-        loading={loadingMonth}
-        onLessonChanged={reloadRange}
-        onLog={openCreate}
-        hasStudents={students.length > 0}
-      />
+      <FadeSwap motionKey={showArchive ? 'archive' : 'day'}>
+        {showArchive ? (
+          <ArchiveView
+            lessons={archivedLessons}
+            studentMap={studentMap}
+            loading={loadingArchive}
+            onRefresh={loadArchive}
+          />
+        ) : (
+          <DayDetail
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            selectionMode={selectionMode}
+            lessons={selectedLessons}
+            studentMap={studentMap}
+            loading={loadingMonth}
+            onLessonChanged={reloadRange}
+            onLog={openCreate}
+            hasStudents={students.length > 0}
+          />
+        )}
+      </FadeSwap>
 
       <ResponsiveModal open={createOpen} onOpenChange={setCreateOpen}>
         <ResponsiveModalContent className="max-w-md">
@@ -684,8 +718,10 @@ function CalendarHeader({
   selectionMode,
   monthExpanded,
   loading,
+  showArchive,
   onToggleMonth,
   onToggleMode,
+  onToggleArchive,
   onLog,
   disabledLog,
 }: {
@@ -694,8 +730,10 @@ function CalendarHeader({
   selectionMode: SelectionMode;
   monthExpanded: boolean;
   loading: boolean;
+  showArchive: boolean;
   onToggleMonth: () => void;
   onToggleMode: () => void;
+  onToggleArchive: () => void;
   onLog: () => void;
   disabledLog: boolean;
 }) {
@@ -727,7 +765,7 @@ function CalendarHeader({
         )}
       </button>
 
-      {/* Right: mode toggle + log */}
+      {/* Right: mode toggle + archive + log */}
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={onToggleMode}
@@ -741,7 +779,19 @@ function CalendarHeader({
         >
           <CalendarRange className="h-4 w-4" />
         </button>
-        <Button size="sm" disabled={disabledLog} onClick={onLog}>
+        <button
+          onClick={onToggleArchive}
+          title={showArchive ? 'Back to schedule' : 'View archive'}
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
+            showArchive
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          <Archive className="h-4 w-4" />
+        </button>
+        <Button size="sm" disabled={disabledLog || showArchive} onClick={onLog}>
           <Plus className="h-4 w-4" />
           Log
         </Button>
@@ -1074,11 +1124,110 @@ function DayDetail({
                 studentName={studentMap.get(l.studentId) ?? l.studentId}
                 overlapping={overlappingIds.has(l.id)}
                 onChanged={onLessonChanged}
+                onArchived={onLessonChanged}
+                onDeleted={onLessonChanged}
               />
             ))}
           </div>
         )}
       </FadeSwap>
+    </div>
+  );
+}
+
+// ─── Archive view ─────────────────────────────────────────────────────────────
+
+function ArchiveView({
+  lessons,
+  studentMap,
+  loading,
+  onRefresh,
+}: {
+  lessons: Lesson[];
+  studentMap: Map<string, string>;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+
+  async function handleDeleteAll() {
+    setDeletingAll(true);
+    try {
+      await api.delete('/lessons/archive');
+      setDeleteAllOpen(false);
+      onRefresh();
+    } finally {
+      setDeletingAll(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">Archive</span>
+          {lessons.length > 0 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {lessons.length}
+            </span>
+          )}
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
+        {lessons.length > 0 && (
+          <button
+            onClick={() => setDeleteAllOpen(true)}
+            className="flex items-center gap-1.5 text-xs text-destructive transition-opacity hover:opacity-70 active:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete all
+          </button>
+        )}
+      </div>
+
+      {!loading && lessons.length === 0 ? (
+        <div className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-sm text-muted-foreground">
+          No archived lessons
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {lessons.map((l) => (
+            <LessonCard
+              key={l.id}
+              lesson={l}
+              studentName={studentMap.get(l.studentId) ?? l.studentId}
+              isArchived
+              onDeleted={onRefresh}
+            />
+          ))}
+        </div>
+      )}
+
+      <ResponsiveModal open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+        <ResponsiveModalContent className="max-w-sm">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Delete all archived?</ResponsiveModalTitle>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody>
+            <p className="text-sm text-muted-foreground">
+              This permanently deletes all {lessons.length} archived lesson
+              {lessons.length !== 1 ? 's' : ''}. This action cannot be undone.
+            </p>
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
+            <Button variant="outline" onClick={() => setDeleteAllOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteAll}
+              disabled={deletingAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete all
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
     </div>
   );
 }
