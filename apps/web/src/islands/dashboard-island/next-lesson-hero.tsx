@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { PartyPopper } from 'lucide-react';
+import { detectMeetingProvider } from '@/lib/meeting';
+import { PartyPopper, Video } from 'lucide-react';
 import type { RecentLesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -30,6 +32,14 @@ function formatNextLessonLabel(startsAt: Date): string {
   return `Next session · ${dateFmt.format(startsAt)}`;
 }
 
+function checkCanJoin(lesson: RecentLesson, startsAt: Date): boolean {
+  if (!lesson.meetingLink) return false;
+  const now = Date.now();
+  const openAt = startsAt.getTime() - 10 * 60_000;
+  const closeAt = startsAt.getTime() + lesson.durationMin * 60_000;
+  return now >= openAt && now <= closeAt;
+}
+
 export function NextLessonHero({
   lesson,
   studentNames,
@@ -39,6 +49,23 @@ export function NextLessonHero({
 }) {
   const hasLesson = !!lesson;
   const startsAt = lesson ? new Date(lesson.startsAt) : null;
+
+  const [countdown, setCountdown] = useState(() =>
+    startsAt ? formatCountdown(startsAt) : '',
+  );
+  const [canJoin, setCanJoin] = useState(() =>
+    lesson && startsAt ? checkCanJoin(lesson, startsAt) : false,
+  );
+
+  useEffect(() => {
+    if (!lesson || !startsAt) return;
+    const tick = () => {
+      setCountdown(formatCountdown(startsAt));
+      setCanJoin(checkCanJoin(lesson, startsAt));
+    };
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [lesson?.id]);
 
   return (
     <div className="relative isolate overflow-hidden rounded-3xl text-white">
@@ -60,7 +87,7 @@ export function NextLessonHero({
         style={{ background: 'linear-gradient(135deg, #15803d 0%, #22c55e 100%)' }}
       />
 
-      {/* Content — keyed so it fades+slides in on state swap */}
+      {/* Content */}
       <div
         key={hasLesson ? `lesson-${lesson!.id}` : 'empty'}
         className="animate-in fade-in slide-in-from-bottom-2 relative p-5 duration-500"
@@ -79,7 +106,25 @@ export function NextLessonHero({
             <p className="mt-3 text-xl font-semibold">
               {studentNames[lesson!.studentId] ?? lesson!.studentId}
             </p>
-            <p className="mt-0.5 text-sm text-white/60">{formatCountdown(startsAt)}</p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-sm text-white/60">{countdown}</p>
+              <div
+                className={cn(
+                  'overflow-hidden transition-all duration-500 ease-in-out',
+                  canJoin ? 'max-w-[10rem] opacity-100' : 'max-w-0 opacity-0',
+                )}
+              >
+                <a
+                  href={lesson!.meetingLink!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 whitespace-nowrap rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm transition-colors hover:bg-white/30 active:scale-95"
+                >
+                  <Video className="h-4 w-4" />
+                  {detectMeetingProvider(lesson!.meetingLink!) ?? 'Join'}
+                </a>
+              </div>
+            </div>
           </>
         ) : (
           <div className="flex items-start gap-3">

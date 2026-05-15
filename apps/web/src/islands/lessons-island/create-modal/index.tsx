@@ -178,6 +178,7 @@ export function CreateLessonModal({
       durationMin: createDurationMin,
       status: String(data.get('status') ?? 'scheduled'),
       notes: String(data.get('notes') ?? '').trim() || undefined,
+      meetingLink: String(data.get('meetingLink') ?? '').trim() || undefined,
     });
     onOpenChange(false);
     await onCreated([createDate]);
@@ -309,6 +310,10 @@ export function CreateLessonModal({
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Notes</Label>
                     <Input id="notes" name="notes" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="meetingLink">Meeting link</Label>
+                    <Input id="meetingLink" name="meetingLink" type="url" placeholder="https://..." />
                   </div>
                 </motion.div>
               ) : (

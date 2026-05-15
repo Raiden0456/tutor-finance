@@ -20,6 +20,7 @@ export interface Lesson {
   paidAmount: number | null;
   effectivePrice: Money | null;
   notes?: string | null;
+  meetingLink?: string | null;
   archivedAt?: string | null;
 }
 

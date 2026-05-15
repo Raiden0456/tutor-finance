@@ -27,13 +27,38 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Archive, Ban, Banknote, CalendarClock, CheckCircle2, Clock, MoreHorizontal, PencilLine, Trash2, UserX } from 'lucide-react';
+import {
+  AlertTriangle,
+  Archive,
+  Ban,
+  Banknote,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Link2,
+  MoreHorizontal,
+  PencilLine,
+  Trash2,
+  UserX,
+  Video,
+} from 'lucide-react';
+import { detectMeetingProvider } from '@/lib/meeting';
 import type { Lesson } from '@/lib/types';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
 
-function needsPayment(status: Lesson['status']) {
+export function needsPayment(status: Lesson['status']) {
   return status === 'due' || status === 'partially_paid' || status === 'completed';
+}
+
+/** Returns true if the lesson is today or in the future (not a past calendar day). */
+export function isNotPastDay(startsAt: string): boolean {
+  const d = new Date(startsAt);
+  const today = new Date();
+  if (d.getFullYear() !== today.getFullYear()) return d.getFullYear() > today.getFullYear();
+  if (d.getMonth() !== today.getMonth()) return d.getMonth() > today.getMonth();
+  return d.getDate() >= today.getDate();
 }
 
 export interface LessonCardProps {
@@ -54,7 +79,7 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
   const [scheduledCollapsed, setScheduledCollapsed] = useState(false);
   const [dueVisible, setDueVisible] = useState(() => needsPayment(initialLesson.status));
   const [dueCollapsed, setDueCollapsed] = useState(false);
-  const [editPriceOpen, setEditPriceOpen] = useState(false);
+  const [editDetailsOpen, setEditDetailsOpen] = useState(false);
 
   function onPaymentComplete(newStatus: Lesson['status'], newPaidAmount?: number | null) {
     setLesson((prev) => ({
@@ -76,8 +101,6 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
   function onScheduledChange(newStatus: Lesson['status']) {
     setLesson((prev) => ({ ...prev, status: newStatus }));
     if (newStatus === 'scheduled') return;
-    // Collapse the actions section first, then signal the parent.
-    // This prevents a height jump while the outer section is also animating out.
     setScheduledCollapsed(true);
     setTimeout(() => {
       setScheduledVisible(false);
@@ -120,6 +143,20 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
           {lesson.notes ? (
             <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{lesson.notes}</div>
           ) : null}
+          {lesson.meetingLink ? (
+            <a
+              href={lesson.meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 flex items-center gap-1.5 text-xs text-primary transition-opacity hover:opacity-70"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link2 className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {detectMeetingProvider(lesson.meetingLink) ?? lesson.meetingLink}
+              </span>
+            </a>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-start gap-1.5">
           <span
@@ -139,7 +176,7 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
         </div>
       </div>
 
-      {/* Upcoming lesson actions — animated collapse when status leaves 'scheduled' */}
+      {/* Upcoming lesson actions */}
       {scheduledVisible && (
         <div
           className={cn(
@@ -152,13 +189,13 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
               lesson={lesson}
               onStatusChange={onScheduledChange}
               onRescheduled={onChanged}
-              onEditPriceClick={() => setEditPriceOpen(true)}
+              onEditDetailsClick={() => setEditDetailsOpen(true)}
             />
           </div>
         </div>
       )}
 
-      {/* Payment actions — animated collapse when paid/cancelled/no_show */}
+      {/* Payment actions */}
       {dueVisible && (
         <div
           className={cn(
@@ -167,16 +204,27 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
           )}
         >
           <div className="mt-3 border-t border-border pt-3">
-            <DuePaymentActions lesson={lesson} onComplete={onPaymentComplete} onEditPriceClick={() => setEditPriceOpen(true)} />
+            <DuePaymentActions
+              lesson={lesson}
+              onComplete={onPaymentComplete}
+              onEditDetailsClick={() => setEditDetailsOpen(true)}
+            />
           </div>
         </div>
       )}
 
-      <EditPriceModal
-        open={editPriceOpen}
-        onOpenChange={setEditPriceOpen}
+      <EditDetailsModal
+        open={editDetailsOpen}
+        onOpenChange={setEditDetailsOpen}
         lesson={lesson}
-        onSaved={(newPrice) => setLesson((prev) => ({ ...prev, effectivePrice: newPrice }))}
+        onSaved={(updates) =>
+          setLesson((prev) => ({
+            ...prev,
+            notes: updates.notes !== undefined ? updates.notes : prev.notes,
+            meetingLink: updates.meetingLink !== undefined ? updates.meetingLink : prev.meetingLink,
+            effectivePrice: updates.effectivePrice ?? prev.effectivePrice,
+          }))
+        }
       />
     </div>
   );
@@ -231,6 +279,12 @@ function LessonCardMenu({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <a href={`/lessons/${lesson.id}`}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View details
+            </a>
+          </DropdownMenuItem>
           {!isArchived && (
             <DropdownMenuItem onClick={handleArchive} disabled={busy}>
               <Archive className="mr-2 h-4 w-4" />
@@ -277,14 +331,14 @@ function LessonCardMenu({
   );
 }
 
-function DuePaymentActions({
+export function DuePaymentActions({
   lesson,
   onComplete,
-  onEditPriceClick,
+  onEditDetailsClick,
 }: {
   lesson: Lesson;
   onComplete: (status: Lesson['status'], paidAmount?: number | null) => void;
-  onEditPriceClick: () => void;
+  onEditDetailsClick: () => void;
 }) {
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
@@ -297,6 +351,7 @@ function DuePaymentActions({
   const fullFormatted = lesson.effectivePrice
     ? fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
     : null;
+  const canEditDetails = isNotPastDay(lesson.startsAt);
 
   function handlePaidClick() {
     if (phase !== 'idle') return;
@@ -376,10 +431,12 @@ function DuePaymentActions({
                   <Banknote className="mr-2 h-4 w-4" />
                   Partial Payment
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEditPriceClick}>
-                  <PencilLine className="mr-2 h-4 w-4" />
-                  Edit Price
-                </DropdownMenuItem>
+                {canEditDetails && (
+                  <DropdownMenuItem onClick={onEditDetailsClick}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit Details
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                   <UserX className="mr-2 h-4 w-4" />
                   No-show
@@ -436,21 +493,22 @@ function DuePaymentActions({
   );
 }
 
-function ScheduledActions({
+export function ScheduledActions({
   lesson,
   onStatusChange,
   onRescheduled,
-  onEditPriceClick,
+  onEditDetailsClick,
 }: {
   lesson: Lesson;
   onStatusChange: (status: Lesson['status']) => void;
   onRescheduled?: () => void;
-  onEditPriceClick: () => void;
+  onEditDetailsClick: () => void;
 }) {
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
   const [labelSuccess, setLabelSuccess] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const showJoin = !!lesson.meetingLink && isNotPastDay(lesson.startsAt);
 
   const defaultDateTime = new Date(
     new Date(lesson.startsAt).getTime() - new Date().getTimezoneOffset() * 60000,
@@ -486,7 +544,7 @@ function ScheduledActions({
 
   return (
     <>
-      <div className="flex">
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={handleCompletedClick}
@@ -515,42 +573,57 @@ function ScheduledActions({
         <div
           className={cn(
             'overflow-hidden transition-all duration-300 ease-in-out',
+            showJoin && phase !== 'success' ? 'max-w-[3rem] opacity-100' : 'max-w-0 opacity-0',
+          )}
+        >
+          <a
+            href={lesson.meetingLink!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+            title="Join meeting"
+          >
+            <Video className="h-4 w-4" />
+          </a>
+        </div>
+
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-300 ease-in-out',
             phase === 'success' ? 'max-w-0 opacity-0' : 'max-w-[3rem] opacity-100',
           )}
         >
-          <div className="pl-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setRescheduleOpen(true)}>
-                  <CalendarClock className="mr-2 h-4 w-4" />
-                  Reschedule
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEditPriceClick}>
-                  <PencilLine className="mr-2 h-4 w-4" />
-                  Edit Price
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeStatus('no_show')}>
-                  <UserX className="mr-2 h-4 w-4" />
-                  No-show
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => changeStatus('cancelled')}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Ban className="mr-2 h-4 w-4" />
-                  Cancel lesson
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setRescheduleOpen(true)}>
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Reschedule
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEditDetailsClick}>
+                <PencilLine className="mr-2 h-4 w-4" />
+                Edit Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => changeStatus('no_show')}>
+                <UserX className="mr-2 h-4 w-4" />
+                No-show
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => changeStatus('cancelled')}
+                className="text-destructive focus:text-destructive"
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Cancel lesson
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -602,7 +675,7 @@ function ScheduledActions({
   );
 }
 
-function EditPriceModal({
+export function EditDetailsModal({
   open,
   onOpenChange,
   lesson,
@@ -611,13 +684,21 @@ function EditPriceModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lesson: Lesson;
-  onSaved: (price: { amount: number; currency: Currency }) => void;
+  onSaved: (updates: {
+    effectivePrice?: { amount: number; currency: Currency };
+    notes?: string | null;
+    meetingLink?: string | null;
+  }) => void;
 }) {
+  const [notes, setNotes] = useState('');
+  const [meetingLink, setMeetingLink] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
 
   useEffect(() => {
     if (open) {
+      setNotes(lesson.notes ?? '');
+      setMeetingLink(lesson.meetingLink ?? '');
       setAmount(
         lesson.effectivePrice
           ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
@@ -627,57 +708,88 @@ function EditPriceModal({
     }
   }, [open]);
 
-  function handleSave() {
+  async function handleSave() {
+    const patch: Record<string, unknown> = {
+      notes: notes.trim() || null,
+      meetingLink: meetingLink.trim() || null,
+    };
+
+    let newPrice: { amount: number; currency: Currency } | undefined;
     const major = parseFloat(amount);
-    if (isNaN(major) || major <= 0) return;
-    const minorAmount = toMinorUnits(major, currency);
+    if (!isNaN(major) && major > 0) {
+      const minorAmount = toMinorUnits(major, currency);
+      patch.priceOverride = { amount: minorAmount, currency };
+      newPrice = { amount: minorAmount, currency };
+    }
+
     onOpenChange(false);
-    onSaved({ amount: minorAmount, currency });
-    api.patch(`/lessons/${lesson.id}`, { priceOverride: { amount: minorAmount, currency } }).catch(() => {});
+    onSaved({
+      notes: patch.notes as string | null,
+      meetingLink: patch.meetingLink as string | null,
+      effectivePrice: newPrice,
+    });
+    api.patch(`/lessons/${lesson.id}`, patch).catch(() => {});
   }
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent className="max-w-sm">
         <ResponsiveModalHeader>
-          <ResponsiveModalTitle>Edit Price</ResponsiveModalTitle>
+          <ResponsiveModalTitle>Edit Details</ResponsiveModalTitle>
         </ResponsiveModalHeader>
         <ResponsiveModalBody className="grid gap-4">
           <div className="grid gap-2">
-            <Label>Currency</Label>
-            <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SUPPORTED_CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="edit-notes">Notes</Label>
+            <textarea
+              id="edit-notes"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add a note…"
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            />
           </div>
           <div className="grid gap-2">
-            <Label>Amount ({currency})</Label>
+            <Label htmlFor="edit-link">Meeting link</Label>
             <Input
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
+              id="edit-link"
+              type="url"
+              placeholder="https://…"
+              value={meetingLink}
+              onChange={(e) => setMeetingLink(e.target.value)}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Price override</Label>
+            <div className="grid grid-cols-[auto_1fr] gap-2">
+              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
           </div>
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!amount}>
-            Save
-          </Button>
+          <Button onClick={handleSave}>Save</Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
     </ResponsiveModal>

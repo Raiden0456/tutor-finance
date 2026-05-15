@@ -25,6 +25,7 @@ const JOIN_COLS = {
   priceOverrideCurrency: lessons.priceOverrideCurrency,
   paidAmount: lessons.paidAmount,
   notes: lessons.notes,
+  meetingLink: lessons.meetingLink,
   archivedAt: lessons.archivedAt,
   createdAt: lessons.createdAt,
   updatedAt: lessons.updatedAt,
@@ -43,6 +44,7 @@ type JoinRow = {
   priceOverrideCurrency: string | null;
   paidAmount: number | null;
   notes: string | null;
+  meetingLink: string | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -76,6 +78,7 @@ function toResponse(r: JoinRow): LessonResponse {
     paidAmount: r.paidAmount ?? null,
     effectivePrice,
     notes: r.notes,
+    meetingLink: r.meetingLink,
     archivedAt: r.archivedAt,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
@@ -180,6 +183,7 @@ export class LessonsService {
         priceOverrideAmount: input.priceOverride?.amount ?? null,
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
         notes: input.notes ?? null,
+        meetingLink: input.meetingLink ?? null,
       })
       .returning();
     if (!row) throw new NotFoundException('Insert failed');
@@ -202,6 +206,7 @@ export class LessonsService {
       set.priceOverrideCurrency = patch.priceOverride.currency;
     }
     if (patch.notes !== undefined) set.notes = patch.notes || null;
+    if (patch.meetingLink !== undefined) set.meetingLink = patch.meetingLink || null;
 
     const [row] = await this.db
       .update(lessons)

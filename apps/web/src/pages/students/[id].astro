@@ -1,0 +1,46 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { StudentDetailIsland } from '@/islands/student-detail-island';
+import { serverApi } from '@/lib/api';
+import type { Currency } from '@tutor-finance/shared';
+import type { Lesson, Student } from '@/lib/types';
+
+const { id } = Astro.params;
+const backUrl = Astro.url.searchParams.get('from') ?? '/students';
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const api = serverApi(cookie);
+
+const settings = await api.get<{ primaryCurrency: Currency }>('/settings/me');
+const primary: Currency = settings.primaryCurrency ?? 'USD';
+
+const [student, lessons, transactions] = await Promise.all([
+  api.get<Student>(`/students/${id}`),
+  api.get<Lesson[]>('/lessons', {
+    query: { studentId: id, limit: 200, orderDir: 'asc' },
+  }),
+  api.get<{ convertedAmount: number | null }[]>('/transactions', {
+    query: {
+      studentId: id,
+      type: 'income',
+      target: primary,
+      limit: 1000,
+    },
+  }),
+]);
+
+const totalIncome = transactions.reduce(
+  (sum, t) => sum + (typeof t.convertedAmount === 'number' ? t.convertedAmount : 0),
+  0,
+);
+---
+
+<AppLayout title={student.name}>
+  <StudentDetailIsland
+    client:load
+    student={student}
+    lessons={lessons}
+    totalIncome={totalIncome}
+    primaryCurrency={primary}
+    backUrl={backUrl}
+  />
+</AppLayout>

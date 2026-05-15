@@ -1,0 +1,17 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { LessonDetailIsland } from '@/islands/lesson-detail-island';
+import { serverApi } from '@/lib/api';
+import type { Lesson, Student } from '@/lib/types';
+
+const { id } = Astro.params;
+const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const api = serverApi(cookie);
+
+const lesson = await api.get<Lesson>(`/lessons/${id}`);
+const student = await api.get<Student>(`/students/${lesson.studentId}`);
+---
+
+<AppLayout title="Lesson">
+  <LessonDetailIsland client:load lesson={lesson} student={student} />
+</AppLayout>

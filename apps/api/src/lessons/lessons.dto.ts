@@ -25,6 +25,10 @@ export class CreateLessonDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  meetingLink?: string;
 }
 
 export class UpdateLessonDto {
@@ -54,6 +58,10 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  meetingLink?: string;
 }
 
 export class LessonFilterDto {
@@ -104,6 +112,7 @@ export interface LessonResponse {
   paidAmount: number | null;
   effectivePrice: { amount: number; currency: Currency } | null;
   notes: string | null;
+  meetingLink: string | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

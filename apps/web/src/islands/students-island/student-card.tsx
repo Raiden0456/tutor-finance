@@ -54,19 +54,20 @@ export function StudentCard({
       className="overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-primary-foreground"
+        <a
+          href={`/students/${student.id}`}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-primary-foreground transition-opacity hover:opacity-80"
           style={{ backgroundColor: tint }}
           aria-hidden
         >
           {initials(student.name)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-medium">{student.name}</div>
+        </a>
+        <a href={`/students/${student.id}`} className="min-w-0 flex-1 group">
+          <div className="truncate text-base font-medium group-hover:underline">{student.name}</div>
           <div className="truncate text-xs text-muted-foreground">
             {student.email || student.phone || '—'}
           </div>
-        </div>
+        </a>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Open menu">
