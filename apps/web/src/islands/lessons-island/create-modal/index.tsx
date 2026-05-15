@@ -178,6 +178,7 @@ export function CreateLessonModal({
       durationMin: createDurationMin,
       status: String(data.get('status') ?? 'scheduled'),
       notes: String(data.get('notes') ?? '').trim() || undefined,
+      homework: String(data.get('homework') ?? '').trim() || undefined,
       meetingLink: String(data.get('meetingLink') ?? '').trim() || undefined,
     });
     onOpenChange(false);
@@ -310,6 +311,10 @@ export function CreateLessonModal({
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Notes</Label>
                     <Input id="notes" name="notes" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="homework">Homework</Label>
+                    <Input id="homework" name="homework" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="meetingLink">Meeting link</Label>

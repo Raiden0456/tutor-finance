@@ -36,6 +36,13 @@
       "when": 1778848851309,
       "tag": "0004_magenta_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778852824661,
+      "tag": "0005_noisy_shriek",
+      "breakpoints": true
     }
   ]
 }

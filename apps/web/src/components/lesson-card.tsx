@@ -32,6 +32,7 @@ import {
   Archive,
   Ban,
   Banknote,
+  BookOpen,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -143,6 +144,12 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
           {lesson.notes ? (
             <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{lesson.notes}</div>
           ) : null}
+          {lesson.homework ? (
+            <div className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <BookOpen className="mt-0.5 h-3 w-3 shrink-0" />
+              <span className="line-clamp-2">{lesson.homework}</span>
+            </div>
+          ) : null}
           {lesson.meetingLink ? (
             <a
               href={lesson.meetingLink}
@@ -221,6 +228,7 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
           setLesson((prev) => ({
             ...prev,
             notes: updates.notes !== undefined ? updates.notes : prev.notes,
+            homework: updates.homework !== undefined ? updates.homework : prev.homework,
             meetingLink: updates.meetingLink !== undefined ? updates.meetingLink : prev.meetingLink,
             effectivePrice: updates.effectivePrice ?? prev.effectivePrice,
           }))
@@ -687,10 +695,12 @@ export function EditDetailsModal({
   onSaved: (updates: {
     effectivePrice?: { amount: number; currency: Currency };
     notes?: string | null;
+    homework?: string | null;
     meetingLink?: string | null;
   }) => void;
 }) {
   const [notes, setNotes] = useState('');
+  const [homework, setHomework] = useState('');
   const [meetingLink, setMeetingLink] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
@@ -698,6 +708,7 @@ export function EditDetailsModal({
   useEffect(() => {
     if (open) {
       setNotes(lesson.notes ?? '');
+      setHomework(lesson.homework ?? '');
       setMeetingLink(lesson.meetingLink ?? '');
       setAmount(
         lesson.effectivePrice
@@ -711,6 +722,7 @@ export function EditDetailsModal({
   async function handleSave() {
     const patch: Record<string, unknown> = {
       notes: notes.trim() || null,
+      homework: homework.trim() || null,
       meetingLink: meetingLink.trim() || null,
     };
 
@@ -725,6 +737,7 @@ export function EditDetailsModal({
     onOpenChange(false);
     onSaved({
       notes: patch.notes as string | null,
+      homework: patch.homework as string | null,
       meetingLink: patch.meetingLink as string | null,
       effectivePrice: newPrice,
     });
@@ -746,6 +759,17 @@ export function EditDetailsModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add a note…"
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-homework">Homework</Label>
+            <textarea
+              id="edit-homework"
+              rows={3}
+              value={homework}
+              onChange={(e) => setHomework(e.target.value)}
+              placeholder="Add homework…"
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
           </div>

@@ -25,6 +25,7 @@ const JOIN_COLS = {
   priceOverrideCurrency: lessons.priceOverrideCurrency,
   paidAmount: lessons.paidAmount,
   notes: lessons.notes,
+  homework: lessons.homework,
   meetingLink: lessons.meetingLink,
   archivedAt: lessons.archivedAt,
   createdAt: lessons.createdAt,
@@ -44,6 +45,7 @@ type JoinRow = {
   priceOverrideCurrency: string | null;
   paidAmount: number | null;
   notes: string | null;
+  homework: string | null;
   meetingLink: string | null;
   archivedAt: Date | null;
   createdAt: Date;
@@ -78,6 +80,7 @@ function toResponse(r: JoinRow): LessonResponse {
     paidAmount: r.paidAmount ?? null,
     effectivePrice,
     notes: r.notes,
+    homework: r.homework,
     meetingLink: r.meetingLink,
     archivedAt: r.archivedAt,
     createdAt: r.createdAt,
@@ -183,6 +186,7 @@ export class LessonsService {
         priceOverrideAmount: input.priceOverride?.amount ?? null,
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
         notes: input.notes ?? null,
+        homework: input.homework ?? null,
         meetingLink: input.meetingLink ?? null,
       })
       .returning();
@@ -206,6 +210,7 @@ export class LessonsService {
       set.priceOverrideCurrency = patch.priceOverride.currency;
     }
     if (patch.notes !== undefined) set.notes = patch.notes || null;
+    if (patch.homework !== undefined) set.homework = patch.homework || null;
     if (patch.meetingLink !== undefined) set.meetingLink = patch.meetingLink || null;
 
     const [row] = await this.db

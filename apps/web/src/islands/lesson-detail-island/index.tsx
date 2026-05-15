@@ -70,6 +70,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
   );
   const [meetingLink, setMeetingLink] = useState(initialLesson.meetingLink ?? '');
   const [notes, setNotes] = useState(initialLesson.notes ?? '');
+  const [homework, setHomework] = useState(initialLesson.homework ?? '');
 
   useEffect(() => {
     setStartsAtValue(toLocalDateTimeValue(lesson.startsAt));
@@ -82,12 +83,14 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
     setPriceCurrency((lesson.effectivePrice?.currency as Currency | undefined) ?? 'USD');
     setMeetingLink(lesson.meetingLink ?? '');
     setNotes(lesson.notes ?? '');
+    setHomework(lesson.homework ?? '');
   }, [lesson.id]);
 
   const dirty = useMemo(() => {
     if (startsAtValue !== toLocalDateTimeValue(lesson.startsAt)) return true;
     if (durationMin !== String(lesson.durationMin)) return true;
     if (notes !== (lesson.notes ?? '')) return true;
+    if (homework !== (lesson.homework ?? '')) return true;
     if (meetingLink !== (lesson.meetingLink ?? '')) return true;
     const savedAmount = lesson.effectivePrice
       ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
@@ -95,7 +98,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
     if (priceAmount !== savedAmount) return true;
     if (lesson.effectivePrice && priceCurrency !== lesson.effectivePrice.currency) return true;
     return false;
-  }, [startsAtValue, durationMin, notes, meetingLink, priceAmount, priceCurrency, lesson]);
+  }, [startsAtValue, durationMin, notes, homework, meetingLink, priceAmount, priceCurrency, lesson]);
 
   async function handleSave() {
     setSaving(true);
@@ -104,6 +107,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
         startsAt: new Date(startsAtValue).toISOString(),
         durationMin: Number(durationMin),
         notes: notes.trim() || null,
+        homework: homework.trim() || null,
         meetingLink: meetingLink.trim() || null,
       };
       const major = parseFloat(priceAmount);
@@ -222,6 +226,15 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add a note…"
+            className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </FieldRow>
+        <FieldRow label="Homework">
+          <textarea
+            rows={4}
+            value={homework}
+            onChange={(e) => setHomework(e.target.value)}
+            placeholder="Add homework…"
             className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </FieldRow>

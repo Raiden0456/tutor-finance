@@ -28,6 +28,10 @@ export class CreateLessonDto {
 
   @IsOptional()
   @IsString()
+  homework?: string;
+
+  @IsOptional()
+  @IsString()
   meetingLink?: string;
 }
 
@@ -58,6 +62,10 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  homework?: string;
 
   @IsOptional()
   @IsString()
@@ -112,6 +120,7 @@ export interface LessonResponse {
   paidAmount: number | null;
   effectivePrice: { amount: number; currency: Currency } | null;
   notes: string | null;
+  homework: string | null;
   meetingLink: string | null;
   archivedAt: Date | null;
   createdAt: Date;

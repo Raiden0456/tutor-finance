@@ -121,6 +121,7 @@ export const lessons = pgTable(
     priceOverrideCurrency: text('price_override_currency'),
     paidAmount: integer('paid_amount'),
     notes: text('notes'),
+    homework: text('homework'),
     meetingLink: text('meeting_link'),
     archivedAt: timestamp('archived_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
