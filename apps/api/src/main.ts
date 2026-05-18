@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -12,6 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
+
+  app.use(helmet());
 
   app.enableCors({
     origin: [env.publicAppUrl, env.betterAuthUrl, ...env.trustedOrigins].filter(Boolean),

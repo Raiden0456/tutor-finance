@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.provider.js';
 import { DbModule } from './db/db.module.js';
@@ -16,6 +18,7 @@ import { RecurringModule } from './recurring/recurring.module.js';
   imports: [
     DbModule,
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 200 }]),
     AuthModule.forRoot({
       auth,
       bodyParser: {
@@ -32,5 +35,6 @@ import { RecurringModule } from './recurring/recurring.module.js';
     HealthModule,
     RecurringModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

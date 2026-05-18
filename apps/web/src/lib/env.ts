@@ -6,6 +6,6 @@ export const PUBLIC_API_URL =
 export const PUBLIC_APP_URL =
   (env.PUBLIC_APP_URL as string | undefined) ?? 'http://localhost:4321';
 
-// Build the URL Astro should use for server-side GraphQL requests. In docker
-// the api hostname is `api`; locally it's localhost. PUBLIC_API_URL covers both.
-export const SERVER_API_URL = PUBLIC_API_URL;
+// SERVER_API_URL can point to an internal hostname on Render (faster, no round-trip).
+// Falls back to PUBLIC_API_URL so local dev needs no extra config.
+export const SERVER_API_URL = (env.SERVER_API_URL as string | undefined) ?? PUBLIC_API_URL;

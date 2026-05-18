@@ -1,0 +1,57 @@
+services:
+  # ── REST API (NestJS) ────────────────────────────────────────────────────────
+  - type: web
+    name: tutor-finance-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: node apps/api/dist/main.js
+    preDeployCommand: pnpm --filter @tutor-finance/api db:migrate:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tutor-finance-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: TRUSTED_ORIGINS
+        sync: false
+      - key: AUTH_EMAIL_PROVIDER
+        value: resend
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+
+  # ── Web (Astro SSR) ──────────────────────────────────────────────────────────
+  - type: web
+    name: tutor-finance-web
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: node apps/web/dist/server/entry.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: SERVER_API_URL
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+
+databases:
+  - name: tutor-finance-db
+    region: frankfurt
+    plan: free
+    databaseName: tutor_finance
+    user: tutor

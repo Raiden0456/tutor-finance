@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "node --env-file=.env --import tsx ./scripts/migrate.ts",
+    "db:migrate:prod": "node --import tsx ./scripts/migrate.ts",
     "db:seed": "node --env-file=.env --import tsx ./scripts/seed.ts",
     "db:auth:generate": "npx @better-auth/cli@latest generate --config ./src/auth/auth.provider.ts --output ../../packages/auth/src/schema.ts --yes"
   },
@@ -21,6 +22,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.0.0",
+    "@nestjs/throttler": "^6.5.0",
     "@thallesp/nestjs-better-auth": "^2.6.0",
     "@tutor-finance/auth": "workspace:*",
     "@tutor-finance/shared": "workspace:*",
@@ -28,6 +30,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "drizzle-orm": "^0.45.2",
+    "helmet": "^8.1.0",
     "pg": "^8.13.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
