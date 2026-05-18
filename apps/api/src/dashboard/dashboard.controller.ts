@@ -1,4 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
 import {
   convertMoney,
@@ -52,6 +53,7 @@ export class DashboardController {
   async summary(
     @CurrentUser() user: CurrentUserData,
     @Query() q: SummaryQueryDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<PeriodSummary> {
     const settings = await this.settings.getOrCreate(user.id);
     const targetCurrency = (q.target ?? settings.primaryCurrency) as Currency;
@@ -59,7 +61,11 @@ export class DashboardController {
     const to = new Date(q.to);
     const cacheKey = `user:${user.id}:dashboard:summary:${from.toISOString()}:${to.toISOString()}:${targetCurrency}`;
     const cached = await this.cacheService.getJson<PeriodSummary>(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return cached;
+    }
+    res.setHeader('X-Cache', 'MISS');
 
     const [rows, plannedRaw] = await Promise.all([
       this.transactions.monthSummary(user.id, from, to),
@@ -115,6 +121,7 @@ export class DashboardController {
     };
 
     await this.cacheService.setJson(cacheKey, summary, env.cache.dashboardTtlSeconds);
+    res.setHeader('X-Cache-TTL', String(env.cache.dashboardTtlSeconds));
     return summary;
   }
 }
