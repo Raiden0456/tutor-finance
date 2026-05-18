@@ -11,10 +11,17 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   const cookie = ctx.request.headers.get('cookie') ?? undefined;
-  const session = await getServerSession(cookie);
 
-  if (!session.user) {
-    return ctx.redirect('/login');
+  // In cross-domain deployments (e.g. Render without a custom domain) the
+  // browser never sends the API-scoped session cookie to the web server, so
+  // SSR cannot verify the session.  Only redirect server-side when we can
+  // actually see the session token; otherwise the client-side AuthGuard takes
+  // over.
+  if (cookie?.includes('better-auth.session_token')) {
+    const session = await getServerSession(cookie);
+    if (!session.user) {
+      return ctx.redirect('/login');
+    }
   }
 
   return next();
