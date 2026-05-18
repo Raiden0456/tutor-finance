@@ -1,18 +1,26 @@
-// Server-only env access. Vite/Astro exposes import.meta.env at build/SSR time.
-const env = import.meta.env;
+// Server-side env (SSR + reverse proxy) is read from process.env at RUNTIME.
+// Don't use `import.meta.env.SERVER_API_URL` — Vite inlines that at build time,
+// and on platforms like Render the env vars aren't yet present during the build,
+// so the value would be baked in as `undefined` and fall back to localhost.
+//
+// `PUBLIC_*` vars are different — they need to ship to the client bundle, so
+// Vite has to substitute them at build time via `import.meta.env`.
 
-export const PUBLIC_APP_URL = (env.PUBLIC_APP_URL as string | undefined) ?? 'http://localhost:4321';
+const proc =
+  typeof process !== 'undefined' ? process.env : ({} as Record<string, string | undefined>);
+const viteEnv = import.meta.env as Record<string, string | undefined>;
 
-// SERVER_API_URL is used ONLY by SSR / Astro frontmatter to talk to the API
-// directly (can be an internal Render hostname for speed). The browser must
-// never use this — it goes through the same-origin proxy at /api/*.
+export const PUBLIC_APP_URL =
+  viteEnv.PUBLIC_APP_URL ?? proc.PUBLIC_APP_URL ?? 'http://localhost:4321';
+
+// SERVER_API_URL is used ONLY by SSR / Astro frontmatter and the /api/* reverse
+// proxy. Read from process.env at runtime so it works on Render.
 export const SERVER_API_URL =
-  (env.SERVER_API_URL as string | undefined) ??
-  (env.PUBLIC_API_URL as string | undefined) ??
-  'http://localhost:3000';
+  proc.SERVER_API_URL ?? proc.PUBLIC_API_URL ?? viteEnv.SERVER_API_URL ?? 'http://localhost:3000';
 
-// Browser-facing API base. Empty string => relative URLs => same-origin requests
-// that hit the Astro `/api/[...path]` reverse proxy. This makes auth cookies
-// first-party in all browsers (incl. Safari ITP).
+// Browser-facing API base. In the browser, requests go to the current origin
+// and hit the same-origin `/api/*` reverse proxy, which keeps auth cookies
+// first-party (Safari ITP friendly). On the server we fall back to the app's
+// own public URL (only used for SSR hydration of islands; no real fetches).
 export const BROWSER_API_URL =
   typeof window !== 'undefined' ? window.location.origin : PUBLIC_APP_URL;
