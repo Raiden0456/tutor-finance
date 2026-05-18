@@ -44,6 +44,7 @@ const handler: APIRoute = async ({ request, params }) => {
 
   let upstream: Response;
   try {
+    console.log(`Proxying ${request.method} ${incoming.pathname} to ${target.href}`);
     upstream = await fetch(target, init);
   } catch (err) {
     return new Response(
