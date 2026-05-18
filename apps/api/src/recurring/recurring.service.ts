@@ -2,14 +2,12 @@ import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/com
 import { Cron } from '@nestjs/schedule';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 import type { Currency, Frequency } from '@tutor-finance/shared';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { recurringExpenses, transactions } from '../db/schema.js';
-import type {
-  CreateRecurringDto,
-  RecurringResponse,
-  UpdateRecurringDto,
-} from './recurring.dto.js';
+import type { CreateRecurringDto, RecurringResponse, UpdateRecurringDto } from './recurring.dto.js';
 
 type Row = typeof recurringExpenses.$inferSelect;
 
@@ -50,19 +48,28 @@ function calcNextDue(d: Date, freq: Frequency): Date {
 
 @Injectable()
 export class RecurringService implements OnModuleInit {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly cacheService: RedisCacheService,
+  ) {}
 
   async onModuleInit() {
     await this.dispatch();
   }
 
   async list(userId: string): Promise<RecurringResponse[]> {
+    const cacheKey = `user:${userId}:recurring:list`;
+    const cached = await this.cacheService.getJson<RecurringResponse[]>(cacheKey);
+    if (cached) return cached;
+
     const rows = await this.db
       .select()
       .from(recurringExpenses)
       .where(and(eq(recurringExpenses.userId, userId), isNull(recurringExpenses.deletedAt)))
       .orderBy(asc(recurringExpenses.createdAt));
-    return rows.map(toResponse);
+    const response = rows.map(toResponse);
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   async create(userId: string, input: CreateRecurringDto): Promise<RecurringResponse> {
@@ -82,6 +89,7 @@ export class RecurringService implements OnModuleInit {
         isActive: true,
       })
       .returning();
+    await this.invalidateUserCache(userId);
     // dispatch immediately if start date is today or past
     await this.dispatch();
     return toResponse(row!);
@@ -108,6 +116,7 @@ export class RecurringService implements OnModuleInit {
       )
       .returning();
     if (!row) throw new NotFoundException('Recurring expense not found');
+    await this.invalidateUserCache(userId);
     return toResponse(row);
   }
 
@@ -123,6 +132,7 @@ export class RecurringService implements OnModuleInit {
         ),
       )
       .returning({ id: recurringExpenses.id });
+    if (row) await this.invalidateUserCache(userId);
     return !!row;
   }
 
@@ -161,6 +171,15 @@ export class RecurringService implements OnModuleInit {
         .update(recurringExpenses)
         .set({ nextDueAt: nextDue })
         .where(eq(recurringExpenses.id, expense.id));
+      await this.invalidateUserCache(expense.userId);
     }
+  }
+
+  private async invalidateUserCache(userId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.deleteByPrefix(`user:${userId}:recurring:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
+    ]);
   }
 }

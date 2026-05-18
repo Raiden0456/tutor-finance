@@ -16,26 +16,30 @@ const from = new Date(now);
 from.setDate(from.getDate() - 6);
 from.setHours(0, 0, 0, 0);
 
-const summary = await api.get<Summary>('/dashboard/summary', {
-  query: { from: from.toISOString(), to: to.toISOString() },
-});
-
 // Today's date bounds
 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-const todayLessons = await api.get<RecentLesson[]>('/lessons', {
-  query: { from: todayStart.toISOString(), to: todayEnd.toISOString(), orderDir: 'asc', limit: 20 },
-});
-
-const nextLessonList = await api.get<RecentLesson[]>('/lessons', {
-  query: { status: 'scheduled', from: now.toISOString(), orderDir: 'asc', limit: 1 },
-});
+const [summary, todayLessons, nextLessonList, studentsList] = await Promise.all([
+  api.get<Summary>('/dashboard/summary', {
+    query: { from: from.toISOString(), to: to.toISOString() },
+  }),
+  api.get<RecentLesson[]>('/lessons', {
+    query: {
+      from: todayStart.toISOString(),
+      to: todayEnd.toISOString(),
+      orderDir: 'asc',
+      limit: 20,
+    },
+  }),
+  api.get<RecentLesson[]>('/lessons', {
+    query: { status: 'scheduled', from: now.toISOString(), orderDir: 'asc', limit: 1 },
+  }),
+  api.get<{ id: string; name: string }[]>('/students', {
+    query: { includeArchived: true },
+  }),
+]);
 const nextLesson = nextLessonList[0] ?? null;
-
-const studentsList = await api.get<{ id: string; name: string }[]>('/students', {
-  query: { includeArchived: true },
-});
 const studentNames: Record<string, string> = {};
 for (const s of studentsList) studentNames[s.id] = s.name;
 ---

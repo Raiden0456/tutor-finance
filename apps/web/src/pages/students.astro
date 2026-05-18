@@ -8,25 +8,25 @@ import type { Student, IncomeTx } from '@/lib/types';
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 
-const settings = await api.get<{ primaryCurrency: Currency }>('/settings/me');
-const primary: Currency = settings.primaryCurrency ?? 'USD';
+const settingsPromise = api.get<{ primaryCurrency: Currency }>('/settings/me');
+const studentsPromise = api.get<Student[]>('/students');
 
 const now = new Date();
 const from = new Date(now.getFullYear(), now.getMonth(), 1);
 const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-const [students, transactions] = await Promise.all([
-  api.get<Student[]>('/students'),
-  api.get<IncomeTx[]>('/transactions', {
-    query: {
-      type: 'income',
-      from: from.toISOString(),
-      to: to.toISOString(),
-      limit: 1000,
-      target: primary,
-    },
-  }),
-]);
+const [settings, students] = await Promise.all([settingsPromise, studentsPromise]);
+const primary: Currency = settings.primaryCurrency ?? 'USD';
+
+const transactions = await api.get<IncomeTx[]>('/transactions', {
+  query: {
+    type: 'income',
+    from: from.toISOString(),
+    to: to.toISOString(),
+    limit: 1000,
+    target: primary,
+  },
+});
 ---
 
 <AppLayout title="Students">

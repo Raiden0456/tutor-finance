@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { lessons, students } from '../db/schema.js';
@@ -116,6 +117,10 @@ export class LessonsService {
   async list(userId: string, filter: LessonFilterDto | undefined): Promise<LessonResponse[]> {
     await this.autoCompleteStale(userId);
 
+    const cacheKey = `user:${userId}:lessons:list:${JSON.stringify(filter ?? {})}`;
+    const cached = await this.cacheService.getJson<LessonResponse[]>(cacheKey);
+    if (cached) return cached;
+
     const conds: SQL[] = [eq(lessons.userId, userId)];
 
     if (filter?.showArchived) {
@@ -139,7 +144,9 @@ export class LessonsService {
       .orderBy(filter?.orderDir === 'asc' ? asc(lessons.startsAt) : desc(lessons.startsAt))
       .offset(offset)
       .limit(limit);
-    return rows.map((r) => toResponse(r as JoinRow));
+    const response = rows.map((r) => toResponse(r as JoinRow));
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   private async autoCompleteStale(userId: string): Promise<void> {
@@ -162,11 +169,21 @@ export class LessonsService {
         .where(and(eq(lessons.id, row.id), eq(lessons.userId, userId)));
       // no syncTransaction — payment must be explicitly confirmed
     }
+
+    if (stale.length > 0) {
+      await this.invalidateUserCache(userId);
+    }
   }
 
   async findById(userId: string, id: string): Promise<LessonResponse> {
+    const cacheKey = `user:${userId}:lessons:${id}`;
+    const cached = await this.cacheService.getJson<LessonResponse>(cacheKey);
+    if (cached) return cached;
+
     const row = await this.findJoinRow(userId, id);
-    return toResponse(row);
+    const response = toResponse(row);
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   private async findJoinRow(userId: string, id: string): Promise<JoinRow> {
@@ -381,6 +398,14 @@ export class LessonsService {
   }
 
   private async invalidateDashboard(userId: string): Promise<void> {
-    await this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`);
+    await this.invalidateUserCache(userId);
+  }
+
+  private async invalidateUserCache(userId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:lessons:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
+    ]);
   }
 }

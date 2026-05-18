@@ -1,6 +1,8 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { Currency } from '@tutor-finance/shared';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { students } from '../db/schema.js';
@@ -25,24 +27,39 @@ function toResponse(r: Row): StudentResponse {
 
 @Injectable()
 export class StudentsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly cacheService: RedisCacheService,
+  ) {}
 
   async list(userId: string, includeArchived = false): Promise<StudentResponse[]> {
+    const cacheKey = `user:${userId}:students:list:${includeArchived ? 'all' : 'active'}`;
+    const cached = await this.cacheService.getJson<StudentResponse[]>(cacheKey);
+    if (cached) return cached;
+
     const where = includeArchived
       ? eq(students.userId, userId)
       : and(eq(students.userId, userId), isNull(students.archivedAt));
     const rows = await this.db.select().from(students).where(where).orderBy(asc(students.name));
-    return rows.map(toResponse);
+    const response = rows.map(toResponse);
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   async findById(userId: string, id: string): Promise<StudentResponse> {
+    const cacheKey = `user:${userId}:students:${id}`;
+    const cached = await this.cacheService.getJson<StudentResponse>(cacheKey);
+    if (cached) return cached;
+
     const [row] = await this.db
       .select()
       .from(students)
       .where(and(eq(students.id, id), eq(students.userId, userId)))
       .limit(1);
     if (!row) throw new NotFoundException('Student not found');
-    return toResponse(row);
+    const response = toResponse(row);
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   async create(userId: string, input: CreateStudentDto): Promise<StudentResponse> {
@@ -59,6 +76,7 @@ export class StudentsService {
         notes: input.notes ?? null,
       })
       .returning();
+    await this.invalidateUserCache(userId);
     return toResponse(inserted[0]!);
   }
 
@@ -80,6 +98,7 @@ export class StudentsService {
       .where(and(eq(students.id, id), eq(students.userId, userId)))
       .returning();
     if (!row) throw new NotFoundException('Student not found');
+    await this.invalidateUserCache(userId);
     return toResponse(row);
   }
 
@@ -90,6 +109,7 @@ export class StudentsService {
       .where(and(eq(students.id, id), eq(students.userId, userId)))
       .returning();
     if (!row) throw new NotFoundException('Student not found');
+    await this.invalidateUserCache(userId);
     return toResponse(row);
   }
 
@@ -100,6 +120,15 @@ export class StudentsService {
       .where(and(eq(students.id, id), eq(students.userId, userId)))
       .returning();
     if (!row) throw new NotFoundException('Student not found');
+    await this.invalidateUserCache(userId);
     return toResponse(row);
+  }
+
+  private async invalidateUserCache(userId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.deleteByPrefix(`user:${userId}:students:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:lessons:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
+    ]);
   }
 }

@@ -49,6 +49,7 @@ export const env = {
     enabled: bool('CACHE_ENABLED', true),
     redisUrl: optional('REDIS_URL', 'redis://localhost:6379'),
     dashboardTtlSeconds: num('CACHE_DASHBOARD_TTL_SECONDS', 60),
+    dataTtlSeconds: num('CACHE_DATA_TTL_SECONDS', 60),
     fxTtlSeconds: num('CACHE_FX_TTL_SECONDS', 60 * 60 * 6),
   },
 };

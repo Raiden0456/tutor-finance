@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { convertMoney, type Currency, type TransactionType } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { transactions } from '../db/schema.js';
@@ -69,6 +70,10 @@ export class TransactionsService {
     userId: string,
     filter: TransactionFilterDto | undefined,
   ): Promise<TransactionResponse[]> {
+    const cacheKey = `user:${userId}:transactions:list:${JSON.stringify(filter ?? {})}`;
+    const cached = await this.cacheService.getJson<TransactionResponse[]>(cacheKey);
+    if (cached) return cached;
+
     const conds: SQL[] = [eq(transactions.userId, userId)];
     if (filter?.type) conds.push(eq(transactions.type, filter.type));
     if (filter?.studentId) conds.push(eq(transactions.studentId, filter.studentId));
@@ -91,17 +96,25 @@ export class TransactionsService {
         rates = {};
       }
     }
-    return rows.map((r) => withConverted(r, filter?.target, rates));
+    const response = rows.map((r) => withConverted(r, filter?.target, rates));
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   async findById(userId: string, id: string): Promise<TransactionResponse> {
+    const cacheKey = `user:${userId}:transactions:${id}`;
+    const cached = await this.cacheService.getJson<TransactionResponse>(cacheKey);
+    if (cached) return cached;
+
     const [row] = await this.db
       .select()
       .from(transactions)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .limit(1);
     if (!row) throw new NotFoundException('Transaction not found');
-    return { ...baseResponse(row), convertedAmount: null };
+    const response = { ...baseResponse(row), convertedAmount: null };
+    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
+    return response;
   }
 
   async create(userId: string, input: CreateTransactionDto): Promise<TransactionResponse> {
@@ -224,6 +237,9 @@ export class TransactionsService {
   }
 
   private async invalidateDashboard(userId: string): Promise<void> {
-    await this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`);
+    await Promise.all([
+      this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
+    ]);
   }
 }

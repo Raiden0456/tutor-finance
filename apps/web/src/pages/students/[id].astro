@@ -10,23 +10,23 @@ const backUrl = Astro.url.searchParams.get('from') ?? '/students';
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 
-const settings = await api.get<{ primaryCurrency: Currency }>('/settings/me');
-const primary: Currency = settings.primaryCurrency ?? 'USD';
-
-const [student, lessons, transactions] = await Promise.all([
+const [settings, student, lessons] = await Promise.all([
+  api.get<{ primaryCurrency: Currency }>('/settings/me'),
   api.get<Student>(`/students/${id}`),
   api.get<Lesson[]>('/lessons', {
     query: { studentId: id, limit: 200, orderDir: 'asc' },
   }),
-  api.get<{ convertedAmount: number | null }[]>('/transactions', {
-    query: {
-      studentId: id,
-      type: 'income',
-      target: primary,
-      limit: 1000,
-    },
-  }),
 ]);
+const primary: Currency = settings.primaryCurrency ?? 'USD';
+
+const transactions = await api.get<{ convertedAmount: number | null }[]>('/transactions', {
+  query: {
+    studentId: id,
+    type: 'income',
+    target: primary,
+    limit: 1000,
+  },
+});
 
 const totalIncome = transactions.reduce(
   (sum, t) => sum + (typeof t.convertedAmount === 'number' ? t.convertedAmount : 0),
