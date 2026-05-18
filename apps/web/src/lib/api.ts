@@ -1,7 +1,11 @@
-import { PUBLIC_API_URL, SERVER_API_URL } from './env';
+import { BROWSER_API_URL, SERVER_API_URL } from './env';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public body?: unknown) {
+  constructor(
+    public status: number,
+    message: string,
+    public body?: unknown,
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -56,16 +60,17 @@ function safeParse(text: string): unknown {
   }
 }
 
-// Browser client — same-origin via PUBLIC_API_URL, sends cookies automatically.
+// Browser client — same-origin requests go through /api/* proxy so cookies
+// stay first-party (Safari ITP friendly).
 export const api = {
   get: <T>(path: string, init?: RequestInitExtra) =>
-    request<T>(PUBLIC_API_URL, path, { ...init, method: 'GET' }),
+    request<T>(BROWSER_API_URL, path, { ...init, method: 'GET' }),
   post: <T>(path: string, body?: unknown, init?: RequestInitExtra) =>
-    request<T>(PUBLIC_API_URL, path, { ...init, method: 'POST', body }),
+    request<T>(BROWSER_API_URL, path, { ...init, method: 'POST', body }),
   patch: <T>(path: string, body?: unknown, init?: RequestInitExtra) =>
-    request<T>(PUBLIC_API_URL, path, { ...init, method: 'PATCH', body }),
+    request<T>(BROWSER_API_URL, path, { ...init, method: 'PATCH', body }),
   delete: <T>(path: string, init?: RequestInitExtra) =>
-    request<T>(PUBLIC_API_URL, path, { ...init, method: 'DELETE' }),
+    request<T>(BROWSER_API_URL, path, { ...init, method: 'DELETE' }),
 };
 
 // Server client — used in Astro frontmatter, forwards cookie header.
@@ -73,7 +78,11 @@ export function serverApi(cookie: string | undefined) {
   const headers = cookie ? { cookie } : undefined;
   return {
     get: <T>(path: string, init?: RequestInitExtra) =>
-      request<T>(SERVER_API_URL, path, { ...init, method: 'GET', headers: { ...init?.headers, ...headers } }),
+      request<T>(SERVER_API_URL, path, {
+        ...init,
+        method: 'GET',
+        headers: { ...init?.headers, ...headers },
+      }),
     post: <T>(path: string, body?: unknown, init?: RequestInitExtra) =>
       request<T>(SERVER_API_URL, path, {
         ...init,

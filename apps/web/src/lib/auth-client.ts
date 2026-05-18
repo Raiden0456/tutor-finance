@@ -1,6 +1,8 @@
 import { createAuthClient } from '@tutor-finance/auth/client';
-import { PUBLIC_API_URL } from './env';
+import { BROWSER_API_URL } from './env';
 
-export const authClient = createAuthClient({ baseURL: PUBLIC_API_URL });
+// Auth requests go through the same-origin /api/auth/* proxy on the web app.
+// Keeps the session cookie first-party even when API lives on another domain.
+export const authClient = createAuthClient({ baseURL: BROWSER_API_URL });
 export const { signIn, signUp, signOut, useSession, requestPasswordReset, resetPassword } =
   authClient;

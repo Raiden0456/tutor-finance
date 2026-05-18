@@ -41,10 +41,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUBLIC_API_URL
-        sync: false
+      # Internal API URL used by SSR + the same-origin /api/* reverse proxy.
+      # On Render this can be the API service's internal hostname.
       - key: SERVER_API_URL
         sync: false
+      # Public URL of the web app itself. Browser requests go to its own
+      # origin and are proxied to the API, so PUBLIC_API_URL is not needed.
       - key: PUBLIC_APP_URL
         sync: false
 
