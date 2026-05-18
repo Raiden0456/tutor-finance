@@ -6,8 +6,7 @@ services:
     region: frankfurt
     plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm build
-    startCommand: node apps/api/dist/main.js
-    preDeployCommand: pnpm --filter @tutor-finance/api db:migrate:prod
+    startCommand: pnpm --filter @tutor-finance/api db:migrate:prod && node apps/api/dist/main.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
