@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import type { Currency, Locale, Theme } from '@tutor-finance/shared';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { userSettings } from '../db/schema.js';
@@ -18,7 +19,10 @@ function toResponse(r: Row): SettingsResponse {
 
 @Injectable()
 export class SettingsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly cacheService: RedisCacheService,
+  ) {}
 
   async getOrCreate(userId: string): Promise<SettingsResponse> {
     const [existing] = await this.db
@@ -43,6 +47,7 @@ export class SettingsService {
       .values({ userId, ...set })
       .onConflictDoUpdate({ target: userSettings.userId, set })
       .returning();
+    await this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`);
     return toResponse(upserted[0]!);
   }
 }

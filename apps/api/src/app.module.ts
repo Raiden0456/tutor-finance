@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.provider.js';
+import { RedisCacheModule } from './cache/redis-cache.module.js';
 import { DbModule } from './db/db.module.js';
 import { StudentsModule } from './students/students.module.js';
 import { LessonsModule } from './lessons/lessons.module.js';
@@ -18,6 +19,7 @@ import { RecurringModule } from './recurring/recurring.module.js';
 @Module({
   imports: [
     DbModule,
+    RedisCacheModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 200 }]),
     AuthModule.forRoot({

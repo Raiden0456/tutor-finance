@@ -1,4 +1,11 @@
 services:
+  # ── Redis-compatible cache (Render Key Value) ───────────────────────────────
+  - type: keyvalue
+    name: tutor-finance-cache
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
   # ── REST API (NestJS) ────────────────────────────────────────────────────────
   - type: web
     name: tutor-finance-api
@@ -29,6 +36,13 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: tutor-finance-cache
+          property: connectionString
+      - key: CACHE_ENABLED
+        value: 'true'
 
   # ── Web (Astro SSR) ──────────────────────────────────────────────────────────
   - type: web

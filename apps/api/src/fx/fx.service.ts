@@ -5,7 +5,10 @@ import { SUPPORTED_CURRENCIES } from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { fxRates } from '../db/schema.js';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
+
+const FX_CACHE_KEY = 'fx:rates:expanded';
 
 const FIAT = SUPPORTED_CURRENCIES.filter((c) => c !== 'USDT' && c !== 'USDC');
 const BASE = 'USD';
@@ -20,7 +23,10 @@ export class FxService implements OnModuleInit {
   private readonly logger = new Logger(FxService.name);
   private cache: { rates: Record<string, number>; fetchedAt: number } | undefined;
 
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly cacheService: RedisCacheService,
+  ) {}
 
   async onModuleInit() {
     try {
@@ -60,6 +66,7 @@ export class FxService implements OnModuleInit {
     }
 
     this.cache = { rates: this.expand(rates), fetchedAt: Date.now() };
+    await this.cacheService.setJson(FX_CACHE_KEY, this.cache, env.cache.fxTtlSeconds);
     this.logger.log(`FX rates refreshed (${Object.keys(rates).length} pairs)`);
     return this.cache.rates;
   }
@@ -81,9 +88,19 @@ export class FxService implements OnModuleInit {
   }
 
   async getRatesMap(): Promise<Record<string, number>> {
-    if (this.cache && Date.now() - this.cache.fetchedAt < 1000 * 60 * 60 * 6) {
+    if (this.cache && Date.now() - this.cache.fetchedAt < env.cache.fxTtlSeconds * 1000) {
       return this.cache.rates;
     }
+
+    const cached = await this.cacheService.getJson<{
+      rates: Record<string, number>;
+      fetchedAt: number;
+    }>(FX_CACHE_KEY);
+    if (cached && Date.now() - cached.fetchedAt < env.cache.fxTtlSeconds * 1000) {
+      this.cache = cached;
+      return cached.rates;
+    }
+
     const rows = await this.db.select().from(fxRates).where(eq(fxRates.base, BASE));
     if (rows.length === 0) {
       return this.refresh();
@@ -92,6 +109,7 @@ export class FxService implements OnModuleInit {
     for (const r of rows) usdRates[r.quote] = r.rate;
     const expanded = this.expand(usdRates);
     this.cache = { rates: expanded, fetchedAt: Date.now() };
+    await this.cacheService.setJson(FX_CACHE_KEY, this.cache, env.cache.fxTtlSeconds);
     return expanded;
   }
 

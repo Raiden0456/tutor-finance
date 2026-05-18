@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { convertMoney, type Currency, type TransactionType } from '@tutor-finance/shared';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { transactions } from '../db/schema.js';
@@ -42,7 +43,11 @@ function withConverted(
       convertedAmount = r.amount;
     } else {
       try {
-        const c = convertMoney({ amount: r.amount, currency: r.currency as Currency }, target, rates);
+        const c = convertMoney(
+          { amount: r.amount, currency: r.currency as Currency },
+          target,
+          rates,
+        );
         convertedAmount = c.amount;
       } catch {
         convertedAmount = null;
@@ -57,9 +62,13 @@ export class TransactionsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly fx: FxService,
+    private readonly cacheService: RedisCacheService,
   ) {}
 
-  async list(userId: string, filter: TransactionFilterDto | undefined): Promise<TransactionResponse[]> {
+  async list(
+    userId: string,
+    filter: TransactionFilterDto | undefined,
+  ): Promise<TransactionResponse[]> {
     const conds: SQL[] = [eq(transactions.userId, userId)];
     if (filter?.type) conds.push(eq(transactions.type, filter.type));
     if (filter?.studentId) conds.push(eq(transactions.studentId, filter.studentId));
@@ -109,10 +118,15 @@ export class TransactionsService {
         description: input.description ?? null,
       })
       .returning();
+    await this.invalidateDashboard(userId);
     return { ...baseResponse(inserted[0]!), convertedAmount: null };
   }
 
-  async update(userId: string, id: string, patch: UpdateTransactionDto): Promise<TransactionResponse> {
+  async update(
+    userId: string,
+    id: string,
+    patch: UpdateTransactionDto,
+  ): Promise<TransactionResponse> {
     const set: Partial<typeof transactions.$inferInsert> = {};
     if (patch.amount !== undefined) set.amount = patch.amount;
     if (patch.currency !== undefined) set.currency = patch.currency;
@@ -127,6 +141,7 @@ export class TransactionsService {
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .returning();
     if (!row) throw new NotFoundException('Transaction not found');
+    await this.invalidateDashboard(userId);
     return { ...baseResponse(row), convertedAmount: null };
   }
 
@@ -135,6 +150,7 @@ export class TransactionsService {
       .delete(transactions)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .returning({ id: transactions.id });
+    if (res.length > 0) await this.invalidateDashboard(userId);
     return res.length > 0;
   }
 
@@ -172,12 +188,14 @@ export class TransactionsService {
           description: args.description ?? null,
         },
       });
+    await this.invalidateDashboard(args.userId);
   }
 
   async deleteForLesson(userId: string, lessonId: string) {
     await this.db
       .delete(transactions)
       .where(and(eq(transactions.userId, userId), eq(transactions.lessonId, lessonId)));
+    await this.invalidateDashboard(userId);
   }
 
   async monthSummary(userId: string, from: Date, to: Date) {
@@ -203,5 +221,9 @@ export class TransactionsService {
       total: Number(r.total ?? 0),
       count: Number(r.count ?? 0),
     }));
+  }
+
+  private async invalidateDashboard(userId: string): Promise<void> {
+    await this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`);
   }
 }

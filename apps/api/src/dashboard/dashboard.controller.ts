@@ -1,7 +1,14 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
-import { convertMoney, SUPPORTED_CURRENCIES, type Currency, type CurrencyTotal } from '@tutor-finance/shared';
+import {
+  convertMoney,
+  SUPPORTED_CURRENCIES,
+  type Currency,
+  type CurrencyTotal,
+} from '@tutor-finance/shared';
 import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorator.js';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
+import { env } from '../config.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import { FxService } from '../fx/fx.service.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -38,6 +45,7 @@ export class DashboardController {
     private readonly fx: FxService,
     private readonly settings: SettingsService,
     private readonly lessons: LessonsService,
+    private readonly cacheService: RedisCacheService,
   ) {}
 
   @Get('summary')
@@ -49,6 +57,9 @@ export class DashboardController {
     const targetCurrency = (q.target ?? settings.primaryCurrency) as Currency;
     const from = new Date(q.from);
     const to = new Date(q.to);
+    const cacheKey = `user:${user.id}:dashboard:summary:${from.toISOString()}:${to.toISOString()}:${targetCurrency}`;
+    const cached = await this.cacheService.getJson<PeriodSummary>(cacheKey);
+    if (cached) return cached;
 
     const [rows, plannedRaw] = await Promise.all([
       this.transactions.monthSummary(user.id, from, to),
@@ -91,7 +102,7 @@ export class DashboardController {
     const expenseT = sumIn(expense);
     const plannedT = sumIn(plannedRaw);
 
-    return {
+    const summary: PeriodSummary = {
       from,
       to,
       income,
@@ -102,5 +113,8 @@ export class DashboardController {
       plannedIncomeInTargetCurrency: plannedT,
       targetCurrency,
     };
+
+    await this.cacheService.setJson(cacheKey, summary, env.cache.dashboardTtlSeconds);
+    return summary;
   }
 }

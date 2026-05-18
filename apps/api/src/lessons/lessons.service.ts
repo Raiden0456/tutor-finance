@@ -1,6 +1,21 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, not, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  not,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import type { Currency, LessonStatus } from '@tutor-finance/shared';
+import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { lessons, students } from '../db/schema.js';
@@ -95,6 +110,7 @@ export class LessonsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly transactions: TransactionsService,
+    private readonly cacheService: RedisCacheService,
   ) {}
 
   async list(userId: string, filter: LessonFilterDto | undefined): Promise<LessonResponse[]> {
@@ -194,6 +210,7 @@ export class LessonsService {
     if (PAYMENT_STATUSES.includes(row.status)) {
       await this.syncTransaction(userId, row);
     }
+    await this.invalidateDashboard(userId);
     return this.findById(userId, row.id);
   }
 
@@ -228,6 +245,7 @@ export class LessonsService {
     } else if (wasPayment) {
       await this.transactions.deleteForLesson(userId, row.id);
     }
+    await this.invalidateDashboard(userId);
     return this.findById(userId, row.id);
   }
 
@@ -237,6 +255,7 @@ export class LessonsService {
       await this.transactions.deleteForLesson(userId, id);
     }
     await this.db.delete(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, userId)));
+    await this.invalidateDashboard(userId);
     return true;
   }
 
@@ -251,6 +270,7 @@ export class LessonsService {
     if (PAYMENT_STATUSES.includes(row.status)) {
       await this.transactions.deleteForLesson(userId, id);
     }
+    await this.invalidateDashboard(userId);
     return this.findById(userId, id);
   }
 
@@ -270,6 +290,7 @@ export class LessonsService {
       .delete(lessons)
       .where(and(eq(lessons.userId, userId), isNotNull(lessons.archivedAt)));
 
+    await this.invalidateDashboard(userId);
     return archived.length;
   }
 
@@ -357,5 +378,9 @@ export class LessonsService {
         return null;
       })
       .filter((x): x is { amount: number; currency: Currency } => x !== null);
+  }
+
+  private async invalidateDashboard(userId: string): Promise<void> {
+    await this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`);
   }
 }
