@@ -32,3 +32,18 @@ export function resetPasswordTemplate(opts: { url: string; appName?: string }): 
     text: `Reset your ${appName} password (valid for 1 hour): ${opts.url}\n`,
   };
 }
+
+export function verifyEmailTemplate(opts: { url: string; appName?: string }): MailContent {
+  const appName = opts.appName ?? 'Uchetka';
+  return {
+    subject: `Verify your ${appName} email`,
+    html: layout(
+      `Verify your email`,
+      `<p>Confirm this email address to finish setting up your ${appName} account.</p>
+       ${button(opts.url, 'Verify email')}
+       <p style="margin-top:24px; font-size:13px; color:#6b7280;">If you did not create this account, you can safely ignore this email.</p>
+       <p style="font-size:13px; color:#6b7280;">Link: <a href="${opts.url}">${opts.url}</a></p>`,
+    ),
+    text: `Verify your ${appName} email: ${opts.url}\n`,
+  };
+}

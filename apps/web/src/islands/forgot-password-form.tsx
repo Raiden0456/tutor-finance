@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { requestPasswordReset } from '@/lib/auth-client';
-import { PUBLIC_APP_URL } from '@/lib/env';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
@@ -18,7 +17,7 @@ export function ForgotPasswordForm() {
     setLoading(true);
     const res = await requestPasswordReset({
       email,
-      redirectTo: `${PUBLIC_APP_URL}/reset-password`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
     if (res.error) {

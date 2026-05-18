@@ -8,19 +8,31 @@ import { Label } from '@/components/ui/label';
 export function ResetPasswordForm() {
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    setToken(url.searchParams.get('token'));
+    const tokenParam = url.searchParams.get('token');
+    const errorParam = url.searchParams.get('error');
+    setToken(tokenParam);
+    if (errorParam) {
+      setError('This reset link is invalid or expired. Request a new one.');
+    } else if (!tokenParam) {
+      setError('Missing reset token. Use the link from your email.');
+    }
   }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!token) {
       setError('Missing or invalid reset token');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
     setError(null);
@@ -52,16 +64,29 @@ export function ResetPasswordForm() {
         <Input
           id="password"
           type="password"
+          autoComplete="new-password"
           minLength={8}
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          required
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+      </div>
       <Collapse open={!!error}>
         <p className="pt-1 text-sm text-destructive">{error}</p>
       </Collapse>
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading || !token}>
         {loading ? 'Updating…' : 'Update password'}
       </Button>
     </form>

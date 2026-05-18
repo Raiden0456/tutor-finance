@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createMailer, type MailerOptions } from './mailer.js';
-import { resetPasswordTemplate } from './templates.js';
+import { resetPasswordTemplate, verifyEmailTemplate } from './templates.js';
 
 // Caller passes the drizzle table objects so the same instances are shared
 // between the adapter and migration generation. Shape matches Better Auth's
@@ -39,7 +39,7 @@ export function createAuth(opts: AuthOptions) {
     trustedOrigins: opts.trustedOrigins ?? [opts.baseUrl],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
       autoSignIn: true,
       minPasswordLength: 8,
       sendResetPassword: async ({ user, url }) => {
@@ -47,6 +47,14 @@ export function createAuth(opts: AuthOptions) {
         await sendMail({ to: user.email, ...tpl });
       },
       resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        const tpl = verifyEmailTemplate({ url });
+        await sendMail({ to: user.email, ...tpl });
+      },
     },
     session: {
       expiresIn: 60 * 60 * 24 * 7,

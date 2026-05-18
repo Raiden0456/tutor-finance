@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { signIn } from '@/lib/auth-client';
+import { useEffect, useState, type FormEvent } from 'react';
+import { sendVerificationEmail, signIn } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapse } from '@/components/ui/collapse';
@@ -38,16 +38,24 @@ function LoginFields({
   email,
   password,
   loading,
+  resending,
   error,
+  notice,
+  showResend,
   onEmail,
   onPassword,
+  onResendVerification,
 }: {
   email: string;
   password: string;
   loading: boolean;
+  resending: boolean;
   error: string | null;
+  notice: string | null;
+  showResend: boolean;
   onEmail: (v: string) => void;
   onPassword: (v: string) => void;
+  onResendVerification: () => void;
 }) {
   return (
     <FieldGroup>
@@ -82,10 +90,27 @@ function LoginFields({
         />
       </Field>
 
+      <Collapse open={!!notice}>
+        <p className="pt-1 text-sm text-muted-foreground">{notice}</p>
+      </Collapse>
+
       <Collapse open={!!error}>
-        <p role="alert" className="pt-1 text-sm text-destructive">
-          {error}
-        </p>
+        <div className="flex flex-col gap-2 pt-1">
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+          {showResend ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resending}
+              onClick={onResendVerification}
+            >
+              {resending ? 'Sending…' : 'Resend verification email'}
+            </Button>
+          ) : null}
+        </div>
       </Collapse>
 
       <Field>
@@ -105,19 +130,53 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showResend, setShowResend] = useState(false);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('verified') === '1') {
+      setNotice('Email verified. You can sign in now.');
+      url.searchParams.delete('verified');
+      window.history.replaceState(null, '', url.toString());
+    }
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
+    setShowResend(false);
     setLoading(true);
     const res = await signIn.email({ email, password, callbackURL: '/' });
     setLoading(false);
     if (res.error) {
-      setError(res.error.message ?? 'Invalid email or password');
+      const message = res.error.message ?? 'Invalid email or password';
+      setError(message);
+      setShowResend(message.toLowerCase().includes('verify'));
       return;
     }
     window.location.href = '/';
+  }
+
+  async function resendVerification() {
+    setError(null);
+    setNotice(null);
+    setResending(true);
+    const res = await sendVerificationEmail({
+      email,
+      callbackURL: `${window.location.origin}/login?verified=1`,
+    });
+    setResending(false);
+    if (res.error) {
+      setError(res.error.message ?? 'Could not resend verification email');
+      setShowResend(true);
+      return;
+    }
+    setNotice('Verification email sent. Check your inbox.');
+    setShowResend(false);
   }
 
   return (
@@ -140,9 +199,13 @@ export function LoginForm() {
               email={email}
               password={password}
               loading={loading}
+              resending={resending}
               error={error}
+              notice={notice}
+              showResend={showResend}
               onEmail={setEmail}
               onPassword={setPassword}
+              onResendVerification={resendVerification}
             />
           </form>
         </div>
@@ -162,9 +225,13 @@ export function LoginForm() {
                   email={email}
                   password={password}
                   loading={loading}
+                  resending={resending}
                   error={error}
+                  notice={notice}
+                  showResend={showResend}
                   onEmail={setEmail}
                   onPassword={setPassword}
+                  onResendVerification={resendVerification}
                 />
               </FieldGroup>
             </form>
