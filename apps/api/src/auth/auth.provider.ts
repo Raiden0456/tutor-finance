@@ -19,7 +19,6 @@ export function getAuth(): AuthInstance {
       smtp: env.smtp,
       resendApiKey: env.resendApiKey,
     },
-    crossOriginCookies: env.crossOriginCookies,
   });
   return cached;
 }

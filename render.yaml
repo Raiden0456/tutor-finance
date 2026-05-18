@@ -29,8 +29,6 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
-      - key: CROSS_ORIGIN_COOKIES
-        value: true
 
   # ── Web (Astro SSR) ──────────────────────────────────────────────────────────
   - type: web

@@ -21,7 +21,6 @@ export interface AuthOptions {
   baseUrl: string;
   trustedOrigins?: string[];
   email: MailerOptions;
-  crossOriginCookies?: boolean;
 }
 
 export type AuthInstance = ReturnType<typeof createAuth>;
@@ -38,15 +37,6 @@ export function createAuth(opts: AuthOptions) {
     baseURL: opts.baseUrl,
     basePath: '/api/auth',
     trustedOrigins: opts.trustedOrigins ?? [opts.baseUrl],
-    ...(opts.crossOriginCookies && {
-      advanced: {
-        defaultCookieAttributes: {
-          sameSite: 'none',
-          secure: true,
-          partitioned: true,
-        },
-      },
-    }),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

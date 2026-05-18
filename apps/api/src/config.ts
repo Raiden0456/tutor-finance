@@ -45,5 +45,4 @@ export const env = {
   },
   resendApiKey: optional('RESEND_API_KEY'),
   fxApiUrl: optional('FX_API_URL', 'https://api.exchangerate.host/latest'),
-  crossOriginCookies: bool('CROSS_ORIGIN_COOKIES', false),
 };
