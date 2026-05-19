@@ -236,6 +236,33 @@ export class TransactionsService {
     }));
   }
 
+  async dailySummary(userId: string, from: Date, to: Date) {
+    const day = sql<string>`to_char(${transactions.occurredAt}, 'YYYY-MM-DD')`;
+    const rows = await this.db
+      .select({
+        date: day,
+        type: transactions.type,
+        currency: transactions.currency,
+        total: sql<number>`sum(${transactions.amount})::int`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          gte(transactions.occurredAt, from),
+          lte(transactions.occurredAt, to),
+        ),
+      )
+      .groupBy(day, transactions.type, transactions.currency);
+
+    return rows.map((r) => ({
+      date: r.date,
+      type: r.type as 'income' | 'expense',
+      currency: r.currency as Currency,
+      total: Number(r.total ?? 0),
+    }));
+  }
+
   private async invalidateDashboard(userId: string): Promise<void> {
     await Promise.all([
       this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),

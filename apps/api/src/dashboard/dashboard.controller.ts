@@ -27,6 +27,14 @@ class SummaryQueryDto {
   target?: Currency;
 }
 
+interface DailyStatsRow {
+  date: string;
+  income: number;
+  expense: number;
+  planned: number;
+  net: number;
+}
+
 interface PeriodSummary {
   from: Date;
   to: Date;
@@ -123,5 +131,72 @@ export class DashboardController {
     await this.cacheService.setJson(cacheKey, summary, env.cache.dashboardTtlSeconds);
     res.setHeader('X-Cache-TTL', String(env.cache.dashboardTtlSeconds));
     return summary;
+  }
+
+  @Get('daily-stats')
+  async dailyStats(
+    @CurrentUser() user: CurrentUserData,
+    @Query() q: SummaryQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<DailyStatsRow[]> {
+    const settings = await this.settings.getOrCreate(user.id);
+    const targetCurrency = (q.target ?? settings.primaryCurrency) as Currency;
+    const from = new Date(q.from);
+    const to = new Date(q.to);
+    const cacheKey = `user:${user.id}:dashboard:daily-stats:${from.toISOString()}:${to.toISOString()}:${targetCurrency}`;
+    const cached = await this.cacheService.getJson<DailyStatsRow[]>(cacheKey);
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return cached;
+    }
+    res.setHeader('X-Cache', 'MISS');
+
+    const [txRows, plannedRows] = await Promise.all([
+      this.transactions.dailySummary(user.id, from, to),
+      this.lessons.plannedIncomeDailyRaw(user.id, from, to),
+    ]);
+
+    let rates: Record<string, number> = {};
+    try {
+      rates = await this.fx.getRatesMap();
+    } catch {
+      rates = {};
+    }
+
+    const convertToTarget = (amount: number, currency: Currency) => {
+      if (currency === targetCurrency) return amount;
+      try {
+        return convertMoney({ amount, currency }, targetCurrency, rates).amount;
+      } catch {
+        return 0;
+      }
+    };
+
+    const byDate = new Map<string, DailyStatsRow>();
+    const getRow = (date: string) => {
+      const row = byDate.get(date) ?? { date, income: 0, expense: 0, planned: 0, net: 0 };
+      byDate.set(date, row);
+      return row;
+    };
+
+    for (const row of txRows) {
+      const daily = getRow(row.date);
+      daily[row.type] += convertToTarget(row.total, row.currency);
+    }
+
+    for (const row of plannedRows) {
+      getRow(row.date).planned += convertToTarget(row.amount, row.currency);
+    }
+
+    const dailyStats = Array.from(byDate.values())
+      .map((row) => ({
+        ...row,
+        net: row.income - row.expense,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    await this.cacheService.setJson(cacheKey, dailyStats, env.cache.dashboardTtlSeconds);
+    res.setHeader('X-Cache-TTL', String(env.cache.dashboardTtlSeconds));
+    return dailyStats;
   }
 }

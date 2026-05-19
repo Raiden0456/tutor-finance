@@ -362,8 +362,32 @@ export class LessonsService {
     from: Date,
     to: Date,
   ): Promise<{ amount: number; currency: Currency }[]> {
-    const rows = await this.db
+    const rows = await this.plannedIncomeRows(userId, from, to);
+
+    return rows
+      .map((r) => this.resolvePlannedAmount(r))
+      .filter((x): x is { amount: number; currency: Currency } => x !== null);
+  }
+
+  async plannedIncomeDailyRaw(
+    userId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ date: string; amount: number; currency: Currency }[]> {
+    const rows = await this.plannedIncomeRows(userId, from, to);
+
+    return rows
+      .map((r) => {
+        const planned = this.resolvePlannedAmount(r);
+        return planned ? { date: r.date, ...planned } : null;
+      })
+      .filter((x): x is { date: string; amount: number; currency: Currency } => x !== null);
+  }
+
+  private async plannedIncomeRows(userId: string, from: Date, to: Date) {
+    return this.db
       .select({
+        date: sql<string>`to_char(${lessons.startsAt}, 'YYYY-MM-DD')`,
         priceOverrideAmount: lessons.priceOverrideAmount,
         priceOverrideCurrency: lessons.priceOverrideCurrency,
         durationMin: lessons.durationMin,
@@ -381,20 +405,21 @@ export class LessonsService {
           not(inArray(lessons.status, ['cancelled', 'no_show'])),
         ),
       );
+  }
 
-    return rows
-      .map((r) => {
-        if (r.priceOverrideAmount !== null && r.priceOverrideCurrency !== null) {
-          return { amount: r.priceOverrideAmount, currency: r.priceOverrideCurrency as Currency };
-        } else if (r.studentHourlyRateAmount !== null && r.studentHourlyRateCurrency !== null) {
-          return {
-            amount: Math.round((r.studentHourlyRateAmount * r.durationMin) / 60),
-            currency: r.studentHourlyRateCurrency as Currency,
-          };
-        }
-        return null;
-      })
-      .filter((x): x is { amount: number; currency: Currency } => x !== null);
+  private resolvePlannedAmount(r: Awaited<ReturnType<typeof this.plannedIncomeRows>>[number]) {
+    if (r.priceOverrideAmount !== null && r.priceOverrideCurrency !== null) {
+      return { amount: r.priceOverrideAmount, currency: r.priceOverrideCurrency as Currency };
+    }
+
+    if (r.studentHourlyRateAmount !== null && r.studentHourlyRateCurrency !== null) {
+      return {
+        amount: Math.round((r.studentHourlyRateAmount * r.durationMin) / 60),
+        currency: r.studentHourlyRateCurrency as Currency,
+      };
+    }
+
+    return null;
   }
 
   private async invalidateDashboard(userId: string): Promise<void> {

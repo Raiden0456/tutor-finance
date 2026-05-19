@@ -47,6 +47,14 @@ export interface DailyTx {
   convertedAmount: number | null;
 }
 
+export interface DailyFinanceStats {
+  date: string;
+  income: number;
+  expense: number;
+  planned: number;
+  net: number;
+}
+
 // ── Students ─────────────────────────────────────────────────────────────────
 
 export interface StudentRef {

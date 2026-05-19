@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,6 +117,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
               config={
                 {
                   total: { label: 'Earned', color: 'var(--tf-indigo)' },
+                  label: { color: 'var(--background)' },
                 } satisfies ChartConfig
               }
               className="aspect-auto w-full"
@@ -136,14 +137,26 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
                   tickLine={false}
                   width={96}
                   tick={{ fontSize: 12 }}
+                  hide
                 />
-                <ChartTooltip
-                  cursor={{ fill: 'var(--accent)' }}
-                  content={
-                    <ChartTooltipContent indicator="line" formatter={(v) => Number(v).toFixed(2)} />
-                  }
-                />
-                <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="var(--color-total)" />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                <Bar dataKey="total" radius={6} fill="var(--color-total)">
+                  <LabelList
+                    dataKey="name"
+                    position="insideLeft"
+                    offset={10}
+                    className="fill-(--color-label)"
+                    fontSize={12}
+                  />
+                  <LabelList
+                    dataKey="total"
+                    position="right"
+                    offset={8}
+                    className="fill-foreground"
+                    fontSize={12}
+                    formatter={(v) => Number(v).toFixed(2)}
+                  />
+                </Bar>
               </BarChart>
             </ChartContainer>
           </CardContent>

@@ -30,8 +30,8 @@ import {
   toMinorUnits,
   type Currency,
 } from '@tutor-finance/shared';
-import type { Tx, Recurring, Summary, StudentRef } from '@/lib/types';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE, dateFmt } from './constants';
+import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE } from './constants';
 import { TabSwitcher } from './tab-switcher';
 import { TxCard } from './tx-card';
 import { IncomeExpenseBarChart, CategoryPieChart } from './charts';
@@ -44,6 +44,7 @@ interface Props {
   primaryCurrency: Currency;
   initialRecurring: Recurring[];
   initialSummary: Summary;
+  initialDailyStats: DailyFinanceStats[];
   students: StudentRef[];
 }
 
@@ -52,6 +53,7 @@ export function TransactionsIsland({
   primaryCurrency,
   initialRecurring,
   initialSummary,
+  initialDailyStats,
   students,
 }: Props) {
   const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
@@ -59,6 +61,7 @@ export function TransactionsIsland({
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
   const [txList, setTxList] = useState<Tx[]>(initial);
   const [summary, setSummary] = useState<Summary>(initialSummary);
+  const [dailyStats, setDailyStats] = useState<DailyFinanceStats[]>(initialDailyStats);
   const [loading, setLoading] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
   const [recurring, setRecurring] = useState<Recurring[]>(initialRecurring);
@@ -81,11 +84,15 @@ export function TransactionsIsland({
       api.get<Summary>('/dashboard/summary', {
         query: { from: from.toISOString(), to: to.toISOString(), target: currency },
       }),
+      api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
+        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+      }),
     ])
-      .then(([txs, sum]) => {
+      .then(([txs, sum, daily]) => {
         if (!cancelled) {
           setTxList(txs);
           setSummary(sum);
+          setDailyStats(daily);
         }
       })
       .finally(() => {
@@ -98,17 +105,10 @@ export function TransactionsIsland({
 
   const { pieData, incomeExpenseSeries } = useMemo(() => {
     const totals = new Map<string, number>();
-    const ieMap = new Map<string, { income: number; expense: number }>();
 
     for (const t of txList) {
       const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
       if (!v) continue;
-      const k = new Date(t.occurredAt).toISOString().slice(0, 10);
-
-      const ieRow = ieMap.get(k) ?? { income: 0, expense: 0 };
-      if (t.type === 'income') ieRow.income += v;
-      else ieRow.expense += v;
-      ieMap.set(k, ieRow);
 
       if (t.type === 'expense') {
         totals.set(t.category, (totals.get(t.category) ?? 0) + v);
@@ -124,19 +124,8 @@ export function TransactionsIsland({
         fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]!,
       }));
 
-    const ie = Array.from(ieMap.keys())
-      .sort()
-      .map((k) => {
-        const row = ieMap.get(k)!;
-        return {
-          date: dateFmt.format(new Date(k)),
-          income: Math.round(fromMinorUnits(row.income, currency) * 100) / 100,
-          expense: Math.round(fromMinorUnits(row.expense, currency) * 100) / 100,
-        };
-      });
-
-    return { pieData: pie, incomeExpenseSeries: ie };
-  }, [txList, currency]);
+    return { pieData: pie, incomeExpenseSeries: dailyStats };
+  }, [txList, dailyStats, currency]);
 
   const { totalExpense, totalIncome } = useMemo(() => {
     let expense = 0;
