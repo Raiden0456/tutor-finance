@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 
 function BrandHero() {
   return (
@@ -73,9 +74,8 @@ function LoginFields({
             Forgot password?
           </a>
         </div>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           required
           minLength={8}
