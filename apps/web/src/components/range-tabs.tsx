@@ -143,7 +143,6 @@ export function RangeTabs({
             defaultMonth={dateRange?.from ?? new Date()}
             selected={dateRange}
             onSelect={onCalendarSelect}
-            disabled={{ after: new Date() }}
           />
         </PopoverContent>
       </Popover>
