@@ -3,6 +3,15 @@ import { api } from '@/lib/api';
 import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { FinanceStat } from '@/components/finance-stat';
 import {
   ResponsiveModal,
@@ -39,6 +48,23 @@ import { RecurringAddButton } from './recurring/add-button';
 import { RecurringList } from './recurring/list';
 import { ComparisonView } from './comparison';
 
+const PAGE_SIZE = 15;
+
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  const pages: Array<number | 'ellipsis'> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) pages.push('ellipsis');
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  if (end < totalPages - 1) pages.push('ellipsis');
+
+  pages.push(totalPages);
+  return pages;
+}
+
 interface Props {
   initial: Tx[];
   primaryCurrency: Currency;
@@ -66,8 +92,23 @@ export function TransactionsIsland({
   const [txOpen, setTxOpen] = useState(false);
   const [recurring, setRecurring] = useState<Recurring[]>(initialRecurring);
   const [txType, setTxType] = useState<'income' | 'expense'>('expense');
+  const [page, setPage] = useState(1);
   const isFirst = useRef(true);
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s.name])), [students]);
+  const totalPages = Math.max(1, Math.ceil(txList.length / PAGE_SIZE));
+  const pageItems = useMemo(() => getPaginationItems(page, totalPages), [page, totalPages]);
+  const paginatedTxList = useMemo(
+    () => txList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [page, txList],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [range, currency]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     if (isFirst.current) {
@@ -368,11 +409,72 @@ export function TransactionsIsland({
                   No transactions in this period.
                 </div>
               ) : (
-                <ul className="flex flex-col gap-2">
-                  {txList.map((t) => (
-                    <TxCard key={t.id} tx={t} primaryCurrency={currency} studentMap={studentMap} />
-                  ))}
-                </ul>
+                <div className="space-y-4">
+                  <FadeSwap motionKey={`tx-page-${page}`}>
+                    <ul className="flex flex-col gap-2">
+                      {paginatedTxList.map((t) => (
+                        <TxCard
+                          key={t.id}
+                          tx={t}
+                          primaryCurrency={currency}
+                          studentMap={studentMap}
+                        />
+                      ))}
+                    </ul>
+                  </FadeSwap>
+                  <Collapse open={totalPages > 1}>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            aria-disabled={page === 1}
+                            className={
+                              page === 1 ? 'pointer-events-none opacity-50' : 'transition-opacity'
+                            }
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPage((current) => Math.max(1, current - 1));
+                            }}
+                          />
+                        </PaginationItem>
+                        {pageItems.map((item, index) => (
+                          <PaginationItem key={`${item}-${index}`}>
+                            {item === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                href="#"
+                                isActive={item === page}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setPage(item);
+                                }}
+                              >
+                                {item}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            aria-disabled={page === totalPages}
+                            className={
+                              page === totalPages
+                                ? 'pointer-events-none opacity-50'
+                                : 'transition-opacity'
+                            }
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPage((current) => Math.min(totalPages, current + 1));
+                            }}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </Collapse>
+                </div>
               )}
             </FadeSwap>
           </div>
