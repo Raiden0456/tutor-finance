@@ -11,10 +11,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import {
-  ResponsiveModal,
-  ResponsiveModalTrigger,
-} from '@/components/ui/responsive-modal';
+import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
 import { Plus } from 'lucide-react';
 import { fromMinorUnits, toMinorUnits, type Currency } from '@tutor-finance/shared';
 import type { Student, IncomeTx } from '@/lib/types';
@@ -107,8 +104,8 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
         </ResponsiveModal>
       </header>
 
-      <Collapse open={topEarners.length > 0}>
-        <Card>
+      <Collapse open={topEarners.length > 0} className="p-1">
+        <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Top earners · this month</CardTitle>
             <CardDescription className="text-xs">

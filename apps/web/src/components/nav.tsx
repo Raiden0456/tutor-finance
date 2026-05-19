@@ -17,7 +17,13 @@ export interface NavProps {
 export function Sidebar({ current, initialTheme }: NavProps) {
   return (
     <nav className="sticky top-0 hidden h-screen w-56 shrink-0 border-r bg-card/50 md:flex md:flex-col md:gap-1 md:p-3">
-      <h1 className="text-2xl font-bold mb-4">Uchetka</h1>
+      <a
+        href="/"
+        className="mb-4 flex items-center gap-3 rounded-xl transition-opacity duration-200 hover:opacity-80"
+      >
+        <img src="/favicon.svg" alt="" className="h-9 w-9 rounded-lg" />
+        <h1 className="text-2xl font-bold">Uchetka</h1>
+      </a>
       {links.map(({ href, label, icon: Icon }) => {
         const active = href === current || (href !== '/' && current.startsWith(href));
         return (

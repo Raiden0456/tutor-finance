@@ -21,7 +21,7 @@ interface Props {
 
 export function SettingsIsland({ initial }: Props) {
   const [primaryCurrency, setPrimary] = useState<Currency>(initial.primaryCurrency);
-  const [theme, setTheme] = useState(initial.theme);
+  const [theme] = useState(initial.theme);
   const [locale, setLocale] = useState(initial.locale);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,6 +47,14 @@ export function SettingsIsland({ initial }: Props) {
 
   return (
     <div className="page-enter space-y-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 ease-in-out md:hidden">
+        <img src="/favicon.svg" alt="" className="h-11 w-11 rounded-xl" />
+        <div>
+          <p className="text-lg font-semibold tracking-tight">Uchetka</p>
+          <p className="text-xs text-muted-foreground">Tutor finance tracker</p>
+        </div>
+      </div>
+
       <header>
         <h1 className="hidden text-xl font-semibold tracking-tight md:block">Settings</h1>
         <p className="text-xs text-muted-foreground">Personalise the app</p>

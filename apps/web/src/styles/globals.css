@@ -57,24 +57,20 @@
 }
 
 [data-theme='dark'] {
-  /* Midnight surface scale
-     Key invariant: base < hl-low < surface < hl-med < hl-high < overlay
-     This ensures bg-card is always lighter than bg-muted,
-     so active/selected states visually pop above their container. */
-  --tf-base: #09081a;
-  --tf-surface: #1e1c42;
-  --tf-overlay: #2d2a6a;
-  --tf-muted: #5a5880;
-  --tf-subtle: #8280a8;
-  --tf-text: #e8e7f8;
-  --tf-hl-low: #100f28;
-  --tf-hl-med: #2d2a6a;
-  --tf-hl-high: #3e3b88;
+  /* Classic neutral dark scale. Brand colors stay available for accents,
+     but base surfaces must not look like a blue Discord skin. */
+  --tf-base: #111113;
+  --tf-surface: #1a1a1d;
+  --tf-overlay: #242428;
+  --tf-muted: #a1a1aa;
+  --tf-subtle: #d4d4d8;
+  --tf-text: #f4f4f5;
+  --tf-hl-low: #18181b;
+  --tf-hl-med: #2a2a2f;
+  --tf-hl-high: #3f3f46;
 
-  /* Indigo accent gets brightened in dark mode so text/icon
-     utilities (text-tf-indigo, bg-tf-indigo/10) remain readable
-     against the dark surface. */
-  --tf-indigo: #a5a3f5;
+  /* Keep brand colors for intentional highlights only. */
+  --tf-indigo: #8b88ff;
 
   --background: var(--tf-base);
   --foreground: var(--tf-text);
@@ -83,11 +79,11 @@
   --popover: var(--tf-surface);
   --popover-foreground: var(--tf-text);
   --primary: var(--tf-teal);
-  --primary-foreground: var(--tf-base);
+  --primary-foreground: #071311;
   --secondary: var(--tf-overlay);
   --secondary-foreground: var(--tf-text);
   --muted: var(--tf-hl-low);
-  --muted-foreground: var(--tf-subtle);
+  --muted-foreground: var(--tf-muted);
   --accent: var(--tf-hl-med);
   --accent-foreground: var(--tf-text);
   --destructive: var(--tf-coral);
