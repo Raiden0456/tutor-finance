@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { signOut } from '@/lib/auth-client';
+import { BrandMark } from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -48,7 +49,7 @@ export function SettingsIsland({ initial }: Props) {
   return (
     <div className="page-enter space-y-5">
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 ease-in-out md:hidden">
-        <img src="/favicon.svg" alt="" className="h-11 w-11 rounded-xl" />
+        <BrandMark className="h-11 w-11 rounded-xl" />
         <div>
           <p className="text-lg font-semibold tracking-tight">Uchetka</p>
           <p className="text-xs text-muted-foreground">Tutor finance tracker</p>

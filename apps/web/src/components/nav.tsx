@@ -1,4 +1,5 @@
 import { Home, Users, CalendarClock, Wallet, Settings } from 'lucide-react';
+import { BrandLogo } from './app-logo';
 import { ThemeToggle } from './theme-toggle';
 
 const links = [
@@ -21,8 +22,7 @@ export function Sidebar({ current, initialTheme }: NavProps) {
         href="/"
         className="mb-4 flex items-center gap-3 rounded-xl transition-opacity duration-200 hover:opacity-80"
       >
-        <img src="/favicon.svg" alt="" className="h-9 w-9 rounded-lg" />
-        <h1 className="text-2xl font-bold">Uchetka</h1>
+        <BrandLogo />
       </a>
       {links.map(({ href, label, icon: Icon }) => {
         const active = href === current || (href !== '/' && current.startsWith(href));
