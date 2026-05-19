@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { resetPassword } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 
 export function ResetPasswordForm() {
@@ -61,9 +61,8 @@ export function ResetPasswordForm() {
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">New password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
@@ -73,9 +72,8 @@ export function ResetPasswordForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirmPassword">Confirm password</Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required

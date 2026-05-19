@@ -1,9 +1,32 @@
 <svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" rx="30" fill="#2F2A68"/>
+  <style>
+    .bg { fill: #2d2a5f; }
+    .mark { stroke: #ffffff; }
+
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #57537f; }
+      .mark { stroke: #ffffff; }
+    }
+  </style>
+  <rect class="bg" width="128" height="128" rx="30" />
   <path
-    d="M42 34V72C42 84.1503 51.8497 94 64 94C76.1503 94 86 84.1503 86 72V34"
-    stroke="white"
-    stroke-width="12"
+    class="mark"
+    d="M64 29L26 48L64 67L102 48L64 29Z"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    class="mark"
+    d="M26 84L64 103L102 84"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    class="mark"
+    d="M26 66L64 85L102 66"
+    stroke-width="9"
     stroke-linecap="round"
     stroke-linejoin="round"
   />

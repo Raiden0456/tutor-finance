@@ -1,31 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { signIn } from '@/lib/auth-client';
+import { BrandMark } from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 
 function BrandHero() {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
-        </svg>
-      </div>
+      <BrandMark className="h-16 w-16 bg-white/15 text-white" iconClassName="h-8 w-8" />
       <p className="text-2xl font-semibold tracking-tight">Uchetka</p>
       <p className="max-w-[20ch] text-sm opacity-60">
         Track lessons, students &amp; income — all in one place.
@@ -73,9 +59,8 @@ function LoginFields({
             Forgot password?
           </a>
         </div>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           required
           minLength={8}
