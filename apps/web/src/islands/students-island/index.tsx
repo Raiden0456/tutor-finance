@@ -129,7 +129,13 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
                 margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" axisLine={false} tickLine={false} hide />
+                <XAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  domain={[0, (dataMax: number) => Math.max(dataMax * 1.12, dataMax + 1)]}
+                  hide
+                />
                 <YAxis
                   type="category"
                   dataKey="name"
