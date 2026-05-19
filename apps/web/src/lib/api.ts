@@ -17,7 +17,8 @@ interface RequestInitExtra extends Omit<RequestInit, 'body'> {
 }
 
 function buildUrl(base: string, path: string, query?: RequestInitExtra['query']): string {
-  const url = new URL(path.startsWith('/') ? path : `/${path}`, base);
+  const baseUrl = new URL(base.endsWith('/') ? base : `${base}/`);
+  const url = new URL(path.replace(/^\/+/, ''), baseUrl);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined || v === null) continue;
