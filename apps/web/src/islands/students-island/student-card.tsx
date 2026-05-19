@@ -67,6 +67,9 @@ export function StudentCard({
           <div className="truncate text-xs text-muted-foreground">
             {student.email || student.phone || '—'}
           </div>
+          {student.notes ? (
+            <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{student.notes}</div>
+          ) : null}
         </a>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
