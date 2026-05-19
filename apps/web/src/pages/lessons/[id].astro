@@ -12,6 +12,9 @@ const lesson = await api.get<Lesson>(`/lessons/${id}`);
 const student = await api.get<Student>(`/students/${lesson.studentId}`);
 ---
 
-<AppLayout title="Lesson">
+<AppLayout
+  title={`Lesson with ${student.name}`}
+  description={`Lesson details for ${student.name}: schedule, payment status, notes, homework, and meeting link in Uchetka.`}
+>
   <LessonDetailIsland client:load lesson={lesson} student={student} />
 </AppLayout>

@@ -2,6 +2,10 @@
 import AuthLayout from '@/layouts/AuthLayout.astro';
 import { SignupForm } from '@/islands/signup-form';
 ---
-<AuthLayout title="Create account">
+
+<AuthLayout
+  title="Create account"
+  description="Create your Uchetka account and manage tutor lessons, students, payments, and income in one clean dashboard."
+>
   <SignupForm client:load />
 </AuthLayout>

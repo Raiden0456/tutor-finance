@@ -62,7 +62,7 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 - **Islands:** `src/islands/` — hydrated React components
 - **Auth middleware:** `src/middleware.ts` — protects all routes except `/login`, `/sign-up`, `/forgot-password`, `/reset-password`
 - **API client:** `src/lib/api.ts` exports two versions. The browser variant (reads `BROWSER_API_URL`, which resolves to `window.location.origin`) is used inside React islands and goes through the same-origin reverse proxy at `src/pages/api/[...path].ts`. The server variant (reads `SERVER_API_URL`) is used in `.astro` files and calls the API directly. This keeps auth cookies first-party in all browsers (incl. Safari ITP) even when the API is on a different domain.
-- **Styling:** Tailwind v4 (Vite plugin) + shadcn/ui; theme: Rose Pine
+- **Styling:** Tailwind v4 (Vite plugin) + shadcn/ui;
 - **i18n:** `en` (default), `ru`
 
 ### Shared Packages

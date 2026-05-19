@@ -36,7 +36,10 @@ const [transactions, summary] = await Promise.all([
 ]);
 ---
 
-<AppLayout title="Transactions">
+<AppLayout
+  title="Transactions"
+  description="Track tutor income, expenses, recurring payments, and currency conversion in Uchetka."
+>
   <TransactionsIsland
     client:load
     initial={transactions}

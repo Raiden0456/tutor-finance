@@ -29,7 +29,10 @@ const transactions = await api.get<IncomeTx[]>('/transactions', {
 });
 ---
 
-<AppLayout title="Students">
+<AppLayout
+  title="Students"
+  description="Manage tutor students, rates, notes, lesson history, and income in Uchetka."
+>
   <StudentsIsland
     client:load
     initial={students}

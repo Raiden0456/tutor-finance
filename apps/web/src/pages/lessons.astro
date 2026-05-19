@@ -14,7 +14,12 @@ const initialMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padSt
 
 const [lessons, studentsList] = await Promise.all([
   api.get<Lesson[]>('/lessons', {
-    query: { from: monthStart.toISOString(), to: monthEnd.toISOString(), limit: 500, orderDir: 'asc' },
+    query: {
+      from: monthStart.toISOString(),
+      to: monthEnd.toISOString(),
+      limit: 500,
+      orderDir: 'asc',
+    },
   }),
   api.get<StudentRef[]>('/students'),
 ]);
@@ -22,6 +27,14 @@ const [lessons, studentsList] = await Promise.all([
 const students = studentsList.map((s) => ({ id: s.id, name: s.name }));
 ---
 
-<AppLayout title="Lessons">
-  <LessonsIsland client:load initial={lessons} students={students} initialMonthStr={initialMonthStr} />
+<AppLayout
+  title="Lessons"
+  description="Plan, track, and archive tutor lessons with statuses, payments, homework, and meeting links."
+>
+  <LessonsIsland
+    client:load
+    initial={lessons}
+    students={students}
+    initialMonthStr={initialMonthStr}
+  />
 </AppLayout>

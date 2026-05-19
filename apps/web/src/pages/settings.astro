@@ -8,6 +8,9 @@ const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const initial = await serverApi(cookie).get<Settings>('/settings/me');
 ---
 
-<AppLayout title="Settings">
+<AppLayout
+  title="Settings"
+  description="Configure your Uchetka account, tutor finance preferences, currency, and profile settings."
+>
   <SettingsIsland client:load initial={initial} />
 </AppLayout>

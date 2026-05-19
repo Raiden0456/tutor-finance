@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { signIn } from '@/lib/auth-client';
-import { BrandMark } from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapse } from '@/components/ui/collapse';
@@ -8,15 +7,14 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 
-function BrandHero() {
+function LoginHeroImage() {
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      <BrandMark className="h-16 w-16 bg-white/15 text-white" iconClassName="h-8 w-8" />
-      <p className="text-2xl font-semibold tracking-tight">Uchetka</p>
-      <p className="max-w-[20ch] text-sm opacity-60">
-        Track lessons, students &amp; income — all in one place.
-      </p>
-    </div>
+    <img
+      src="/login-hero.svg"
+      alt="Uchetka dashboard preview"
+      className="h-auto w-full max-w-md select-none transition-transform duration-300 ease-in-out hover:scale-[1.02]"
+      draggable={false}
+    />
   );
 }
 
@@ -128,7 +126,9 @@ export function LoginForm() {
       <div className="flex min-h-svh flex-col md:hidden">
         {/* Hero section */}
         <div className="flex flex-1 flex-col items-center justify-center bg-[var(--tf-indigo)] px-6 text-white">
-          <BrandHero />
+          <div className="w-full max-w-sm">
+            <LoginHeroImage />
+          </div>
         </div>
 
         {/* Form sheet */}
@@ -174,8 +174,8 @@ export function LoginForm() {
             </form>
 
             {/* Brand panel */}
-            <div className="flex flex-col items-center justify-center bg-[var(--tf-indigo)] p-10 text-white">
-              <BrandHero />
+            <div className="flex flex-col items-center justify-center bg-[var(--tf-indigo)] p-4 text-white">
+              <LoginHeroImage />
             </div>
           </CardContent>
         </Card>

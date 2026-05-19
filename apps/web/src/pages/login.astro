@@ -9,6 +9,11 @@ if (session.user) {
   return Astro.redirect('/');
 }
 ---
-<AuthLayout title="Sign in" wide>
+
+<AuthLayout
+  title="Sign in"
+  description="Sign in to Uchetka, an Open-source finance tracker for tutors. Track lessons, students, payments, and income without spreadsheet hell."
+  wide
+>
   <LoginForm client:load />
 </AuthLayout>

@@ -44,7 +44,10 @@ const studentNames: Record<string, string> = {};
 for (const s of studentsList) studentNames[s.id] = s.name;
 ---
 
-<AppLayout title="Dashboard">
+<AppLayout
+  title="Dashboard"
+  description="Your tutor finance dashboard: upcoming lessons, daily stats, recent income, and student activity at a glance."
+>
   <DashboardIsland
     client:load
     summary={summary}

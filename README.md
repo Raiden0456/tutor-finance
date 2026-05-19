@@ -1,6 +1,6 @@
 # tutor-finance
 
-Open-source self-hosted finance tracker for tutors. Single-user MVP.
+Open-source finance tracker for tutors. Single-user MVP.
 
 ## Stack
 

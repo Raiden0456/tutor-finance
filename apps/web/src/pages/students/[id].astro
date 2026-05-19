@@ -34,7 +34,10 @@ const totalIncome = transactions.reduce(
 );
 ---
 
-<AppLayout title={student.name}>
+<AppLayout
+  title={student.name}
+  description={`Student profile for ${student.name}: lessons, payments, notes, and tutor income history in Uchetka.`}
+>
   <StudentDetailIsland
     client:load
     student={student}
