@@ -84,7 +84,17 @@ export function ResetPasswordForm() {
         />
       </div>
       <Collapse open={!!error}>
-        <p className="pt-1 text-sm text-destructive">{error}</p>
+        <div className="flex flex-col gap-2 pt-1">
+          <p className="text-sm text-destructive">{error}</p>
+          {!token ? (
+            <a
+              href="/forgot-password"
+              className="text-sm underline-offset-4 transition-colors duration-200 hover:underline"
+            >
+              Request a new reset link
+            </a>
+          ) : null}
+        </div>
       </Collapse>
       <Button type="submit" disabled={loading || !token}>
         {loading ? 'Updating…' : 'Update password'}

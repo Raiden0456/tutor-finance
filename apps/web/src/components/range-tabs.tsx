@@ -106,7 +106,7 @@ export function RangeTabs({
             {active && (
               <motion.span
                 layoutId={pillId}
-                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                className="absolute inset-0 rounded-full bg-card shadow-sm dark:bg-accent dark:ring-1 dark:ring-border"
                 transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
               />
             )}
@@ -128,7 +128,7 @@ export function RangeTabs({
             {customActive && (
               <motion.span
                 layoutId={pillId}
-                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                className="absolute inset-0 rounded-full bg-card shadow-sm dark:bg-accent dark:ring-1 dark:ring-border"
                 transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
               />
             )}

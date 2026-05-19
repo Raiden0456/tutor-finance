@@ -62,7 +62,9 @@ export function CreateLessonModal({
   const [batchMode, setBatchMode] = useState(false);
   const [slots, setSlots] = useState<SlotDraft[]>([]);
   const [focusedSlotId, setFocusedSlotId] = useState<string | null>(null);
-  const [createProgress, setCreateProgress] = useState<{ done: number; total: number } | null>(null);
+  const [createProgress, setCreateProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [createErrors, setCreateErrors] = useState<string[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
 
@@ -217,7 +219,7 @@ export function CreateLessonModal({
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent className="max-w-md">
+      <ResponsiveModalContent className="max-w-md md:max-h-[calc(100dvh-2rem)]">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
             {batchMode ? `Log ${slots.length} lessons` : 'New lesson'}
@@ -228,9 +230,9 @@ export function CreateLessonModal({
             e.preventDefault();
             if (!batchMode) onCreate(e.currentTarget);
           }}
-          className="flex min-h-0 flex-1 flex-col gap-4"
+          className="contents"
         >
-          <ResponsiveModalBody className="flex flex-col gap-4">
+          <ResponsiveModalBody className="min-h-0 flex flex-col gap-4 pr-1">
             {/* ─── Mode panels ─── */}
             <AnimatePresence initial={false} mode="wait">
               {!batchMode ? (
@@ -250,10 +252,14 @@ export function CreateLessonModal({
                         value={createStudentId}
                         onValueChange={setCreateStudentId}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           {students.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -261,10 +267,14 @@ export function CreateLessonModal({
                     <div className="grid gap-2">
                       <Label>Status</Label>
                       <Select name="status" defaultValue="scheduled">
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           {CREATE_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>{statusLabel[s]}</SelectItem>
+                            <SelectItem key={s} value={s}>
+                              {statusLabel[s]}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -276,13 +286,19 @@ export function CreateLessonModal({
                       selectedDate={createDate}
                       viewMonth={createViewMonth}
                       daysWithLessons={daysWithLessons}
-                      onSelect={(d) => { setCreateDate(d); loadMonth(d); }}
-                      onMonthChange={(d) => { setCreateViewMonth(d); loadMonth(d); }}
+                      onSelect={(d) => {
+                        setCreateDate(d);
+                        loadMonth(d);
+                      }}
+                      onMonthChange={(d) => {
+                        setCreateViewMonth(d);
+                        loadMonth(d);
+                      }}
                     />
                     <FadeSwap motionKey={dayKey(createDate)} duration={0.18}>
-                      {createDayLessons.length > 0
-                        ? <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
-                        : null}
+                      {createDayLessons.length > 0 ? (
+                        <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
+                      ) : null}
                     </FadeSwap>
                   </div>
                   <div className="grid gap-3 grid-cols-2">
@@ -318,7 +334,12 @@ export function CreateLessonModal({
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="meetingLink">Meeting link</Label>
-                    <Input id="meetingLink" name="meetingLink" type="url" placeholder="https://..." />
+                    <Input
+                      id="meetingLink"
+                      name="meetingLink"
+                      type="url"
+                      placeholder="https://..."
+                    />
                   </div>
                 </motion.div>
               ) : (
@@ -339,16 +360,19 @@ export function CreateLessonModal({
                       loadMonth(d);
                       if (focusedSlotId) {
                         setSlots((prev) =>
-                          prev.map((s) => s.id === focusedSlotId ? { ...s, date: d } : s),
+                          prev.map((s) => (s.id === focusedSlotId ? { ...s, date: d } : s)),
                         );
                       }
                     }}
-                    onMonthChange={(d) => { setCreateViewMonth(d); loadMonth(d); }}
+                    onMonthChange={(d) => {
+                      setCreateViewMonth(d);
+                      loadMonth(d);
+                    }}
                   />
                   <FadeSwap motionKey={dayKey(focusedSlot?.date ?? createDate)} duration={0.18}>
-                    {createDayLessons.length > 0
-                      ? <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
-                      : null}
+                    {createDayLessons.length > 0 ? (
+                      <DaySchedulePreview lessons={createDayLessons} studentMap={studentMap} />
+                    ) : null}
                   </FadeSwap>
                   <div className="flex flex-col gap-2">
                     {slots.map((slot) => (
@@ -366,7 +390,7 @@ export function CreateLessonModal({
                         }}
                         onChange={(patch) =>
                           setSlots((prev) =>
-                            prev.map((s) => s.id === slot.id ? { ...s, ...patch } : s),
+                            prev.map((s) => (s.id === slot.id ? { ...s, ...patch } : s)),
                           )
                         }
                         onDelete={() => {
@@ -425,8 +449,8 @@ export function CreateLessonModal({
                       Overlaps with{' '}
                       <span className="font-medium">
                         {studentMap.get(createOverlapLesson.studentId) ?? 'another lesson'}
-                      </span>
-                      {' '}at {format(new Date(createOverlapLesson.startsAt), 'HH:mm')}
+                      </span>{' '}
+                      at {format(new Date(createOverlapLesson.startsAt), 'HH:mm')}
                     </span>
                   </div>
                 </motion.div>
@@ -461,7 +485,9 @@ export function CreateLessonModal({
                 >
                   <div className="flex flex-col gap-0.5 rounded-lg bg-destructive/10 px-3 py-2.5">
                     {createErrors.map((e, i) => (
-                      <p key={i} className="text-xs text-destructive">{e}</p>
+                      <p key={i} className="text-xs text-destructive">
+                        {e}
+                      </p>
                     ))}
                   </div>
                 </motion.div>
