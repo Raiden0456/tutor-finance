@@ -1,21 +1,31 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { requestPasswordReset, sendVerificationEmail } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [done, setDone] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  useEffect(() => {
+    if (!done || cooldown <= 0) return;
+
+    const timeout = window.setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timeout);
+  }, [cooldown, done]);
+
+  async function sendResetLink(nextNotice: string | null) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     const res = await requestPasswordReset({
       email,
@@ -27,6 +37,13 @@ export function ForgotPasswordForm() {
       return;
     }
     setDone(true);
+    setNotice(nextNotice);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    await sendResetLink(null);
   }
 
   async function resendVerification() {
@@ -43,9 +60,12 @@ export function ForgotPasswordForm() {
       return;
     }
     setNotice('Verification link sent. Check your inbox.');
+    setCooldown(RESEND_COOLDOWN_SECONDS);
   }
 
   if (done) {
+    const busy = loading || verifying;
+
     return (
       <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 text-center text-sm duration-300">
         <p>
@@ -59,20 +79,26 @@ export function ForgotPasswordForm() {
             {error}
           </p>
         </Collapse>
-        <Button type="button" variant="outline" disabled={verifying} onClick={resendVerification}>
-          {verifying ? 'Sending…' : 'Send verification link'}
-        </Button>
-        <button
-          type="button"
-          className="underline-offset-4 transition-colors duration-200 hover:underline"
-          onClick={() => {
-            setError(null);
-            setNotice(null);
-            setDone(false);
-          }}
-        >
-          Send another reset link
-        </button>
+        <Collapse open={cooldown > 0}>
+          <p className="text-sm text-muted-foreground">
+            You can request another link in {cooldown}s.
+          </p>
+        </Collapse>
+        <Collapse open={cooldown === 0}>
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => sendResetLink('Reset link sent again. Check your inbox.')}
+            >
+              {loading ? 'Sending…' : 'Resend reset link'}
+            </Button>
+            <Button type="button" variant="ghost" disabled={busy} onClick={resendVerification}>
+              {verifying ? 'Sending…' : 'Send verification link'}
+            </Button>
+          </div>
+        </Collapse>
         <a
           href="/login"
           className="underline-offset-4 transition-colors duration-200 hover:underline"
