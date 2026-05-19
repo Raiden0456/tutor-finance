@@ -29,7 +29,8 @@ function filterHeaders(src: Headers): Headers {
 const handler: APIRoute = async ({ request, params }) => {
   const subPath = Array.isArray(params.path) ? params.path.join('/') : (params.path ?? '');
   const incoming = new URL(request.url);
-  const target = new URL(`/api/${subPath}${incoming.search}`, SERVER_API_URL);
+  const upstreamPath = subPath.startsWith('auth/') ? `/api/${subPath}` : `/${subPath}`;
+  const target = new URL(`${upstreamPath}${incoming.search}`, SERVER_API_URL);
 
   const init: RequestInit = {
     method: request.method,

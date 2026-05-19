@@ -62,15 +62,17 @@ function safeParse(text: string): unknown {
 
 // Browser client — same-origin requests go through /api/* proxy so cookies
 // stay first-party (Safari ITP friendly).
+const BROWSER_PROXY_URL = `${BROWSER_API_URL}/api`;
+
 export const api = {
   get: <T>(path: string, init?: RequestInitExtra) =>
-    request<T>(BROWSER_API_URL, path, { ...init, method: 'GET' }),
+    request<T>(BROWSER_PROXY_URL, path, { ...init, method: 'GET' }),
   post: <T>(path: string, body?: unknown, init?: RequestInitExtra) =>
-    request<T>(BROWSER_API_URL, path, { ...init, method: 'POST', body }),
+    request<T>(BROWSER_PROXY_URL, path, { ...init, method: 'POST', body }),
   patch: <T>(path: string, body?: unknown, init?: RequestInitExtra) =>
-    request<T>(BROWSER_API_URL, path, { ...init, method: 'PATCH', body }),
+    request<T>(BROWSER_PROXY_URL, path, { ...init, method: 'PATCH', body }),
   delete: <T>(path: string, init?: RequestInitExtra) =>
-    request<T>(BROWSER_API_URL, path, { ...init, method: 'DELETE' }),
+    request<T>(BROWSER_PROXY_URL, path, { ...init, method: 'DELETE' }),
 };
 
 // Server client — used in Astro frontmatter, forwards cookie header.
