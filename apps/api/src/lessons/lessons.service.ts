@@ -34,6 +34,7 @@ const JOIN_COLS = {
   id: lessons.id,
   userId: lessons.userId,
   studentId: lessons.studentId,
+  recurringLessonId: lessons.recurringLessonId,
   startsAt: lessons.startsAt,
   durationMin: lessons.durationMin,
   status: lessons.status,
@@ -54,6 +55,7 @@ type JoinRow = {
   id: string;
   userId: string;
   studentId: string;
+  recurringLessonId: string | null;
   startsAt: Date;
   durationMin: number;
   status: string;
@@ -86,6 +88,7 @@ function toResponse(r: JoinRow): LessonResponse {
   return {
     id: r.id,
     studentId: r.studentId,
+    recurringLessonId: r.recurringLessonId,
     startsAt: r.startsAt,
     durationMin: r.durationMin,
     status: r.status as LessonStatus,

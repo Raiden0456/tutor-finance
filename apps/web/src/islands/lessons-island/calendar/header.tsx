@@ -1,14 +1,13 @@
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { motion } from 'motion/react';
 import { Archive, CalendarRange, ChevronDown, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getDateFnsLocale, useI18n } from '@/lib/i18n';
+import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { SelectionMode } from '../shared';
 
 export function CalendarHeader({
   rangeStart,
-  rangeEnd,
   selectionMode,
   monthExpanded,
   loading,
@@ -20,7 +19,6 @@ export function CalendarHeader({
   disabledLog,
 }: {
   rangeStart: Date;
-  rangeEnd: Date | null;
   selectionMode: SelectionMode;
   monthExpanded: boolean;
   loading: boolean;
@@ -33,7 +31,6 @@ export function CalendarHeader({
 }) {
   const { locale, t } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
-  const isRange = selectionMode === 'range' && rangeEnd && !isSameDay(rangeStart, rangeEnd);
 
   return (
     <div className="flex items-center justify-between gap-2 pt-3 pb-2">
@@ -44,7 +41,7 @@ export function CalendarHeader({
         aria-expanded={monthExpanded}
       >
         <span className="text-base font-semibold tracking-tight">
-          {format(rangeStart, 'MMMM yyyy', { locale: dateLocale })}
+          {capitalizeFirst(format(rangeStart, 'LLLL yyyy', { locale: dateLocale }))}
         </span>
         <motion.span
           animate={{ rotate: monthExpanded ? 180 : 0 }}
@@ -54,12 +51,6 @@ export function CalendarHeader({
           <ChevronDown className="h-4 w-4" />
         </motion.span>
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-        {isRange && rangeEnd && (
-          <span className="ml-1 truncate text-xs text-muted-foreground">
-            {format(rangeStart, 'd MMM', { locale: dateLocale })} –{' '}
-            {format(rangeEnd, 'd MMM', { locale: dateLocale })}
-          </span>
-        )}
       </button>
 
       {/* Right: mode toggle + archive + log */}

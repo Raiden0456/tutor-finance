@@ -18,6 +18,7 @@ const LESSON_STATUS_SQL = sql.raw(
 );
 const TRANSACTION_TYPE_SQL = sql.raw("'income','expense'");
 const FREQUENCY_SQL = sql.raw("'daily','weekly','monthly','yearly'");
+const LESSON_FREQUENCY_SQL = sql.raw("'weekly','biweekly'");
 const THEME_SQL = sql.raw("'light','dark','system'");
 const LOCALE_SQL = sql.raw("'en','ru'");
 
@@ -121,6 +122,52 @@ export const students = pgTable(
   ],
 );
 
+export const recurringLessons = pgTable(
+  'recurring_lessons',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'cascade' }),
+    daysOfWeek: integer('days_of_week').array().notNull(),
+    startTime: text('start_time').notNull(),
+    durationMin: integer('duration_min').notNull(),
+    frequency: text('frequency').notNull(),
+    startDate: timestamp('start_date').notNull(),
+    endDate: timestamp('end_date'),
+    nextScheduledAt: timestamp('next_scheduled_at').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    priceOverrideAmount: integer('price_override_amount'),
+    priceOverrideCurrency: text('price_override_currency'),
+    meetingLink: text('meeting_link'),
+    notes: text('notes'),
+    deletedAt: timestamp('deleted_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('recurring_lessons_user_id_idx').on(t.userId),
+    index('recurring_lessons_next_idx').on(t.nextScheduledAt, t.isActive),
+    check('recurring_lessons_dow_chk', sql`array_length(${t.daysOfWeek}, 1) >= 1`),
+    check('recurring_lessons_duration_chk', sql`${t.durationMin} > 0`),
+    check('recurring_lessons_frequency_chk', sql`${t.frequency} in (${LESSON_FREQUENCY_SQL})`),
+    check(
+      'recurring_lessons_price_chk',
+      sql`${t.priceOverrideAmount} is null or ${t.priceOverrideAmount} >= 0`,
+    ),
+    check(
+      'recurring_lessons_currency_chk',
+      sql`${t.priceOverrideCurrency} is null or ${t.priceOverrideCurrency} in (${CURRENCY_SQL})`,
+    ),
+  ],
+);
+
 export const lessons = pgTable(
   'lessons',
   {
@@ -140,6 +187,9 @@ export const lessons = pgTable(
     notes: text('notes'),
     homework: text('homework'),
     meetingLink: text('meeting_link'),
+    recurringLessonId: uuid('recurring_lesson_id').references(() => recurringLessons.id, {
+      onDelete: 'set null',
+    }),
     archivedAt: timestamp('archived_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')
@@ -151,6 +201,7 @@ export const lessons = pgTable(
     index('lessons_user_id_idx').on(t.userId),
     index('lessons_student_id_idx').on(t.studentId),
     index('lessons_user_starts_idx').on(t.userId, t.startsAt),
+    uniqueIndex('lessons_recurring_occurrence_uq').on(t.recurringLessonId, t.startsAt),
     check('lessons_duration_positive_chk', sql`${t.durationMin} > 0`),
     check('lessons_status_chk', sql`${t.status} in (${LESSON_STATUS_SQL})`),
     check(
@@ -273,6 +324,7 @@ export const userSettings = pgTable(
 export const schema = {
   ...authSchema,
   students,
+  recurringLessons,
   lessons,
   recurringExpenses,
   transactions,

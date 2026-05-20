@@ -1,23 +1,29 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { motion } from 'motion/react';
-import { Pencil, Pause, Play, Repeat, Trash2 } from 'lucide-react';
+import { Pause, Pencil, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
-import type { Recurring } from '@/lib/types';
-import { useI18n } from '@/lib/i18n';
+import type { RecurringLesson } from '@/lib/types';
+import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
 
-export function RecurringCard({
+// Jan 5 2025 = Sunday (index 0), so index d => Jan 5+d 2025
+const REF_SUNDAY = new Date(2025, 0, 5);
+
+export function ScheduleCard({
   item,
+  studentName,
   onToggle,
   onEdit,
   onDelete,
 }: {
-  item: Recurring;
-  onToggle: (r: Recurring) => void;
-  onEdit: (r: Recurring) => void;
+  item: RecurringLesson;
+  studentName: string;
+  onToggle: (r: RecurringLesson) => void;
+  onEdit: (r: RecurringLesson) => void;
   onDelete: (id: string) => void;
 }) {
   const { locale, t } = useI18n();
-  const dateFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
+  const dateLocale = getDateFnsLocale(locale);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -36,34 +42,37 @@ export function RecurringCard({
         <div
           className={
             'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' +
-            (item.isActive ? 'bg-expense/12' : 'bg-muted')
+            (item.isActive ? 'bg-primary/10' : 'bg-muted')
           }
         >
-          <Repeat
-            className={'h-5 w-5 ' + (item.isActive ? 'text-expense' : 'text-muted-foreground')}
+          <RefreshCw
+            className={'h-5 w-5 ' + (item.isActive ? 'text-primary' : 'text-muted-foreground')}
           />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="truncate text-sm font-medium capitalize">
-              {t(`category.${item.category}`)}
-            </span>
-            <span className="text-base text-nowrap font-semibold tabular-nums text-expense">
-              -{fmtMoney(item.amount, item.currency)}
-            </span>
+            <span className="truncate text-sm font-medium">{studentName}</span>
+            {item.priceOverride && (
+              <span className="text-base font-semibold tabular-nums text-income">
+                {fmtMoney(item.priceOverride.amount, item.priceOverride.currency)}
+              </span>
+            )}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-            <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
-              {t(item.frequency)}
-            </span>
             <span>
-              {t('Next')}: {dateFmt.format(new Date(item.nextDueAt))}
+              {[...item.daysOfWeek]
+              .sort((a, b) => a - b)
+              .map((d) => capitalizeFirst(format(new Date(REF_SUNDAY.getTime() + d * 86400000), 'EEE', { locale: dateLocale })))
+              .join(', ')} · {item.startTime}
             </span>
-            {!item.isActive && <span className="text-muted-foreground/60">{t('Paused')}</span>}
+            <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
+              {item.frequency === 'biweekly' ? t('Biweekly') : t('Weekly')}
+            </span>
+            <span>{item.durationMin} {t('min')}</span>
+            {!item.isActive && (
+              <span className="text-muted-foreground/60">{t('Paused')}</span>
+            )}
           </div>
-          {item.description && (
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.description}</div>
-          )}
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <button

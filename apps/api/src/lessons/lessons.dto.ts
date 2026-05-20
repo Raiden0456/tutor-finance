@@ -133,6 +133,7 @@ export class LessonFilterDto {
 export interface LessonResponse {
   id: string;
   studentId: string;
+  recurringLessonId: string | null;
   startsAt: Date;
   durationMin: number;
   status: LessonStatus;

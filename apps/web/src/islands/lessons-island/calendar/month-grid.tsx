@@ -13,7 +13,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getDateFnsLocale, useI18n } from '@/lib/i18n';
+import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { type SelectionMode, dayKey, monthKey, weekStartOptions } from '../shared';
@@ -68,7 +68,7 @@ export function MonthGrid({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {format(viewMonth, 'MMMM yyyy', { locale: dateLocale })}
+          {capitalizeFirst(format(viewMonth, 'LLLL yyyy', { locale: dateLocale }))}
         </span>
         <button
           onClick={() => changeMonth(1)}

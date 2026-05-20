@@ -11,7 +11,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getDateFnsLocale, useI18n } from '@/lib/i18n';
+import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { dayKey, monthKey, weekStartOptions } from '../shared';
@@ -50,7 +50,7 @@ export function CreateCalendar({
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
         <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-          {format(viewMonth, 'MMMM yyyy', { locale: dateLocale })}
+          {capitalizeFirst(format(viewMonth, 'LLLL yyyy', { locale: dateLocale }))}
         </span>
         <button
           type="button"

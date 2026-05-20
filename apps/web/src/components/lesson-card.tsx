@@ -41,6 +41,7 @@ import {
   Link2,
   MoreHorizontal,
   PencilLine,
+  RefreshCw,
   Trash2,
   UserX,
   Video,
@@ -144,6 +145,9 @@ export function LessonCard({
             <span>
               {lesson.durationMin} {t('min')}
             </span>
+            {lesson.recurringLessonId && (
+              <RefreshCw className="h-3 w-3 text-primary/60" />
+            )}
           </div>
           {lesson.effectivePrice && lesson.status !== 'partially_paid' && (
             <div className="mt-1 text-xs text-muted-foreground">

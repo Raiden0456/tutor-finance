@@ -1,7 +1,9 @@
 import type { z } from 'zod';
 import type { Currency } from './currency.js';
+import type { Money } from './money.js';
 import {
   LessonStatusEnum,
+  LessonFrequencyEnum,
   TransactionTypeEnum,
   ThemeEnum,
   LocaleEnum,
@@ -15,6 +17,7 @@ import {
 } from './schemas.js';
 
 export type LessonStatus = z.infer<typeof LessonStatusEnum>;
+export type LessonFrequency = z.infer<typeof LessonFrequencyEnum>;
 export type TransactionType = z.infer<typeof TransactionTypeEnum>;
 export type Theme = z.infer<typeof ThemeEnum>;
 export type Locale = z.infer<typeof LocaleEnum>;
@@ -26,6 +29,24 @@ export type LessonInput = z.infer<typeof LessonInputSchema>;
 export type TransactionInput = z.infer<typeof TransactionInputSchema>;
 export type UserSettingsInput = z.infer<typeof UserSettingsInputSchema>;
 export type MoneyInput = z.infer<typeof MoneyInputSchema>;
+
+export interface RecurringLesson {
+  id: string;
+  studentId: string;
+  daysOfWeek: number[];
+  startTime: string;
+  durationMin: number;
+  frequency: LessonFrequency;
+  startDate: string;
+  endDate: string | null;
+  nextScheduledAt: string;
+  isActive: boolean;
+  priceOverride: Money | null;
+  meetingLink: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface CurrencyTotal {
   currency: Currency;

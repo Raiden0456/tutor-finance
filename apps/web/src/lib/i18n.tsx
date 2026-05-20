@@ -404,6 +404,22 @@ const ru: Record<string, string> = {
   'Save settings': 'Сохранить настройки',
   'Settings saved': 'Настройки сохранены',
 
+  // Recurring lesson schedules
+  Schedules: 'Расписания',
+  'Weekly template': 'Недельный шаблон',
+  'Add schedule': 'Добавить расписание',
+  'New schedule': 'Новое расписание',
+  'Edit schedule': 'Изменить расписание',
+  'No recurring schedules yet.': 'Расписаний пока нет.',
+  'Day of week': 'День недели',
+  'Days of week': 'Дни недели',
+  'Start time': 'Время начала',
+  'End date': 'Дата окончания',
+  Biweekly: 'Раз в 2 недели',
+  'Select student': 'Выбрать ученика',
+  Saving: 'Сохранение',
+  Remove: 'Убрать',
+
   // UI components
   'Open menu': 'Открыть меню',
   'Go to next page': 'Следующая страница',
@@ -424,6 +440,10 @@ export function normalizeLocale(locale: string | undefined | null): Locale {
 
 export function getDateFnsLocale(locale: string | undefined | null): DateFnsLocale {
   return normalizeLocale(locale) === 'ru' ? dateFnsRu : enUS;
+}
+
+export function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export function createTranslator(locale: string | undefined | null) {

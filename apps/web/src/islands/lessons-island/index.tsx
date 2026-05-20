@@ -10,10 +10,10 @@ import {
   subDays,
 } from 'date-fns';
 import { api } from '@/lib/api';
-import { I18nProvider, type Locale } from '@/lib/i18n';
+import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import type { WeekStartsOn } from '@tutor-finance/shared';
-import type { Lesson, StudentRef } from '@/lib/types';
+import type { Lesson, RecurringLesson, StudentRef } from '@/lib/types';
 import { dayKey, monthKey, weekStartOptions } from './shared';
 import { CalendarHeader } from './calendar/header';
 import { WeekStrip } from './calendar/week-strip';
@@ -21,6 +21,8 @@ import { MonthGrid } from './calendar/month-grid';
 import { DayDetail } from './day-detail';
 import { ArchiveView } from './archive-view';
 import { CreateLessonModal } from './create-modal';
+import { SchedulesView } from './schedules/list';
+import { TabSwitcher } from '../transactions-island/tab-switcher';
 
 interface Props {
   initial: Lesson[];
@@ -28,6 +30,7 @@ interface Props {
   initialMonthStr: string;
   weekStartsOn: WeekStartsOn;
   locale?: Locale;
+  initialSchedules: RecurringLesson[];
 }
 
 export function LessonsIsland({ locale = 'en', ...props }: Props) {
@@ -43,10 +46,12 @@ function LessonsContent({
   students,
   initialMonthStr,
   weekStartsOn,
+  initialSchedules,
 }: Omit<Props, 'locale'>) {
   const todayDate = useMemo(() => startOfDay(new Date()), []);
   const weekStart = useMemo(() => weekStartOptions(weekStartsOn), [weekStartsOn]);
 
+  const [activeTab, setActiveTab] = useState<'calendar' | 'schedules'>('calendar');
   const [selectionMode, setSelectionMode] = useState<'single' | 'range'>('single');
   const [rangeStart, setRangeStart] = useState(todayDate);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
@@ -198,84 +203,108 @@ function LessonsContent({
     [loadMonth],
   );
 
+  const { t } = useI18n();
+
   return (
     <div className="page-enter flex flex-col">
-      <div className="sticky top-14 z-20 -mx-4 bg-background px-4 pb-3">
-        <CalendarHeader
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          selectionMode={selectionMode}
-          monthExpanded={monthExpanded}
-          loading={loadingMonth}
-          showArchive={showArchive}
-          onToggleMonth={() => setMonthExpanded((x) => !x)}
-          onToggleMode={toggleMode}
-          onToggleArchive={toggleArchive}
-          onLog={openCreate}
-          disabledLog={students.length === 0}
-        />
-        <WeekStrip
-          weekViewStart={weekViewStart}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          selectionMode={selectionMode}
-          daysWithLessons={daysWithLessons}
-          monthExpanded={monthExpanded}
-          onSelect={handleDaySelect}
-          onToggleMonth={() => setMonthExpanded((x) => !x)}
-          onWeekNav={handleWeekNav}
-        />
-        <Collapse open={monthExpanded}>
-          <MonthGrid
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            selectionMode={selectionMode}
-            daysWithLessons={daysWithLessons}
-            onSelect={(day) => {
-              handleDaySelect(day);
-              if (selectionMode === 'single') setMonthExpanded(false);
-            }}
-            onMonthChange={(date) => loadMonth(date)}
+      <TabSwitcher
+        value={activeTab}
+        onChange={setActiveTab}
+        groupId="lessons-main"
+        tabs={[
+          { key: 'calendar', label: t('Calendar') },
+          { key: 'schedules', label: t('Schedules') },
+        ]}
+      />
+
+      <FadeSwap motionKey={activeTab}>
+        {activeTab === 'schedules' ? (
+          <SchedulesView
+            initialSchedules={initialSchedules}
+            students={students}
+            studentMap={studentMap}
             weekStartsOn={weekStartsOn}
           />
-        </Collapse>
-      </div>
-
-      <FadeSwap motionKey={showArchive ? 'archive' : 'day'}>
-        {showArchive ? (
-          <ArchiveView
-            lessons={archivedLessons}
-            studentMap={studentMap}
-            loading={loadingArchive}
-            onRefresh={loadArchive}
-          />
         ) : (
-          <DayDetail
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            selectionMode={selectionMode}
-            lessons={selectedLessons}
-            studentMap={studentMap}
-            loading={loadingMonth}
-            onLessonChanged={reloadRange}
-            onLog={openCreate}
-            hasStudents={students.length > 0}
-          />
+          <>
+            <div className="sticky top-14 z-20 -mx-4 bg-background px-4 pb-3">
+              <CalendarHeader
+                rangeStart={rangeStart}
+                selectionMode={selectionMode}
+                monthExpanded={monthExpanded}
+                loading={loadingMonth}
+                showArchive={showArchive}
+                onToggleMonth={() => setMonthExpanded((x) => !x)}
+                onToggleMode={toggleMode}
+                onToggleArchive={toggleArchive}
+                onLog={openCreate}
+                disabledLog={students.length === 0}
+              />
+              <WeekStrip
+                weekViewStart={weekViewStart}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                selectionMode={selectionMode}
+                daysWithLessons={daysWithLessons}
+                monthExpanded={monthExpanded}
+                onSelect={handleDaySelect}
+                onToggleMonth={() => setMonthExpanded((x) => !x)}
+                onWeekNav={handleWeekNav}
+              />
+              <Collapse open={monthExpanded}>
+                <MonthGrid
+                  rangeStart={rangeStart}
+                  rangeEnd={rangeEnd}
+                  selectionMode={selectionMode}
+                  daysWithLessons={daysWithLessons}
+                  onSelect={(day) => {
+                    handleDaySelect(day);
+                    if (selectionMode === 'single') setMonthExpanded(false);
+                  }}
+                  onMonthChange={(date) => loadMonth(date)}
+                  weekStartsOn={weekStartsOn}
+                />
+              </Collapse>
+            </div>
+
+            <FadeSwap motionKey={showArchive ? 'archive' : 'day'}>
+              {showArchive ? (
+                <ArchiveView
+                  lessons={archivedLessons}
+                  studentMap={studentMap}
+                  loading={loadingArchive}
+                  onRefresh={loadArchive}
+                />
+              ) : (
+                <DayDetail
+                  rangeStart={rangeStart}
+                  rangeEnd={rangeEnd}
+                  selectionMode={selectionMode}
+                  lessons={selectedLessons}
+                  studentMap={studentMap}
+                  loading={loadingMonth}
+                  onLessonChanged={reloadRange}
+                  onLog={openCreate}
+                  hasStudents={students.length > 0}
+                />
+              )}
+            </FadeSwap>
+
+            <CreateLessonModal
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+              students={students}
+              studentMap={studentMap}
+              daysWithLessons={daysWithLessons}
+              monthLessons={monthLessons}
+              initialDate={rangeStart}
+              loadMonth={loadMonth}
+              onCreated={handleModalCreated}
+              weekStartsOn={weekStartsOn}
+            />
+          </>
         )}
       </FadeSwap>
-
-      <CreateLessonModal
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        students={students}
-        studentMap={studentMap}
-        daysWithLessons={daysWithLessons}
-        monthLessons={monthLessons}
-        initialDate={rangeStart}
-        loadMonth={loadMonth}
-        onCreated={handleModalCreated}
-        weekStartsOn={weekStartsOn}
-      />
     </div>
   );
 }

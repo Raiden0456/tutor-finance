@@ -1,6 +1,7 @@
 import type {
   Currency,
   LessonStatus,
+  LessonFrequency,
   TransactionType,
   Theme,
   Locale,
@@ -8,13 +9,15 @@ import type {
   Money,
   CurrencyTotal,
   WeekStartsOn,
+  RecurringLesson,
 } from '@tutor-finance/shared';
 
-export type { CurrencyTotal, Frequency };
+export type { CurrencyTotal, Frequency, LessonFrequency, RecurringLesson };
 
 export interface Lesson {
   id: string;
   studentId: string;
+  recurringLessonId?: string | null;
   startsAt: string;
   durationMin: number;
   status: LessonStatus;
