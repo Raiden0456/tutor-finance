@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { WeekStartsOn } from '@tutor-finance/shared';
 import type { Lesson, StudentRef } from '@/lib/types';
 import { statusLabel } from '@/lib/utils';
 import { CreateCalendar } from './create-calendar';
@@ -40,6 +41,7 @@ interface CreateLessonModalProps {
   initialDate: Date;
   loadMonth: (date: Date) => Promise<void>;
   onCreated: (affectedDates: Date[]) => Promise<void>;
+  weekStartsOn: WeekStartsOn;
 }
 
 export function CreateLessonModal({
@@ -52,6 +54,7 @@ export function CreateLessonModal({
   initialDate,
   loadMonth,
   onCreated,
+  weekStartsOn,
 }: CreateLessonModalProps) {
   const { locale, t } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
@@ -303,6 +306,7 @@ export function CreateLessonModal({
                         setCreateViewMonth(d);
                         loadMonth(d);
                       }}
+                      weekStartsOn={weekStartsOn}
                     />
                     <FadeSwap motionKey={dayKey(createDate)} duration={0.18}>
                       {createDayLessons.length > 0 ? (
@@ -377,6 +381,7 @@ export function CreateLessonModal({
                       setCreateViewMonth(d);
                       loadMonth(d);
                     }}
+                    weekStartsOn={weekStartsOn}
                   />
                   <FadeSwap motionKey={dayKey(focusedSlot?.date ?? createDate)} duration={0.18}>
                     {createDayLessons.length > 0 ? (

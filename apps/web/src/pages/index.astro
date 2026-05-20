@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { DashboardIsland } from '@/islands/dashboard-island';
 import { serverApi } from '@/lib/api';
 import { createTranslator, normalizeLocale } from '@/lib/i18n';
-import type { Summary, RecentLesson } from '@/lib/types';
+import type { Summary, RecentLesson, Settings } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
@@ -23,7 +23,8 @@ from.setHours(0, 0, 0, 0);
 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-const [summary, todayLessons, nextLessonList, studentsList] = await Promise.all([
+const [settings, summary, todayLessons, nextLessonList, studentsList] = await Promise.all([
+  api.get<Settings>('/settings/me'),
   api.get<Summary>('/dashboard/summary', {
     query: { from: from.toISOString(), to: to.toISOString() },
   }),
@@ -59,6 +60,7 @@ for (const s of studentsList) studentNames[s.id] = s.name;
     nextLesson={nextLesson}
     todayLessons={todayLessons}
     studentNames={studentNames}
+    weekStartsOn={settings.weekStartsOn}
     locale={locale}
   />
 </AppLayout>

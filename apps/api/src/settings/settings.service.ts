@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { Currency, Locale, Theme } from '@tutor-finance/shared';
+import type { Currency, Locale, Theme, WeekStartsOn } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
@@ -15,6 +15,7 @@ function toResponse(r: Row): SettingsResponse {
     primaryCurrency: r.primaryCurrency as Currency,
     theme: r.theme as Theme,
     locale: r.locale as Locale,
+    weekStartsOn: r.weekStartsOn as WeekStartsOn,
   };
 }
 
@@ -28,7 +29,7 @@ export class SettingsService {
   async getOrCreate(userId: string): Promise<SettingsResponse> {
     const cacheKey = `user:${userId}:settings:me`;
     const cached = await this.cacheService.getJson<SettingsResponse>(cacheKey);
-    if (cached) return cached;
+    if (cached?.weekStartsOn !== undefined) return cached;
 
     const [existing] = await this.db
       .select()
@@ -52,6 +53,7 @@ export class SettingsService {
     if (patch.primaryCurrency !== undefined) set.primaryCurrency = patch.primaryCurrency;
     if (patch.theme !== undefined) set.theme = patch.theme;
     if (patch.locale !== undefined) set.locale = patch.locale;
+    if (patch.weekStartsOn !== undefined) set.weekStartsOn = patch.weekStartsOn;
 
     const upserted = await this.db
       .insert(userSettings)

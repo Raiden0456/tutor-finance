@@ -6,6 +6,7 @@ import {
   ThemeEnum,
   LocaleEnum,
   FrequencyEnum,
+  WeekStartsOnEnum,
   StudentInputSchema,
   LessonInputSchema,
   TransactionInputSchema,
@@ -18,6 +19,7 @@ export type TransactionType = z.infer<typeof TransactionTypeEnum>;
 export type Theme = z.infer<typeof ThemeEnum>;
 export type Locale = z.infer<typeof LocaleEnum>;
 export type Frequency = z.infer<typeof FrequencyEnum>;
+export type WeekStartsOn = z.infer<typeof WeekStartsOnEnum>;
 
 export type StudentInput = z.infer<typeof StudentInputSchema>;
 export type LessonInput = z.infer<typeof LessonInputSchema>;

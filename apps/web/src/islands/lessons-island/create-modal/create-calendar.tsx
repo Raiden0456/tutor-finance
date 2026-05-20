@@ -13,7 +13,8 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { dayKey, monthKey, WEEK_START } from '../shared';
+import type { WeekStartsOn } from '@tutor-finance/shared';
+import { dayKey, monthKey, weekStartOptions } from '../shared';
 
 export function CreateCalendar({
   selectedDate,
@@ -21,17 +22,20 @@ export function CreateCalendar({
   daysWithLessons,
   onSelect,
   onMonthChange,
+  weekStartsOn,
 }: {
   selectedDate: Date;
   viewMonth: Date;
   daysWithLessons: Set<string>;
   onSelect: (d: Date) => void;
   onMonthChange: (d: Date) => void;
+  weekStartsOn: WeekStartsOn;
 }) {
   const { locale } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
-  const gridStart = startOfWeek(viewMonth, WEEK_START);
-  const gridEnd = endOfWeek(endOfMonth(viewMonth), WEEK_START);
+  const weekStart = weekStartOptions(weekStartsOn);
+  const gridStart = startOfWeek(viewMonth, weekStart);
+  const gridEnd = endOfWeek(endOfMonth(viewMonth), weekStart);
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
   const vmKey = monthKey(viewMonth);
 

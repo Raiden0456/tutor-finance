@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, CalendarRange } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
-import { fromMinorUnits, type Currency } from '@tutor-finance/shared';
+import { fromMinorUnits, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
@@ -92,10 +92,12 @@ function RangePicker({
   value,
   onChange,
   placeholder,
+  weekStartsOn,
 }: {
   value: DateRange | undefined;
   onChange: (r: DateRange | undefined) => void;
   placeholder: string;
+  weekStartsOn: WeekStartsOn;
 }) {
   const { locale } = useI18n();
   const [open, setOpen] = useState(false);
@@ -141,6 +143,7 @@ function RangePicker({
           numberOfMonths={1}
           selected={draft}
           defaultMonth={draft?.from ?? new Date()}
+          weekStartsOn={weekStartsOn}
           onSelect={onCalendarSelect}
           disabled={{ after: new Date() }}
         />
@@ -149,7 +152,13 @@ function RangePicker({
   );
 }
 
-export function ComparisonView({ currency }: { currency: Currency }) {
+export function ComparisonView({
+  currency,
+  weekStartsOn,
+}: {
+  currency: Currency;
+  weekStartsOn: WeekStartsOn;
+}) {
   const { locale, t } = useI18n();
   const [mode, setMode] = useState<CompMode>('growth');
   const [growthRange, setGrowthRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
@@ -299,7 +308,12 @@ export function ComparisonView({ currency }: { currency: Currency }) {
       {/* Period controls */}
       {mode === 'growth' ? (
         <div className="space-y-2">
-          <RangeTabs value={growthRange} onChange={setGrowthRange} groupId="comparison-growth" />
+          <RangeTabs
+            value={growthRange}
+            onChange={setGrowthRange}
+            groupId="comparison-growth"
+            weekStartsOn={weekStartsOn}
+          />
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span
@@ -327,7 +341,12 @@ export function ComparisonView({ currency }: { currency: Currency }) {
               />
               A
             </span>
-            <RangePicker value={dualA} onChange={setDualA} placeholder={t('Pick Period A')} />
+            <RangePicker
+              value={dualA}
+              onChange={setDualA}
+              placeholder={t('Pick Period A')}
+              weekStartsOn={weekStartsOn}
+            />
           </div>
           <span className="text-xs text-muted-foreground">{t('vs')}</span>
           <div className="flex items-center gap-2">
@@ -338,7 +357,12 @@ export function ComparisonView({ currency }: { currency: Currency }) {
               />
               B
             </span>
-            <RangePicker value={dualB} onChange={setDualB} placeholder={t('Pick Period B')} />
+            <RangePicker
+              value={dualB}
+              onChange={setDualB}
+              placeholder={t('Pick Period B')}
+              weekStartsOn={weekStartsOn}
+            />
           </div>
         </div>
       )}

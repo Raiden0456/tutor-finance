@@ -3,15 +3,14 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { TransactionsIsland } from '@/islands/transactions-island';
 import { serverApi } from '@/lib/api';
 import { createTranslator, normalizeLocale } from '@/lib/i18n';
-import type { Currency } from '@tutor-finance/shared';
-import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
+import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats, Settings } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
 const locale = normalizeLocale(Astro.currentLocale);
 const t = createTranslator(locale);
 
-const settingsPromise = api.get<{ primaryCurrency: Currency }>('/settings/me');
+const settingsPromise = api.get<Settings>('/settings/me');
 const recurringPromise = api.get<Recurring[]>('/recurring');
 const studentsPromise = api.get<StudentRef[]>('/students');
 
@@ -27,7 +26,7 @@ const [settings, recurring, students] = await Promise.all([
   recurringPromise,
   studentsPromise,
 ]);
-const primary: Currency = settings.primaryCurrency ?? 'USD';
+const primary = settings.primaryCurrency ?? 'USD';
 
 const [transactions, summary, dailyStats] = await Promise.all([
   api.get<Tx[]>('/transactions', {
@@ -56,6 +55,7 @@ const [transactions, summary, dailyStats] = await Promise.all([
     initialSummary={summary}
     initialDailyStats={dailyStats}
     students={students}
+    weekStartsOn={settings.weekStartsOn}
     locale={locale}
   />
 </AppLayout>

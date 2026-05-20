@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Check, LogOut } from 'lucide-react';
-import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import { SUPPORTED_CURRENCIES, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { createTranslator, I18nProvider, localizePath, type Locale } from '@/lib/i18n';
 import type { Settings } from '@/lib/types';
 
@@ -22,9 +22,20 @@ interface Props {
   locale?: Locale;
 }
 
+const weekStartOptions: Array<{ value: WeekStartsOn; label: string }> = [
+  { value: 1, label: 'Monday' },
+  { value: 2, label: 'Tuesday' },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday' },
+  { value: 5, label: 'Friday' },
+  { value: 6, label: 'Saturday' },
+  { value: 0, label: 'Sunday' },
+];
+
 export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
   const t = createTranslator(appLocale);
   const [primaryCurrency, setPrimary] = useState<Currency>(initial.primaryCurrency);
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(initial.weekStartsOn);
   const [theme] = useState(initial.theme);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -42,7 +53,7 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
       (typeof window !== 'undefined'
         ? (localStorage.getItem('theme') as Settings['theme'] | null)
         : null) ?? theme;
-    await api.patch('/settings/me', { primaryCurrency, theme: currentTheme });
+    await api.patch('/settings/me', { primaryCurrency, theme: currentTheme, weekStartsOn });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -78,6 +89,25 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>{t('Week starts on')}</Label>
+              <Select
+                value={String(weekStartsOn)}
+                onValueChange={(v) => setWeekStartsOn(Number(v) as WeekStartsOn)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {weekStartOptions.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {t(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

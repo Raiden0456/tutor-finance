@@ -46,6 +46,13 @@ const ru: Record<string, string> = {
   Confirm: 'Подтвердить',
   Pause: 'Пауза',
   Resume: 'Возобновить',
+  Monday: 'Понедельник',
+  Tuesday: 'Вторник',
+  Wednesday: 'Среда',
+  Thursday: 'Четверг',
+  Friday: 'Пятница',
+  Saturday: 'Суббота',
+  Sunday: 'Воскресенье',
 
   // Auth
   'Sign in': 'Вход',
@@ -387,6 +394,7 @@ const ru: Record<string, string> = {
   'Personalise the app': 'Настройте приложение под себя',
   Preferences: 'Предпочтения',
   'Primary currency': 'Основная валюта',
+  'Week starts on': 'Неделя начинается с',
   Saved: 'Сохранено',
   Account: 'Аккаунт',
   'Base currency': 'Базовая валюта',

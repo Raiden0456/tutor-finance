@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { SUPPORTED_CURRENCIES, type Currency } from './currency.js';
 
-const currencyEnum = z.enum(
-  SUPPORTED_CURRENCIES as unknown as [Currency, ...Currency[]],
-);
+const currencyEnum = z.enum(SUPPORTED_CURRENCIES as unknown as [Currency, ...Currency[]]);
 
 export const MoneyInputSchema = z.object({
   amount: z.number().int().nonnegative(),
@@ -56,9 +54,19 @@ export const TransactionInputSchema = z.object({
 export const ThemeEnum = z.enum(['light', 'dark', 'system']);
 export const LocaleEnum = z.enum(['en', 'ru']);
 export const FrequencyEnum = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
+export const WeekStartsOnEnum = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+]);
 
 export const UserSettingsInputSchema = z.object({
   primaryCurrency: currencyEnum,
   theme: ThemeEnum,
   locale: LocaleEnum,
+  weekStartsOn: WeekStartsOnEnum,
 });

@@ -15,7 +15,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { fromMinorUnits, type Currency } from '@tutor-finance/shared';
+import { fromMinorUnits, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { useI18n } from '@/lib/i18n';
 
 const metricColors = {
@@ -55,17 +55,17 @@ const dateKey = (date: Date) =>
     date.getDate(),
   ).padStart(2, '0')}`;
 
-const startOfWeek = (date: Date) => {
+const startOfWeek = (date: Date, weekStartsOn: WeekStartsOn) => {
   const start = new Date(date);
-  const day = start.getDay() || 7;
-  start.setDate(start.getDate() - day + 1);
+  const diff = (start.getDay() - weekStartsOn + 7) % 7;
+  start.setDate(start.getDate() - diff);
   start.setHours(0, 0, 0, 0);
   return start;
 };
 
-const aggregationKey = (date: Date, aggregation: Aggregation) => {
+const aggregationKey = (date: Date, aggregation: Aggregation, weekStartsOn: WeekStartsOn) => {
   if (aggregation === 'day') return dateKey(date);
-  if (aggregation === 'week') return dateKey(startOfWeek(date));
+  if (aggregation === 'week') return dateKey(startOfWeek(date, weekStartsOn));
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
@@ -87,9 +87,11 @@ const toChartAmount = (amount: number, currency: Currency) =>
 export function IncomeExpenseBarChart({
   data,
   currency,
+  weekStartsOn,
 }: {
   data: IncomeExpenseRow[];
   currency: Currency;
+  weekStartsOn: WeekStartsOn;
 }) {
   const { locale, t } = useI18n();
   const ieBarConfig = useMemo(
@@ -116,7 +118,7 @@ export function IncomeExpenseBarChart({
     const grouped = new Map<string, IncomeExpenseRow>();
 
     for (const row of data) {
-      const key = aggregationKey(parseDateOnly(row.date), aggregation);
+      const key = aggregationKey(parseDateOnly(row.date), aggregation, weekStartsOn);
       const current = grouped.get(key) ?? { date: key, planned: 0, income: 0, expense: 0, net: 0 };
       current.planned += row.planned;
       current.income += row.income;
@@ -134,7 +136,7 @@ export function IncomeExpenseBarChart({
         net: toChartAmount(row.income - row.expense, currency),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [aggregation, currency, data, locale]);
+  }, [aggregation, currency, data, locale, weekStartsOn]);
 
   return (
     <Card>

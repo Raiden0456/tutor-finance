@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import type { WeekStartsOn } from '@tutor-finance/shared';
 import type { Lesson } from '@/lib/types';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -17,7 +18,10 @@ export interface SlotDraft {
 // ─── constants ────────────────────────────────────────────────────────────────
 
 export const CREATE_STATUSES = ['scheduled', 'due', 'paid'] as const;
-export const WEEK_START = { weekStartsOn: 1 } as const;
+
+export function weekStartOptions(weekStartsOn: WeekStartsOn) {
+  return { weekStartsOn };
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

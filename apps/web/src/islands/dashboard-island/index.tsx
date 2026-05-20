@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { endOfWeek } from 'date-fns';
 import { AnimatePresence, motion, type Variants } from 'motion/react';
 import { FinanceStat } from '@/components/finance-stat';
 import { RangeTabs, resolveRange, inferRange, type RangeState } from '@/components/range-tabs';
@@ -12,7 +13,7 @@ import {
 import { api } from '@/lib/api';
 import { createTranslator, I18nProvider, type Locale } from '@/lib/i18n';
 import { fmtMoney } from '@/lib/format';
-import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import { SUPPORTED_CURRENCIES, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { Banknote, CalendarClock, CalendarDays, CheckCircle2, Timer } from 'lucide-react';
 import type { RecentLesson, Summary } from '@/lib/types';
 import { LessonCard } from '@/components/lesson-card';
@@ -24,6 +25,7 @@ interface Props {
   nextLesson: RecentLesson | null;
   todayLessons: RecentLesson[];
   studentNames: Record<string, string>;
+  weekStartsOn: WeekStartsOn;
   locale?: Locale;
 }
 
@@ -77,6 +79,7 @@ export function DashboardIsland({
   nextLesson: initialNextLesson,
   todayLessons: initialTodayLessons,
   studentNames,
+  weekStartsOn,
   locale = 'en',
 }: Props) {
   const t = createTranslator(locale);
@@ -101,13 +104,7 @@ export function DashboardIsland({
     d.setHours(23, 59, 59, 999);
     return d;
   }, []);
-  const weekEnd = useMemo(() => {
-    const d = new Date();
-    const daysUntilSunday = d.getDay() === 0 ? 0 : 7 - d.getDay();
-    d.setDate(d.getDate() + daysUntilSunday);
-    d.setHours(23, 59, 59, 999);
-    return d;
-  }, []);
+  const weekEnd = useMemo(() => endOfWeek(new Date(), { weekStartsOn }), [weekStartsOn]);
 
   useEffect(() => {
     if (isFirst.current) {
@@ -322,7 +319,12 @@ export function DashboardIsland({
         {/* Financial summary */}
         <div className="space-y-3 border-t border-border pt-5">
           <div className="flex flex-col-reverse items-start gap-2 md:flex-row">
-            <RangeTabs value={range} onChange={setRange} groupId="dashboard" />
+            <RangeTabs
+              value={range}
+              onChange={setRange}
+              groupId="dashboard"
+              weekStartsOn={weekStartsOn}
+            />
             <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
               <SelectTrigger className="h-9 w-[88px] shrink-0">
                 <SelectValue />

@@ -37,6 +37,7 @@ import {
   SUPPORTED_CURRENCIES,
   toMinorUnits,
   type Currency,
+  type WeekStartsOn,
 } from '@tutor-finance/shared';
 import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE } from './constants';
@@ -71,6 +72,7 @@ interface Props {
   initialSummary: Summary;
   initialDailyStats: DailyFinanceStats[];
   students: StudentRef[];
+  weekStartsOn: WeekStartsOn;
   locale?: string | null;
 }
 
@@ -95,6 +97,7 @@ function TransactionsIslandContent({
   initialSummary,
   initialDailyStats,
   students,
+  weekStartsOn,
 }: Props) {
   const { locale, t } = useI18n();
   const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
@@ -380,7 +383,12 @@ function TransactionsIslandContent({
             ]}
           />
           <Collapse open={tab === 'transactions'} className="md:flex-1" duration={0.18}>
-            <RangeTabs value={range} onChange={setRange} groupId="tx-list" />
+            <RangeTabs
+              value={range}
+              onChange={setRange}
+              groupId="tx-list"
+              weekStartsOn={weekStartsOn}
+            />
           </Collapse>
         </div>
       </header>
@@ -417,7 +425,11 @@ function TransactionsIslandContent({
             </div>
 
             <Collapse open={incomeExpenseSeries.length > 0}>
-              <IncomeExpenseBarChart data={incomeExpenseSeries} currency={currency} />
+              <IncomeExpenseBarChart
+                data={incomeExpenseSeries}
+                currency={currency}
+                weekStartsOn={weekStartsOn}
+              />
             </Collapse>
 
             <Collapse open={pieData.length > 0}>
@@ -518,7 +530,7 @@ function TransactionsIslandContent({
             onChange={setRecurring}
           />
         ) : (
-          <ComparisonView currency={currency} />
+          <ComparisonView currency={currency} weekStartsOn={weekStartsOn} />
         )}
       </FadeSwap>
     </div>

@@ -43,6 +43,13 @@
       "when": 1778852824661,
       "tag": "0005_noisy_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779268422030,
+      "tag": "0006_black_silhouette",
+      "breakpoints": true
     }
   ]
 }

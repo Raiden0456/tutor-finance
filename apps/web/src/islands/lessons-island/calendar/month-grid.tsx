@@ -15,7 +15,8 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { type SelectionMode, dayKey, monthKey, WEEK_START } from '../shared';
+import type { WeekStartsOn } from '@tutor-finance/shared';
+import { type SelectionMode, dayKey, monthKey, weekStartOptions } from '../shared';
 
 export function MonthGrid({
   rangeStart,
@@ -24,6 +25,7 @@ export function MonthGrid({
   daysWithLessons,
   onSelect,
   onMonthChange,
+  weekStartsOn,
 }: {
   rangeStart: Date;
   rangeEnd: Date | null;
@@ -31,6 +33,7 @@ export function MonthGrid({
   daysWithLessons: Set<string>;
   onSelect: (day: Date) => void;
   onMonthChange: (date: Date) => void;
+  weekStartsOn: WeekStartsOn;
 }) {
   const { locale } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
@@ -47,8 +50,9 @@ export function MonthGrid({
     onMonthChange(next);
   }
 
-  const gridStart = startOfWeek(viewMonth, WEEK_START);
-  const gridEnd = endOfWeek(endOfMonth(viewMonth), WEEK_START);
+  const weekStart = weekStartOptions(weekStartsOn);
+  const gridStart = startOfWeek(viewMonth, weekStart);
+  const gridEnd = endOfWeek(endOfMonth(viewMonth), weekStart);
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
   const vmKey = monthKey(viewMonth);
   const effectiveEnd = selectionMode === 'range' && rangeEnd ? rangeEnd : null;

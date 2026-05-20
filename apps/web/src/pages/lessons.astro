@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { LessonsIsland } from '@/islands/lessons-island';
 import { serverApi } from '@/lib/api';
 import { createTranslator, normalizeLocale } from '@/lib/i18n';
-import type { Lesson, StudentRef } from '@/lib/types';
+import type { Lesson, Settings, StudentRef } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
@@ -15,7 +15,8 @@ const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 const initialMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-const [lessons, studentsList] = await Promise.all([
+const [settings, lessons, studentsList] = await Promise.all([
+  api.get<Settings>('/settings/me'),
   api.get<Lesson[]>('/lessons', {
     query: {
       from: monthStart.toISOString(),
@@ -41,6 +42,7 @@ const students = studentsList.map((s) => ({ id: s.id, name: s.name }));
     initial={lessons}
     students={students}
     initialMonthStr={initialMonthStr}
+    weekStartsOn={settings.weekStartsOn}
     locale={locale}
   />
 </AppLayout>

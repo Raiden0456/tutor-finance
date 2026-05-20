@@ -7,6 +7,7 @@ import type {
   Frequency,
   Money,
   CurrencyTotal,
+  WeekStartsOn,
 } from '@tutor-finance/shared';
 
 export type { CurrencyTotal, Frequency };
@@ -85,6 +86,7 @@ export interface Settings {
   primaryCurrency: Currency;
   theme: Theme;
   locale: Locale;
+  weekStartsOn: WeekStartsOn;
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────

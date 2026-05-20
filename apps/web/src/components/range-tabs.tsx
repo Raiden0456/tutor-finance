@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { CalendarRange } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
+import type { WeekStartsOn } from '@tutor-finance/shared';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useI18n } from '@/lib/i18n';
@@ -56,10 +57,12 @@ export function RangeTabs({
   value,
   onChange,
   groupId,
+  weekStartsOn = 1,
 }: {
   value: RangeState;
   onChange: (r: RangeState) => void;
   groupId?: string;
+  weekStartsOn?: WeekStartsOn;
 }) {
   const { locale, t } = useI18n();
   const pillId = `range-tabs-pill-${groupId ?? 'default'}`;
@@ -144,6 +147,7 @@ export function RangeTabs({
             numberOfMonths={1}
             defaultMonth={dateRange?.from ?? new Date()}
             selected={dateRange}
+            weekStartsOn={weekStartsOn}
             onSelect={onCalendarSelect}
           />
         </PopoverContent>

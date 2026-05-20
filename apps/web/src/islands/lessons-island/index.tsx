@@ -12,8 +12,9 @@ import {
 import { api } from '@/lib/api';
 import { I18nProvider, type Locale } from '@/lib/i18n';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
+import type { WeekStartsOn } from '@tutor-finance/shared';
 import type { Lesson, StudentRef } from '@/lib/types';
-import { dayKey, monthKey, WEEK_START } from './shared';
+import { dayKey, monthKey, weekStartOptions } from './shared';
 import { CalendarHeader } from './calendar/header';
 import { WeekStrip } from './calendar/week-strip';
 import { MonthGrid } from './calendar/month-grid';
@@ -25,6 +26,7 @@ interface Props {
   initial: Lesson[];
   students: StudentRef[];
   initialMonthStr: string;
+  weekStartsOn: WeekStartsOn;
   locale?: Locale;
 }
 
@@ -36,13 +38,19 @@ export function LessonsIsland({ locale = 'en', ...props }: Props) {
   );
 }
 
-function LessonsContent({ initial, students, initialMonthStr }: Omit<Props, 'locale'>) {
+function LessonsContent({
+  initial,
+  students,
+  initialMonthStr,
+  weekStartsOn,
+}: Omit<Props, 'locale'>) {
   const todayDate = useMemo(() => startOfDay(new Date()), []);
+  const weekStart = useMemo(() => weekStartOptions(weekStartsOn), [weekStartsOn]);
 
   const [selectionMode, setSelectionMode] = useState<'single' | 'range'>('single');
   const [rangeStart, setRangeStart] = useState(todayDate);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
-  const [weekViewStart, setWeekViewStart] = useState(() => startOfWeek(todayDate, WEEK_START));
+  const [weekViewStart, setWeekViewStart] = useState(() => startOfWeek(todayDate, weekStart));
   const [monthExpanded, setMonthExpanded] = useState(false);
   const [monthLessons, setMonthLessons] = useState<Lesson[]>(initial);
   const [loadingMonth, setLoadingMonth] = useState(false);
@@ -132,9 +140,9 @@ function LessonsContent({ initial, students, initialMonthStr }: Omit<Props, 'loc
   }, [reMonthKey]);
 
   // Keep week strip in sync when rangeStart week changes
-  const rsWeekKey = dayKey(startOfWeek(rangeStart, WEEK_START));
+  const rsWeekKey = dayKey(startOfWeek(rangeStart, weekStart));
   useEffect(() => {
-    setWeekViewStart(startOfWeek(rangeStart, WEEK_START));
+    setWeekViewStart(startOfWeek(rangeStart, weekStart));
   }, [rsWeekKey]);
 
   function handleDaySelect(day: Date) {
@@ -228,6 +236,7 @@ function LessonsContent({ initial, students, initialMonthStr }: Omit<Props, 'loc
               if (selectionMode === 'single') setMonthExpanded(false);
             }}
             onMonthChange={(date) => loadMonth(date)}
+            weekStartsOn={weekStartsOn}
           />
         </Collapse>
       </div>
@@ -265,6 +274,7 @@ function LessonsContent({ initial, students, initialMonthStr }: Omit<Props, 'loc
         initialDate={rangeStart}
         loadMonth={loadMonth}
         onCreated={handleModalCreated}
+        weekStartsOn={weekStartsOn}
       />
     </div>
   );

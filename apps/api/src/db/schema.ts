@@ -101,7 +101,10 @@ export const students = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index('students_user_id_idx').on(t.userId), index('students_user_name_idx').on(t.userId, t.name)],
+  (t) => [
+    index('students_user_id_idx').on(t.userId),
+    index('students_user_name_idx').on(t.userId, t.name),
+  ],
 );
 
 export const lessons = pgTable(
@@ -215,6 +218,7 @@ export const userSettings = pgTable('user_settings', {
   primaryCurrency: text('primary_currency').notNull().default('USD'),
   theme: text('theme').notNull().default('system'),
   locale: text('locale').notNull().default('en'),
+  weekStartsOn: integer('week_starts_on').notNull().default(1),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at')
     .notNull()
