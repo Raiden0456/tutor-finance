@@ -1,7 +1,12 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { eq } from 'drizzle-orm';
-import { SUPPORTED_CURRENCIES } from '@tutor-finance/shared';
+import { desc, eq } from 'drizzle-orm';
+import {
+  convertMoney,
+  isSupportedCurrency,
+  SUPPORTED_CURRENCIES,
+  type Currency,
+} from '@tutor-finance/shared';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { fxRates } from '../db/schema.js';
@@ -9,6 +14,7 @@ import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 
 const FX_CACHE_KEY = 'fx:rates:expanded';
+const FX_FETCH_TIMEOUT_MS = 10_000;
 
 const FIAT = SUPPORTED_CURRENCIES.filter((c) => c !== 'USDT' && c !== 'USDC');
 const BASE = 'USD';
@@ -48,7 +54,7 @@ export class FxService implements OnModuleInit {
   async refresh() {
     const symbols = FIAT.filter((c) => c !== BASE).join(',');
     const url = `${env.fxApiUrl}?base=${BASE}&symbols=${symbols}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(FX_FETCH_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`FX API ${res.status}`);
     const data = (await res.json()) as ExchangeHostResponse;
     if (!data.rates) throw new Error('FX response missing rates');
@@ -101,8 +107,17 @@ export class FxService implements OnModuleInit {
       return cached.rates;
     }
 
-    const rows = await this.db.select().from(fxRates).where(eq(fxRates.base, BASE));
+    const rows = await this.db
+      .select()
+      .from(fxRates)
+      .where(eq(fxRates.base, BASE))
+      .orderBy(desc(fxRates.fetchedAt));
     if (rows.length === 0) {
+      return this.refresh();
+    }
+
+    const newest = rows[0]?.fetchedAt;
+    if (!newest || Date.now() - newest.getTime() >= env.cache.fxTtlSeconds * 1000) {
       return this.refresh();
     }
     const usdRates: Record<string, number> = {};
@@ -114,10 +129,19 @@ export class FxService implements OnModuleInit {
   }
 
   async convert(amount: number, from: string, to: string): Promise<number | null> {
+    if (!Number.isInteger(amount) || amount < 0) {
+      throw new BadRequestException('amount must be a non-negative integer');
+    }
+    if (!isSupportedCurrency(from) || !isSupportedCurrency(to)) {
+      throw new BadRequestException('Unsupported currency');
+    }
     if (from === to) return amount;
+
     const rates = await this.getRatesMap();
-    const fx = rates[`${from}_${to}`];
-    if (typeof fx !== 'number') return null;
-    return Math.round(amount * fx);
+    try {
+      return convertMoney({ amount, currency: from as Currency }, to as Currency, rates).amount;
+    } catch {
+      return null;
+    }
   }
 }

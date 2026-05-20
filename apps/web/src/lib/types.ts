@@ -19,6 +19,7 @@ export interface Lesson {
   durationMin: number;
   status: LessonStatus;
   paidAmount: number | null;
+  priceOverride: Money | null;
   effectivePrice: Money | null;
   notes?: string | null;
   homework?: string | null;

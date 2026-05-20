@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { Currency } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
@@ -81,6 +81,10 @@ export class StudentsService {
   }
 
   async update(userId: string, id: string, patch: UpdateStudentDto): Promise<StudentResponse> {
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException('PATCH body must not be empty');
+    }
+
     const set: Partial<typeof students.$inferInsert> = {};
     if (patch.name !== undefined) set.name = patch.name;
     if (patch.email !== undefined) set.email = patch.email || null;

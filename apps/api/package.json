@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && tsc -p tsconfig.scripts.json",
     "dev": "nest start --watch --env-file=.env",
     "start": "node --env-file=.env dist/main.js",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "node --env-file=.env --import tsx ./scripts/migrate.ts",
-    "db:migrate:prod": "node --import tsx ./scripts/migrate.ts",
+    "db:migrate:prod": "node dist/scripts/migrate.js",
     "db:seed": "node --env-file=.env --import tsx ./scripts/seed.ts",
     "db:auth:generate": "npx @better-auth/cli@latest generate --config ./src/auth/auth.provider.ts --output ../../packages/auth/src/schema.ts --yes"
   },

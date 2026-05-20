@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { fmtMajor, fmtMoney } from '@/lib/format';
-import { useI18n } from '@/lib/i18n';
-import { SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
+import { localizePath, useI18n } from '@/lib/i18n';
+import { SUPPORTED_CURRENCIES, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import {
   ResponsiveModal,
@@ -243,15 +243,10 @@ export function LessonCard({
         open={editDetailsOpen}
         onOpenChange={setEditDetailsOpen}
         lesson={lesson}
-        onSaved={(updates) =>
-          setLesson((prev) => ({
-            ...prev,
-            notes: updates.notes !== undefined ? updates.notes : prev.notes,
-            homework: updates.homework !== undefined ? updates.homework : prev.homework,
-            meetingLink: updates.meetingLink !== undefined ? updates.meetingLink : prev.meetingLink,
-            effectivePrice: updates.effectivePrice ?? prev.effectivePrice,
-          }))
-        }
+        onSaved={(updates) => {
+          setLesson(updates);
+          onChanged?.();
+        }}
       />
     </div>
   );
@@ -268,7 +263,7 @@ function LessonCardMenu({
   onArchived?: () => void;
   onDeleted?: () => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -308,7 +303,7 @@ function LessonCardMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <a href={`/lessons/${lesson.id}`}>
+            <a href={localizePath(`/lessons/${lesson.id}`, locale)}>
               <ExternalLink className="mr-2 h-4 w-4" />
               {t('View details')}
             </a>
@@ -382,33 +377,43 @@ export function DuePaymentActions({
     : null;
   const canEditDetails = isNotPastDay(lesson.startsAt);
 
-  function handlePaidClick() {
+  async function handlePaidClick() {
     if (phase !== 'idle') return;
-    setPhase('success');
-    api.patch(`/lessons/${lesson.id}`, { status: 'paid' }).catch(() => {});
-    setLabelVisible(false);
-    setTimeout(() => {
-      setLabelSuccess(true);
-      setLabelVisible(true);
-    }, 150);
-    setTimeout(() => onComplete('paid'), 750);
+    try {
+      await api.patch(`/lessons/${lesson.id}`, { status: 'paid' });
+      setPhase('success');
+      setLabelVisible(false);
+      setTimeout(() => {
+        setLabelSuccess(true);
+        setLabelVisible(true);
+      }, 150);
+      setTimeout(() => onComplete('paid'), 750);
+    } catch (error) {
+      console.error('Failed to mark lesson as paid', error);
+    }
   }
 
-  function changeStatus(status: Lesson['status']) {
-    onComplete(status);
-    api.patch(`/lessons/${lesson.id}`, { status }).catch(() => {});
+  async function changeStatus(status: Lesson['status']) {
+    try {
+      await api.patch(`/lessons/${lesson.id}`, { status });
+      onComplete(status);
+    } catch (error) {
+      console.error('Failed to change lesson status', error);
+    }
   }
 
-  function submitPartial() {
-    const major = parseFloat(partialInput);
-    if (isNaN(major) || major <= 0) return;
-    const amount = toMinorUnits(major, effectiveCurrency);
-    setPartialOpen(false);
-    setPartialInput('');
-    onComplete('partially_paid', amount);
-    api
-      .patch(`/lessons/${lesson.id}`, { status: 'partially_paid', paidAmount: amount })
-      .catch(() => {});
+  async function submitPartial() {
+    let amount: number;
+    try {
+      amount = parseMajorToMinor(partialInput, effectiveCurrency);
+      if (amount <= 0) return;
+      await api.patch(`/lessons/${lesson.id}`, { status: 'partially_paid', paidAmount: amount });
+      setPartialOpen(false);
+      setPartialInput('');
+      onComplete('partially_paid', amount);
+    } catch (error) {
+      console.error('Failed to save partial payment', error);
+    }
   }
 
   return (
@@ -546,21 +551,29 @@ export function ScheduledActions({
     .toISOString()
     .slice(0, 16);
 
-  function handleCompletedClick() {
+  async function handleCompletedClick() {
     if (phase !== 'idle') return;
-    setPhase('success');
-    api.patch(`/lessons/${lesson.id}`, { status: 'completed' }).catch(() => {});
-    setLabelVisible(false);
-    setTimeout(() => {
-      setLabelSuccess(true);
-      setLabelVisible(true);
-    }, 150);
-    setTimeout(() => onStatusChange('completed'), 750);
+    try {
+      await api.patch(`/lessons/${lesson.id}`, { status: 'completed' });
+      setPhase('success');
+      setLabelVisible(false);
+      setTimeout(() => {
+        setLabelSuccess(true);
+        setLabelVisible(true);
+      }, 150);
+      setTimeout(() => onStatusChange('completed'), 750);
+    } catch (error) {
+      console.error('Failed to mark lesson as completed', error);
+    }
   }
 
-  function changeStatus(status: Lesson['status']) {
-    onStatusChange(status);
-    api.patch(`/lessons/${lesson.id}`, { status }).catch(() => {});
+  async function changeStatus(status: Lesson['status']) {
+    try {
+      await api.patch(`/lessons/${lesson.id}`, { status });
+      onStatusChange(status);
+    } catch (error) {
+      console.error('Failed to change lesson status', error);
+    }
   }
 
   async function handleReschedule(form: HTMLFormElement) {
@@ -714,12 +727,7 @@ export function EditDetailsModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lesson: Lesson;
-  onSaved: (updates: {
-    effectivePrice?: { amount: number; currency: Currency };
-    notes?: string | null;
-    homework?: string | null;
-    meetingLink?: string | null;
-  }) => void;
+  onSaved: (lesson: Lesson) => void;
 }) {
   const { t } = useI18n();
   const [notes, setNotes] = useState('');
@@ -734,11 +742,15 @@ export function EditDetailsModal({
       setHomework(lesson.homework ?? '');
       setMeetingLink(lesson.meetingLink ?? '');
       setAmount(
-        lesson.effectivePrice
-          ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
+        lesson.priceOverride
+          ? fmtMajor(lesson.priceOverride.amount, lesson.priceOverride.currency)
           : '',
       );
-      setCurrency((lesson.effectivePrice?.currency as Currency | undefined) ?? 'USD');
+      setCurrency(
+        (lesson.priceOverride?.currency as Currency | undefined) ??
+          (lesson.effectivePrice?.currency as Currency | undefined) ??
+          'USD',
+      );
     }
   }, [open]);
 
@@ -749,22 +761,21 @@ export function EditDetailsModal({
       meetingLink: meetingLink.trim() || null,
     };
 
-    let newPrice: { amount: number; currency: Currency } | undefined;
-    const major = parseFloat(amount);
-    if (!isNaN(major) && major > 0) {
-      const minorAmount = toMinorUnits(major, currency);
-      patch.priceOverride = { amount: minorAmount, currency };
-      newPrice = { amount: minorAmount, currency };
-    }
+    try {
+      if (!amount.trim()) {
+        patch.priceOverride = null;
+      } else {
+        const minorAmount = parseMajorToMinor(amount, currency);
+        if (minorAmount <= 0) return;
+        patch.priceOverride = { amount: minorAmount, currency };
+      }
 
-    onOpenChange(false);
-    onSaved({
-      notes: patch.notes as string | null,
-      homework: patch.homework as string | null,
-      meetingLink: patch.meetingLink as string | null,
-      effectivePrice: newPrice,
-    });
-    api.patch(`/lessons/${lesson.id}`, patch).catch(() => {});
+      const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, patch);
+      onSaved(updated);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to save lesson details', error);
+    }
   }
 
   return (

@@ -1,8 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [".env", ".env.*"],
-  "globalEnv": [
-    "NODE_ENV",
+  "globalEnv": ["NODE_ENV", "CI"],
+  "globalPassThroughEnv": [
     "DATABASE_URL",
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
@@ -11,6 +10,7 @@
     "BETTER_AUTH_URL",
     "PUBLIC_API_URL",
     "PUBLIC_APP_URL",
+    "TRUSTED_ORIGINS",
     "AUTH_EMAIL_PROVIDER",
     "RESEND_API_KEY",
     "MAIL_FROM",
@@ -19,12 +19,16 @@
     "SMTP_USER",
     "SMTP_PASS",
     "SMTP_SECURE",
+    "SERVER_API_URL",
+    "REDIS_URL",
+    "CACHE_ENABLED",
     "FX_API_URL"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".astro/**", "build/**"]
+      "outputs": ["dist/**", ".astro/**", "build/**"],
+      "env": ["PUBLIC_API_URL", "PUBLIC_APP_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],

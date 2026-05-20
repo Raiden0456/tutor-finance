@@ -50,6 +50,20 @@
       "when": 1779268422030,
       "tag": "0006_black_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779279242310,
+      "tag": "0007_spotty_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779279323893,
+      "tag": "0008_keen_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

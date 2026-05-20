@@ -1,6 +1,7 @@
 import { localizePath, type Locale } from '@/lib/i18n';
 
 export function LanguageSwitcher({ current, locale }: { current: string; locale: Locale }) {
+  const [pathname, search = ''] = current.split('?');
   return (
     <div
       className="inline-flex rounded-lg border border-border bg-card p-0.5 text-xs font-medium shadow-sm transition-all duration-200 ease-in-out"
@@ -11,7 +12,7 @@ export function LanguageSwitcher({ current, locale }: { current: string; locale:
         return (
           <a
             key={item}
-            href={localizePath(current, item)}
+            href={`${localizePath(pathname || '/', item)}${search ? `?${search}` : ''}`}
             className={
               'rounded-md px-2.5 py-1 transition-all duration-200 ease-in-out ' +
               (active

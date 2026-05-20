@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   text,
@@ -8,7 +9,17 @@ import {
   index,
   uniqueIndex,
   doublePrecision,
+  check,
 } from 'drizzle-orm/pg-core';
+
+const CURRENCY_SQL = sql.raw("'USD','EUR','RUB','GBP','UAH','KZT','TRY','PLN','USDT','USDC'");
+const LESSON_STATUS_SQL = sql.raw(
+  "'scheduled','completed','cancelled','no_show','due','paid','partially_paid'",
+);
+const TRANSACTION_TYPE_SQL = sql.raw("'income','expense'");
+const FREQUENCY_SQL = sql.raw("'daily','weekly','monthly','yearly'");
+const THEME_SQL = sql.raw("'light','dark','system'");
+const LOCALE_SQL = sql.raw("'en','ru'");
 
 // --- Better Auth tables ---------------------------------------------------
 // Matches the standard Better Auth Drizzle/pg layout. Regenerate with:
@@ -104,6 +115,9 @@ export const students = pgTable(
   (t) => [
     index('students_user_id_idx').on(t.userId),
     index('students_user_name_idx').on(t.userId, t.name),
+    check('students_hourly_rate_amount_nonnegative_chk', sql`${t.hourlyRateAmount} >= 0`),
+    check('students_hourly_rate_currency_chk', sql`${t.hourlyRateCurrency} in (${CURRENCY_SQL})`),
+    check('students_default_currency_chk', sql`${t.defaultCurrency} in (${CURRENCY_SQL})`),
   ],
 );
 
@@ -137,6 +151,20 @@ export const lessons = pgTable(
     index('lessons_user_id_idx').on(t.userId),
     index('lessons_student_id_idx').on(t.studentId),
     index('lessons_user_starts_idx').on(t.userId, t.startsAt),
+    check('lessons_duration_positive_chk', sql`${t.durationMin} > 0`),
+    check('lessons_status_chk', sql`${t.status} in (${LESSON_STATUS_SQL})`),
+    check(
+      'lessons_price_override_amount_nonnegative_chk',
+      sql`${t.priceOverrideAmount} is null or ${t.priceOverrideAmount} >= 0`,
+    ),
+    check(
+      'lessons_paid_amount_nonnegative_chk',
+      sql`${t.paidAmount} is null or ${t.paidAmount} >= 0`,
+    ),
+    check(
+      'lessons_price_override_currency_chk',
+      sql`${t.priceOverrideCurrency} is null or ${t.priceOverrideCurrency} in (${CURRENCY_SQL})`,
+    ),
   ],
 );
 
@@ -165,6 +193,9 @@ export const recurringExpenses = pgTable(
   (t) => [
     index('recurring_user_id_idx').on(t.userId),
     index('recurring_next_due_idx').on(t.nextDueAt, t.isActive),
+    check('recurring_amount_positive_chk', sql`${t.amount} > 0`),
+    check('recurring_currency_chk', sql`${t.currency} in (${CURRENCY_SQL})`),
+    check('recurring_frequency_chk', sql`${t.frequency} in (${FREQUENCY_SQL})`),
   ],
 );
 
@@ -196,6 +227,10 @@ export const transactions = pgTable(
     index('transactions_user_id_idx').on(t.userId),
     index('transactions_user_occurred_idx').on(t.userId, t.occurredAt),
     uniqueIndex('transactions_user_lesson_uq').on(t.userId, t.lessonId),
+    uniqueIndex('transactions_recurring_occurrence_uq').on(t.recurringExpenseId, t.occurredAt),
+    check('transactions_type_chk', sql`${t.type} in (${TRANSACTION_TYPE_SQL})`),
+    check('transactions_amount_positive_chk', sql`${t.amount} > 0`),
+    check('transactions_currency_chk', sql`${t.currency} in (${CURRENCY_SQL})`),
   ],
 );
 
@@ -211,20 +246,29 @@ export const fxRates = pgTable(
   (t) => [uniqueIndex('fx_rates_base_quote_uq').on(t.base, t.quote)],
 );
 
-export const userSettings = pgTable('user_settings', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  primaryCurrency: text('primary_currency').notNull().default('USD'),
-  theme: text('theme').notNull().default('system'),
-  locale: text('locale').notNull().default('en'),
-  weekStartsOn: integer('week_starts_on').notNull().default(1),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at')
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+export const userSettings = pgTable(
+  'user_settings',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    primaryCurrency: text('primary_currency').notNull().default('USD'),
+    theme: text('theme').notNull().default('system'),
+    locale: text('locale').notNull().default('en'),
+    weekStartsOn: integer('week_starts_on').notNull().default(1),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    check('user_settings_primary_currency_chk', sql`${t.primaryCurrency} in (${CURRENCY_SQL})`),
+    check('user_settings_theme_chk', sql`${t.theme} in (${THEME_SQL})`),
+    check('user_settings_locale_chk', sql`${t.locale} in (${LOCALE_SQL})`),
+    check('user_settings_week_starts_on_chk', sql`${t.weekStartsOn} between 0 and 6`),
+  ],
+);
 
 export const schema = {
   ...authSchema,

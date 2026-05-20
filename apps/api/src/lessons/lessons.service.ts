@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   and,
   asc,
@@ -139,7 +139,7 @@ export class LessonsService {
     const rows = await this.db
       .select(JOIN_COLS)
       .from(lessons)
-      .leftJoin(students, eq(lessons.studentId, students.id))
+      .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.userId, userId)))
       .where(and(...conds))
       .orderBy(filter?.orderDir === 'asc' ? asc(lessons.startsAt) : desc(lessons.startsAt))
       .offset(offset)
@@ -190,7 +190,7 @@ export class LessonsService {
     const [row] = await this.db
       .select(JOIN_COLS)
       .from(lessons)
-      .leftJoin(students, eq(lessons.studentId, students.id))
+      .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.userId, userId)))
       .where(and(eq(lessons.id, id), eq(lessons.userId, userId)))
       .limit(1);
     if (!row) throw new NotFoundException('Lesson not found');
@@ -207,7 +207,25 @@ export class LessonsService {
     return row;
   }
 
+  private async assertStudentOwned(userId: string, studentId: string): Promise<void> {
+    const [student] = await this.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.id, studentId), eq(students.userId, userId)))
+      .limit(1);
+    if (!student) throw new NotFoundException('Student not found');
+  }
+
+  private assertPaymentState(status: string, paidAmount: number | null): void {
+    if (status === 'partially_paid' && paidAmount === null) {
+      throw new BadRequestException('partially_paid lessons require paidAmount');
+    }
+  }
+
   async create(userId: string, input: CreateLessonDto): Promise<LessonResponse> {
+    await this.assertStudentOwned(userId, input.studentId);
+    this.assertPaymentState(input.status, input.paidAmount ?? null);
+
     const [row] = await this.db
       .insert(lessons)
       .values({
@@ -216,6 +234,7 @@ export class LessonsService {
         startsAt: new Date(input.startsAt),
         durationMin: input.durationMin,
         status: input.status,
+        paidAmount: input.paidAmount ?? null,
         priceOverrideAmount: input.priceOverride?.amount ?? null,
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
         notes: input.notes ?? null,
@@ -225,23 +244,35 @@ export class LessonsService {
       .returning();
     if (!row) throw new NotFoundException('Insert failed');
     if (PAYMENT_STATUSES.includes(row.status)) {
-      await this.syncTransaction(userId, row);
+      await this.syncTransaction(userId, row, true);
     }
     await this.invalidateDashboard(userId);
     return this.findById(userId, row.id);
   }
 
   async update(userId: string, id: string, patch: UpdateLessonDto): Promise<LessonResponse> {
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException('PATCH body must not be empty');
+    }
+
     const before = await this.findRowById(userId, id);
+    if (patch.studentId !== undefined) await this.assertStudentOwned(userId, patch.studentId);
+    this.assertPaymentState(patch.status ?? before.status, patch.paidAmount ?? before.paidAmount);
 
     const set: Partial<typeof lessons.$inferInsert> = {};
+    if (patch.studentId !== undefined) set.studentId = patch.studentId;
     if (patch.startsAt !== undefined) set.startsAt = new Date(patch.startsAt);
     if (patch.durationMin !== undefined) set.durationMin = patch.durationMin;
     if (patch.status !== undefined) set.status = patch.status;
     if (patch.paidAmount !== undefined) set.paidAmount = patch.paidAmount;
     if (patch.priceOverride !== undefined) {
-      set.priceOverrideAmount = patch.priceOverride.amount;
-      set.priceOverrideCurrency = patch.priceOverride.currency;
+      if (patch.priceOverride === null) {
+        set.priceOverrideAmount = null;
+        set.priceOverrideCurrency = null;
+      } else {
+        set.priceOverrideAmount = patch.priceOverride.amount;
+        set.priceOverrideCurrency = patch.priceOverride.currency;
+      }
     }
     if (patch.notes !== undefined) set.notes = patch.notes || null;
     if (patch.homework !== undefined) set.homework = patch.homework || null;
@@ -258,7 +289,7 @@ export class LessonsService {
     const isPayment = PAYMENT_STATUSES.includes(row.status);
 
     if (isPayment) {
-      await this.syncTransaction(userId, row);
+      await this.syncTransaction(userId, row, !wasPayment);
     } else if (wasPayment) {
       await this.transactions.deleteForLesson(userId, row.id);
     }
@@ -311,8 +342,8 @@ export class LessonsService {
     return archived.length;
   }
 
-  private async syncTransaction(userId: string, lesson: Row) {
-    const occurredAt = new Date(); // payment received now, not when lesson was scheduled
+  private async syncTransaction(userId: string, lesson: Row, updateOccurredAt: boolean) {
+    const occurredAt = updateOccurredAt ? new Date() : undefined;
     let amount: number;
     let currency: Currency;
 
@@ -395,7 +426,7 @@ export class LessonsService {
         studentHourlyRateCurrency: students.hourlyRateCurrency,
       })
       .from(lessons)
-      .leftJoin(students, eq(lessons.studentId, students.id))
+      .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.userId, userId)))
       .where(
         and(
           eq(lessons.userId, userId),

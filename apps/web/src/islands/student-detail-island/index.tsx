@@ -3,14 +3,21 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Archive, ChevronLeft, Mail, MessageSquare, Pencil, Phone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
-import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
-import { type Currency } from '@tutor-finance/shared';
+import { I18nProvider, localizePath, useI18n, type Locale } from '@/lib/i18n';
+import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
-import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from '@/components/ui/responsive-modal';
 import { LessonCard } from '@/components/lesson-card';
 import { StudentDialog } from '@/islands/students-island/student-dialog';
 import type { Lesson, Student } from '@/lib/types';
-import { toMinorUnits } from '@tutor-finance/shared';
 
 const AVATAR_TINTS = [
   'var(--tf-indigo)',
@@ -55,14 +62,16 @@ export function StudentDetailIsland({ locale, ...props }: Props) {
 function StudentDetailContent({
   student: initialStudent,
   lessons: initialLessons,
-  totalIncome,
+  totalIncome: initialTotalIncome,
   primaryCurrency,
   backUrl = '/students',
 }: Omit<Props, 'locale'>) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [student, setStudent] = useState(initialStudent);
   const [lessons, setLessons] = useState(initialLessons);
+  const [totalIncome, setTotalIncome] = useState(initialTotalIncome);
   const [editOpen, setEditOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const tint = useMemo(() => avatarTint(student.id), [student.id]);
 
   const now = new Date();
@@ -114,8 +123,8 @@ function StudentDetailContent({
     const phone = String(data.get('phone') ?? '').trim() || undefined;
     const notes = String(data.get('notes') ?? '').trim() || undefined;
     const currency = String(data.get('currency') ?? 'USD') as Currency;
-    const rateMajor = Number(data.get('rate') ?? 0);
-    const hourlyRate = { amount: toMinorUnits(rateMajor, currency), currency };
+    const rateValue = String(data.get('rate') ?? '0');
+    const hourlyRate = { amount: parseMajorToMinor(rateValue, currency), currency };
     const updated = await api.patch<Student>(`/students/${student.id}`, {
       name,
       email,
@@ -129,23 +138,35 @@ function StudentDetailContent({
   }
 
   async function handleArchive() {
-    if (!confirm(t('Archive this student?'))) return;
     await api.post(`/students/${student.id}/archive`);
-    window.location.href = '/students';
+    window.location.href = localizePath('/students', locale);
   }
 
-  async function reloadLessons() {
-    const fresh = await api.get<Lesson[]>('/lessons', {
-      query: { studentId: student.id, limit: 200, orderDir: 'asc' },
-    });
-    setLessons(fresh);
+  async function reloadStudentFinancials() {
+    const [freshLessons, transactions] = await Promise.all([
+      api.get<Lesson[]>('/lessons', {
+        query: { studentId: student.id, limit: 200, orderDir: 'asc' },
+      }),
+      api.get<{ convertedAmount: number | null }[]>('/transactions', {
+        query: { studentId: student.id, type: 'income', target: primaryCurrency, limit: 1000 },
+      }),
+    ]);
+    setLessons(freshLessons);
+    setTotalIncome(
+      transactions.reduce(
+        (sum, tx) => sum + (typeof tx.convertedAmount === 'number' ? tx.convertedAmount : 0),
+        0,
+      ),
+    );
   }
+
+  const resolvedBackUrl = backUrl === '/students' ? localizePath('/students', locale) : backUrl;
 
   return (
     <div className="page-enter space-y-5">
       {/* Back nav */}
       <a
-        href={backUrl}
+        href={resolvedBackUrl}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
@@ -183,15 +204,37 @@ function StudentDetailContent({
               </ResponsiveModalTrigger>
               <StudentDialog editing={student} onSubmit={handleEditSubmit} />
             </ResponsiveModal>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleArchive}
-              className="text-muted-foreground"
-              aria-label={t('Archive')}
-            >
-              <Archive className="h-4 w-4" />
-            </Button>
+            <ResponsiveModal open={archiveOpen} onOpenChange={setArchiveOpen}>
+              <ResponsiveModalTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setArchiveOpen(true)}
+                  className="text-muted-foreground"
+                  aria-label={t('Archive')}
+                >
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </ResponsiveModalTrigger>
+              <ResponsiveModalContent className="max-w-sm">
+                <ResponsiveModalHeader>
+                  <ResponsiveModalTitle>{t('Archive this student?')}</ResponsiveModalTitle>
+                </ResponsiveModalHeader>
+                <ResponsiveModalBody className="text-sm text-muted-foreground">
+                  {t(
+                    'Archived students are hidden from the active list, but their history stays intact.',
+                  )}
+                </ResponsiveModalBody>
+                <ResponsiveModalFooter>
+                  <Button variant="outline" onClick={() => setArchiveOpen(false)}>
+                    {t('Cancel')}
+                  </Button>
+                  <Button variant="destructive" onClick={handleArchive}>
+                    {t('Archive')}
+                  </Button>
+                </ResponsiveModalFooter>
+              </ResponsiveModalContent>
+            </ResponsiveModal>
           </div>
         </div>
 
@@ -269,7 +312,11 @@ function StudentDetailContent({
                 exit={{ opacity: 0, scale: 0.95, height: 0 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
-                <LessonCard lesson={lesson} studentName={student.name} onChanged={reloadLessons} />
+                <LessonCard
+                  lesson={lesson}
+                  studentName={student.name}
+                  onChanged={reloadStudentFinancials}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -294,8 +341,8 @@ function StudentDetailContent({
                 <LessonCard
                   lesson={lesson}
                   studentName={student.name}
-                  onChanged={reloadLessons}
-                  onDeleted={reloadLessons}
+                  onChanged={reloadStudentFinancials}
+                  onDeleted={reloadStudentFinancials}
                 />
               </motion.div>
             ))}

@@ -12,6 +12,40 @@ export function toMinorUnits(major: number, currency: Currency): number {
   return Math.round(major * factor);
 }
 
+export function parseMajorToMinor(value: string, currency: Currency): number {
+  const decimals = CURRENCY_DECIMALS[currency];
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new Error('Money amount is required');
+  }
+  if (trimmed.startsWith('-')) {
+    throw new Error('Money amount cannot be negative');
+  }
+
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(trimmed);
+  if (!match) {
+    throw new Error('Invalid money amount');
+  }
+
+  const majorPart = match[1]!;
+  const fractionalPart = match[2] ?? '';
+  if (fractionalPart.length > decimals) {
+    throw new Error(`Money amount cannot have more than ${decimals} decimal places`);
+  }
+
+  const factor = BigInt(10 ** decimals);
+  const majorMinor = BigInt(majorPart) * factor;
+  const fractionalMinor = fractionalPart ? BigInt(fractionalPart.padEnd(decimals, '0')) : 0n;
+  const minor = majorMinor + fractionalMinor;
+
+  if (minor > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Money amount exceeds the maximum safe integer');
+  }
+
+  return Number(minor);
+}
+
 export function fromMinorUnits(minor: number, currency: Currency): number {
   const factor = 10 ** CURRENCY_DECIMALS[currency];
   return minor / factor;
@@ -35,11 +69,7 @@ export function formatMoney(money: Money, locale = 'en-US'): string {
 
 // rates: map "<from>_<to>" -> multiplier (e.g. {"USD_EUR": 0.92}).
 // USDT/USDC are pinned 1:1 to USD.
-export function convertMoney(
-  money: Money,
-  target: Currency,
-  rates: Record<string, number>,
-): Money {
+export function convertMoney(money: Money, target: Currency, rates: Record<string, number>): Money {
   if (money.currency === target) return money;
   const from = STABLECOINS.has(money.currency) ? 'USD' : money.currency;
   const to = STABLECOINS.has(target) ? 'USD' : target;

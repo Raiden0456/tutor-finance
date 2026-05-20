@@ -1,11 +1,11 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { convertMoney, type Currency, type TransactionType } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { transactions } from '../db/schema.js';
+import { students, transactions } from '../db/schema.js';
 import { FxService } from '../fx/fx.service.js';
 import type {
   CreateTransactionDto,
@@ -118,6 +118,8 @@ export class TransactionsService {
   }
 
   async create(userId: string, input: CreateTransactionDto): Promise<TransactionResponse> {
+    if (input.studentId) await this.assertStudentOwned(userId, input.studentId);
+
     const inserted = await this.db
       .insert(transactions)
       .values({
@@ -140,6 +142,11 @@ export class TransactionsService {
     id: string,
     patch: UpdateTransactionDto,
   ): Promise<TransactionResponse> {
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException('PATCH body must not be empty');
+    }
+    if (patch.studentId) await this.assertStudentOwned(userId, patch.studentId);
+
     const set: Partial<typeof transactions.$inferInsert> = {};
     if (patch.amount !== undefined) set.amount = patch.amount;
     if (patch.currency !== undefined) set.currency = patch.currency;
@@ -173,9 +180,19 @@ export class TransactionsService {
     studentId: string;
     amount: number;
     currency: string;
-    occurredAt: Date;
+    occurredAt?: Date;
     description?: string;
   }) {
+    const updateSet: Partial<typeof transactions.$inferInsert> = {
+      type: 'income',
+      amount: args.amount,
+      currency: args.currency,
+      category: 'lesson',
+      studentId: args.studentId,
+      description: args.description ?? null,
+    };
+    if (args.occurredAt) updateSet.occurredAt = args.occurredAt;
+
     await this.db
       .insert(transactions)
       .values({
@@ -185,21 +202,13 @@ export class TransactionsService {
         type: 'income',
         amount: args.amount,
         currency: args.currency,
-        occurredAt: args.occurredAt,
+        occurredAt: args.occurredAt ?? new Date(),
         category: 'lesson',
         description: args.description ?? null,
       })
       .onConflictDoUpdate({
         target: [transactions.userId, transactions.lessonId],
-        set: {
-          type: 'income',
-          amount: args.amount,
-          currency: args.currency,
-          occurredAt: args.occurredAt,
-          category: 'lesson',
-          studentId: args.studentId,
-          description: args.description ?? null,
-        },
+        set: updateSet,
       });
     await this.invalidateDashboard(args.userId);
   }
@@ -261,6 +270,15 @@ export class TransactionsService {
       currency: r.currency as Currency,
       total: Number(r.total ?? 0),
     }));
+  }
+
+  private async assertStudentOwned(userId: string, studentId: string): Promise<void> {
+    const [student] = await this.db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(eq(students.id, studentId), eq(students.userId, userId)))
+      .limit(1);
+    if (!student) throw new NotFoundException('Student not found');
   }
 
   private async invalidateDashboard(userId: string): Promise<void> {

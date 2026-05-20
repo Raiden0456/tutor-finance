@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
-import { toMinorUnits, type Currency } from '@tutor-finance/shared';
+import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
 import { RecurringFormDialog } from './form-dialog';
@@ -21,9 +21,8 @@ export function RecurringAddButton({
   async function onCreate(form: HTMLFormElement) {
     const data = new FormData(form);
     const currency = String(data.get('currency') ?? primaryCurrency) as Currency;
-    const amountMajor = Number(data.get('amount') ?? 0);
     const result = await api.post<Recurring>('/recurring', {
-      amount: toMinorUnits(amountMajor, currency),
+      amount: parseMajorToMinor(String(data.get('amount') ?? ''), currency),
       currency,
       category: String(data.get('category') ?? 'misc'),
       description: String(data.get('description') ?? '').trim() || undefined,

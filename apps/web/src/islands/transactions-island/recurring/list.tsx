@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import { api } from '@/lib/api';
 import { FadeSwap } from '@/components/ui/collapse';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import { toMinorUnits, type Currency } from '@tutor-finance/shared';
+import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { RecurringCard } from './card';
 import { useI18n } from '@/lib/i18n';
@@ -36,9 +36,8 @@ export function RecurringList({
   async function handleEdit(form: HTMLFormElement, id: string) {
     const data = new FormData(form);
     const currency = String(data.get('currency') ?? primaryCurrency) as Currency;
-    const amountMajor = Number(data.get('amount') ?? 0);
     const updated = await api.patch<Recurring>(`/recurring/${id}`, {
-      amount: toMinorUnits(amountMajor, currency),
+      amount: parseMajorToMinor(String(data.get('amount') ?? ''), currency),
       currency,
       category: String(data.get('category') ?? 'misc'),
       description: String(data.get('description') ?? '').trim() || undefined,

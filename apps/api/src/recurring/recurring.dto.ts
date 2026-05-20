@@ -1,5 +1,19 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
-import { SUPPORTED_CURRENCIES, FrequencyEnum, type Currency, type Frequency } from '@tutor-finance/shared';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
+import {
+  SUPPORTED_CURRENCIES,
+  FrequencyEnum,
+  type Currency,
+  type Frequency,
+} from '@tutor-finance/shared';
 
 export class CreateRecurringDto {
   @IsInt()
@@ -21,7 +35,7 @@ export class CreateRecurringDto {
   frequency!: Frequency;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startDate?: string;
 }
 

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "transactions_recurring_occurrence_uq" ON "transactions" USING btree ("recurring_expense_id","occurred_at");

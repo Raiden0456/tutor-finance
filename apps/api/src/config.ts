@@ -23,8 +23,27 @@ function bool(name: string, fallback = false): boolean {
   return raw === '1' || raw.toLowerCase() === 'true';
 }
 
+function oneOf<T extends readonly string[]>(
+  name: string,
+  values: T,
+  fallback: T[number],
+): T[number] {
+  const raw = optional(name, fallback);
+  if ((values as readonly string[]).includes(raw)) return raw as T[number];
+  throw new Error(`Invalid ${name}: expected one of ${values.join(', ')}`);
+}
+
+const nodeEnv = optional('NODE_ENV', 'development');
+const isProd = nodeEnv === 'production';
+const emailProvider = oneOf('AUTH_EMAIL_PROVIDER', ['smtp', 'resend'] as const, 'smtp');
+const mailFrom = isProd
+  ? required('MAIL_FROM')
+  : optional('MAIL_FROM', 'Uchetka <noreply@tutor-finance.local>');
+const resendApiKey =
+  emailProvider === 'resend' ? required('RESEND_API_KEY') : optional('RESEND_API_KEY');
+
 export const env = {
-  nodeEnv: optional('NODE_ENV', 'development'),
+  nodeEnv,
   port: num('PORT', num('API_PORT', 3000)),
   databaseUrl: required('DATABASE_URL'),
   betterAuthSecret: required('BETTER_AUTH_SECRET'),
@@ -34,8 +53,8 @@ export const env = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
-  emailProvider: optional('AUTH_EMAIL_PROVIDER', 'smtp') as 'smtp' | 'resend',
-  mailFrom: optional('MAIL_FROM', 'Uchetka <noreply@tutor-finance.local>'),
+  emailProvider,
+  mailFrom,
   smtp: {
     host: optional('SMTP_HOST', 'localhost'),
     port: num('SMTP_PORT', 1025),
@@ -43,7 +62,7 @@ export const env = {
     user: optional('SMTP_USER'),
     pass: optional('SMTP_PASS'),
   },
-  resendApiKey: optional('RESEND_API_KEY'),
+  resendApiKey,
   fxApiUrl: optional('FX_API_URL', 'https://api.exchangerate.host/latest'),
   cache: {
     enabled: bool('CACHE_ENABLED', true),

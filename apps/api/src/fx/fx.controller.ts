@@ -1,4 +1,5 @@
 import { Controller, DefaultValuePipe, Get, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorator.js';
 import { FxService } from './fx.service.js';
 
 @Controller('fx')
@@ -15,7 +16,7 @@ export class FxController {
   }
 
   @Post('refresh')
-  async refresh(): Promise<{ ok: boolean }> {
+  async refresh(@CurrentUser() _user: CurrentUserData): Promise<{ ok: boolean }> {
     await this.service.refresh();
     return { ok: true };
   }

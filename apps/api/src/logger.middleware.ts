@@ -7,14 +7,16 @@ export class LoggerMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     const { method, originalUrl } = req;
+    const startedAt = Date.now();
     const origin = req.headers['origin'] ?? '—';
-    const cookie = req.headers['cookie'] ? '✓' : '✗';
+    const hasCookie = req.headers['cookie'] ? '✓' : '✗';
 
     res.on('finish', () => {
       const { statusCode } = res;
-      const setCookie = res.getHeader('set-cookie');
+      const ms = Date.now() - startedAt;
+      const hasSetCookie = res.getHeader('set-cookie') ? '✓' : '✗';
       this.logger.log(
-        `${method} ${originalUrl} ${statusCode} | origin=${origin} req-cookie=${cookie} set-cookie=${setCookie ? JSON.stringify(setCookie) : '—'}`,
+        `${method} ${originalUrl} ${statusCode} ${ms}ms | origin=${origin} req-cookie=${hasCookie} set-cookie=${hasSetCookie}`,
       );
     });
 

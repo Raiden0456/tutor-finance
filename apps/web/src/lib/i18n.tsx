@@ -182,6 +182,8 @@ const ru: Record<string, string> = {
   'Delete student?': 'Удалить ученика?',
   'Archive student?': 'Архивировать ученика?',
   'Archive this student?': 'Архивировать этого ученика?',
+  'Archived students are hidden from the active list, but their history stays intact.':
+    'Архивированные ученики скрываются из активного списка, но история сохраняется.',
   'No students yet': 'Учеников пока нет',
   '{count} active': '{count} активных',
   'Student name': 'Имя ученика',

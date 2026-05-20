@@ -7,10 +7,11 @@ if (!process.env.DATABASE_URL) {
     for (const line of raw.split('\n')) {
       const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i);
       if (!m) continue;
-      const [, k, vRaw] = m;
-      if (process.env[k] !== undefined) continue;
-      const v = vRaw.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
-      process.env[k] = v;
+      const key = m[1];
+      const rawValue = m[2];
+      if (!key || rawValue === undefined || process.env[key] !== undefined) continue;
+      const value = rawValue.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+      process.env[key] = value;
     }
   } catch {
     /* no .env, fall through */

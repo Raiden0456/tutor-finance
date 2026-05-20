@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { fmtMajor, fmtMoney } from '@/lib/format';
-import { I18nProvider, type Locale, useI18n } from '@/lib/i18n';
+import { I18nProvider, localizePath, type Locale, useI18n } from '@/lib/i18n';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { detectMeetingProvider } from '@/lib/meeting';
 import { AnimatePresence, motion } from 'motion/react';
 import { Ban, Banknote, CheckCircle2, ChevronLeft, MoreHorizontal, UserX } from 'lucide-react';
-import { SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
+import { SUPPORTED_CURRENCIES, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,7 +57,7 @@ export function LessonDetailIsland({ locale = 'en', ...props }: Props) {
 }
 
 function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'locale'>) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [lesson, setLesson] = useState(initialLesson);
   const [saving, setSaving] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
@@ -67,12 +67,14 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
   );
   const [durationMin, setDurationMin] = useState(String(initialLesson.durationMin));
   const [priceAmount, setPriceAmount] = useState(() =>
-    initialLesson.effectivePrice
-      ? fmtMajor(initialLesson.effectivePrice.amount, initialLesson.effectivePrice.currency)
+    initialLesson.priceOverride
+      ? fmtMajor(initialLesson.priceOverride.amount, initialLesson.priceOverride.currency)
       : '',
   );
   const [priceCurrency, setPriceCurrency] = useState<Currency>(
-    (initialLesson.effectivePrice?.currency as Currency | undefined) ?? 'USD',
+    (initialLesson.priceOverride?.currency as Currency | undefined) ??
+      (initialLesson.effectivePrice?.currency as Currency | undefined) ??
+      student.defaultCurrency,
   );
   const [meetingLink, setMeetingLink] = useState(initialLesson.meetingLink ?? '');
   const [notes, setNotes] = useState(initialLesson.notes ?? '');
@@ -82,11 +84,15 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
     setStartsAtValue(toLocalDateTimeValue(lesson.startsAt));
     setDurationMin(String(lesson.durationMin));
     setPriceAmount(
-      lesson.effectivePrice
-        ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
+      lesson.priceOverride
+        ? fmtMajor(lesson.priceOverride.amount, lesson.priceOverride.currency)
         : '',
     );
-    setPriceCurrency((lesson.effectivePrice?.currency as Currency | undefined) ?? 'USD');
+    setPriceCurrency(
+      (lesson.priceOverride?.currency as Currency | undefined) ??
+        (lesson.effectivePrice?.currency as Currency | undefined) ??
+        student.defaultCurrency,
+    );
     setMeetingLink(lesson.meetingLink ?? '');
     setNotes(lesson.notes ?? '');
     setHomework(lesson.homework ?? '');
@@ -98,11 +104,11 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
     if (notes !== (lesson.notes ?? '')) return true;
     if (homework !== (lesson.homework ?? '')) return true;
     if (meetingLink !== (lesson.meetingLink ?? '')) return true;
-    const savedAmount = lesson.effectivePrice
-      ? fmtMajor(lesson.effectivePrice.amount, lesson.effectivePrice.currency)
+    const savedAmount = lesson.priceOverride
+      ? fmtMajor(lesson.priceOverride.amount, lesson.priceOverride.currency)
       : '';
     if (priceAmount !== savedAmount) return true;
-    if (lesson.effectivePrice && priceCurrency !== lesson.effectivePrice.currency) return true;
+    if (lesson.priceOverride && priceCurrency !== lesson.priceOverride.currency) return true;
     return false;
   }, [
     startsAtValue,
@@ -125,10 +131,13 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
         homework: homework.trim() || null,
         meetingLink: meetingLink.trim() || null,
       };
-      const major = parseFloat(priceAmount);
-      if (!isNaN(major) && major > 0) {
+      if (!priceAmount.trim()) {
+        body.priceOverride = null;
+      } else {
+        const minorAmount = parseMajorToMinor(priceAmount, priceCurrency);
+        if (minorAmount <= 0) return;
         body.priceOverride = {
-          amount: toMinorUnits(major, priceCurrency),
+          amount: minorAmount,
           currency: priceCurrency,
         };
       }
@@ -152,7 +161,7 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
       {/* Back + status */}
       <div className="flex items-center justify-between">
         <a
-          href="/lessons"
+          href={localizePath('/lessons', locale)}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -170,7 +179,9 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
 
       {/* Student */}
       <a
-        href={`/students/${student.id}?from=${encodeURIComponent(`/lessons/${lesson.id}`)}`}
+        href={`${localizePath(`/students/${student.id}`, locale)}?from=${encodeURIComponent(
+          localizePath(`/lessons/${lesson.id}`, locale),
+        )}`}
         className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
       >
         <div className="min-w-0 flex-1">
@@ -232,6 +243,13 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
             </SelectContent>
           </Select>
         </FieldRow>
+        {lesson.effectivePrice && (
+          <FieldRow label={t('Effective price')}>
+            <div className="text-sm text-muted-foreground">
+              {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
+            </div>
+          </FieldRow>
+        )}
       </div>
 
       {/* Card 3 — Meeting & Notes */}
@@ -409,8 +427,12 @@ function PartialModal({
           <Button
             disabled={!input}
             onClick={() => {
-              const major = parseFloat(input);
-              if (!isNaN(major) && major > 0) onSaved(toMinorUnits(major, currency));
+              try {
+                const amount = parseMajorToMinor(input, currency);
+                if (amount > 0) onSaved(amount);
+              } catch (error) {
+                console.error('Invalid partial payment amount', error);
+              }
             }}
           >
             {t('Save')}

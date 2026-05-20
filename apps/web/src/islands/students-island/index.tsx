@@ -12,9 +12,17 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from '@/components/ui/responsive-modal';
 import { Plus } from 'lucide-react';
-import { fromMinorUnits, toMinorUnits, type Currency } from '@tutor-finance/shared';
+import { fromMinorUnits, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import type { Student, IncomeTx } from '@/lib/types';
 import { StudentCard } from './student-card';
 import { StudentDialog, EmptyState } from './student-dialog';
@@ -39,6 +47,7 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
   const [students, setStudents] = useState(initial);
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
 
   const empty = students.length === 0;
 
@@ -77,22 +86,26 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
     const phone = String(data.get('phone') ?? '').trim() || undefined;
     const notes = String(data.get('notes') ?? '').trim() || undefined;
     const currency = String(data.get('currency') ?? 'USD') as Currency;
-    const rateMajor = Number(data.get('rate') ?? 0);
-    const hourlyRate = { amount: toMinorUnits(rateMajor, currency), currency };
+    const hourlyRate = {
+      amount: parseMajorToMinor(String(data.get('rate') ?? ''), currency),
+      currency,
+    };
     const input = { name, email, phone, hourlyRate, defaultCurrency: currency, notes };
     if (editing) {
-      await api.patch(`/students/${editing.id}`, input);
+      const updated = await api.patch<Student>(`/students/${editing.id}`, input);
+      setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setEditing(null);
     } else {
-      await api.post('/students', input);
+      const created = await api.post<Student>('/students', input);
+      setStudents((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     }
     setOpen(false);
-    window.location.reload();
   }
 
   async function archive(id: string) {
-    if (!confirm(t('Archive this student?'))) return;
     await api.post(`/students/${id}/archive`);
     setStudents((prev) => prev.filter((s) => s.id !== id));
+    setArchiveId(null);
   }
 
   return (
@@ -191,13 +204,37 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
                   key={s.id}
                   student={s}
                   onEdit={() => startEdit(s)}
-                  onArchive={() => archive(s.id)}
+                  onArchive={() => setArchiveId(s.id)}
                 />
               ))}
             </AnimatePresence>
           </ul>
         )}
       </FadeSwap>
+
+      <ResponsiveModal
+        open={archiveId !== null}
+        onOpenChange={(next) => !next && setArchiveId(null)}
+      >
+        <ResponsiveModalContent className="max-w-sm">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>{t('Archive this student?')}</ResponsiveModalTitle>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody className="text-sm text-muted-foreground">
+            {t(
+              'Archived students are hidden from the active list, but their history stays intact.',
+            )}
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
+            <Button variant="outline" onClick={() => setArchiveId(null)}>
+              {t('Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={() => archiveId && archive(archiveId)}>
+              {t('Archive')}
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
     </div>
   );
 }

@@ -4,6 +4,15 @@ export interface MailContent {
   text: string;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 const layout = (title: string, body: string) => `
 <!doctype html>
 <html>
@@ -15,11 +24,14 @@ const layout = (title: string, body: string) => `
   </body>
 </html>`;
 
-const button = (url: string, label: string) => `
-  <a href="${url}" style="display:inline-block; padding:12px 20px; background:#111827; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">${label}</a>`;
+const button = (url: string, label: string) => {
+  const safeUrl = escapeHtml(url);
+  return `<a href="${safeUrl}" style="display:inline-block; padding:12px 20px; background:#111827; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">${escapeHtml(label)}</a>`;
+};
 
 export function resetPasswordTemplate(opts: { url: string; appName?: string }): MailContent {
   const appName = opts.appName ?? 'Uchetka';
+  const safeUrl = escapeHtml(opts.url);
   return {
     subject: `Reset your ${appName} password`,
     html: layout(
@@ -27,7 +39,7 @@ export function resetPasswordTemplate(opts: { url: string; appName?: string }): 
       `<p>We received a request to reset your password. The link is valid for 1 hour.</p>
        ${button(opts.url, 'Reset password')}
        <p style="margin-top:24px; font-size:13px; color:#6b7280;">If you did not request this, you can safely ignore this email.</p>
-       <p style="font-size:13px; color:#6b7280;">Link: <a href="${opts.url}">${opts.url}</a></p>`,
+       <p style="font-size:13px; color:#6b7280;">Link: <a href="${safeUrl}">${safeUrl}</a></p>`,
     ),
     text: `Reset your ${appName} password (valid for 1 hour): ${opts.url}\n`,
   };
@@ -35,14 +47,16 @@ export function resetPasswordTemplate(opts: { url: string; appName?: string }): 
 
 export function verifyEmailTemplate(opts: { url: string; appName?: string }): MailContent {
   const appName = opts.appName ?? 'Uchetka';
+  const safeAppName = escapeHtml(appName);
+  const safeUrl = escapeHtml(opts.url);
   return {
     subject: `Verify your ${appName} email`,
     html: layout(
       `Verify your email`,
-      `<p>Confirm this email address to finish setting up your ${appName} account.</p>
+      `<p>Confirm this email address to finish setting up your ${safeAppName} account.</p>
        ${button(opts.url, 'Verify email')}
        <p style="margin-top:24px; font-size:13px; color:#6b7280;">If you did not create this account, you can safely ignore this email.</p>
-       <p style="font-size:13px; color:#6b7280;">Link: <a href="${opts.url}">${opts.url}</a></p>`,
+       <p style="font-size:13px; color:#6b7280;">Link: <a href="${safeUrl}">${safeUrl}</a></p>`,
     ),
     text: `Verify your ${appName} email: ${opts.url}\n`,
   };

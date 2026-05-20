@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import type { Currency, Locale, Theme, WeekStartsOn } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
@@ -31,24 +31,23 @@ export class SettingsService {
     const cached = await this.cacheService.getJson<SettingsResponse>(cacheKey);
     if (cached?.weekStartsOn !== undefined) return cached;
 
-    const [existing] = await this.db
+    await this.db.insert(userSettings).values({ userId }).onConflictDoNothing();
+
+    const [settings] = await this.db
       .select()
       .from(userSettings)
       .where(eq(userSettings.userId, userId))
       .limit(1);
-    if (existing) {
-      const response = toResponse(existing);
-      await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
-      return response;
-    }
-
-    const created = await this.db.insert(userSettings).values({ userId }).returning();
-    const response = toResponse(created[0]!);
+    const response = toResponse(settings!);
     await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
     return response;
   }
 
   async update(userId: string, patch: UpdateSettingsDto): Promise<SettingsResponse> {
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException('PATCH body must not be empty');
+    }
+
     const set: Partial<typeof userSettings.$inferInsert> = {};
     if (patch.primaryCurrency !== undefined) set.primaryCurrency = patch.primaryCurrency;
     if (patch.theme !== undefined) set.theme = patch.theme;

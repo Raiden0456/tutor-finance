@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 import type { Currency, Frequency } from '@tutor-finance/shared';
@@ -96,6 +102,10 @@ export class RecurringService implements OnModuleInit {
   }
 
   async update(userId: string, id: string, patch: UpdateRecurringDto): Promise<RecurringResponse> {
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException('PATCH body must not be empty');
+    }
+
     const set: Partial<typeof recurringExpenses.$inferInsert> = {};
     if (patch.amount !== undefined) set.amount = patch.amount;
     if (patch.currency !== undefined) set.currency = patch.currency;
@@ -153,24 +163,31 @@ export class RecurringService implements OnModuleInit {
     for (const expense of due) {
       let nextDue = new Date(expense.nextDueAt);
       let count = 0;
-      while (nextDue <= now && count < 366) {
-        await this.db.insert(transactions).values({
-          userId: expense.userId,
-          type: 'expense',
-          amount: expense.amount,
-          currency: expense.currency,
-          occurredAt: new Date(nextDue),
-          category: expense.category,
-          description: expense.description,
-          recurringExpenseId: expense.id,
-        });
-        nextDue = calcNextDue(nextDue, expense.frequency as Frequency);
-        count++;
-      }
-      await this.db
-        .update(recurringExpenses)
-        .set({ nextDueAt: nextDue })
-        .where(eq(recurringExpenses.id, expense.id));
+      await this.db.transaction(async (tx) => {
+        while (nextDue <= now && count < 366) {
+          await tx
+            .insert(transactions)
+            .values({
+              userId: expense.userId,
+              type: 'expense',
+              amount: expense.amount,
+              currency: expense.currency,
+              occurredAt: new Date(nextDue),
+              category: expense.category,
+              description: expense.description,
+              recurringExpenseId: expense.id,
+            })
+            .onConflictDoNothing({
+              target: [transactions.recurringExpenseId, transactions.occurredAt],
+            });
+          nextDue = calcNextDue(nextDue, expense.frequency as Frequency);
+          count++;
+        }
+        await tx
+          .update(recurringExpenses)
+          .set({ nextDueAt: nextDue })
+          .where(eq(recurringExpenses.id, expense.id));
+      });
       await this.invalidateUserCache(expense.userId);
     }
   }

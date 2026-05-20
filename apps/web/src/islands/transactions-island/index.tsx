@@ -34,8 +34,8 @@ import { ChevronLeftIcon, ChevronRightIcon, Plus } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import {
   fromMinorUnits,
+  parseMajorToMinor,
   SUPPORTED_CURRENCIES,
-  toMinorUnits,
   type Currency,
   type WeekStartsOn,
 } from '@tutor-finance/shared';
@@ -186,32 +186,38 @@ function TransactionsIslandContent({
     return { pieData: pie, incomeExpenseSeries: dailyStats };
   }, [txList, dailyStats, currency, t]);
 
-  const { totalExpense, totalIncome } = useMemo(() => {
-    let expense = 0;
-    let income = 0;
-    for (const t of txList) {
-      const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
-      if (t.type === 'expense') expense += v;
-      else income += v;
-    }
-    return { totalExpense: expense, totalIncome: income };
-  }, [txList]);
+  const totalIncome = summary.incomeInTargetCurrency;
+  const totalExpense = summary.expenseInTargetCurrency;
 
   async function onCreate(form: HTMLFormElement) {
     const data = new FormData(form);
-    const currency = String(data.get('currency') ?? 'USD') as Currency;
-    const amountMajor = Number(data.get('amount') ?? 0);
+    const txCurrency = String(data.get('currency') ?? 'USD') as Currency;
     await api.post('/transactions', {
       type: String(data.get('type')),
-      amount: toMinorUnits(amountMajor, currency),
-      currency,
+      amount: parseMajorToMinor(String(data.get('amount') ?? ''), txCurrency),
+      currency: txCurrency,
       occurredAt: new Date(String(data.get('occurredAt'))).toISOString(),
       category: String(data.get('category') ?? 'other'),
       description: String(data.get('description') ?? '').trim() || undefined,
     });
+
+    const { from, to } = resolveRange(range);
+    const [txs, sum, daily] = await Promise.all([
+      api.get<Tx[]>('/transactions', {
+        query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
+      }),
+      api.get<Summary>('/dashboard/summary', {
+        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+      }),
+      api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
+        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+      }),
+    ]);
+    setTxList(txs);
+    setSummary(sum);
+    setDailyStats(daily);
     setTxType('expense');
     setTxOpen(false);
-    window.location.reload();
   }
 
   return (

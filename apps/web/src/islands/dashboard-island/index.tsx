@@ -106,20 +106,24 @@ export function DashboardIsland({
   }, []);
   const weekEnd = useMemo(() => endOfWeek(new Date(), { weekStartsOn }), [weekStartsOn]);
 
+  const refreshSummary = useCallback(async () => {
+    const { from, to } = resolveRange(range);
+    const fresh = await api.get<Summary>('/dashboard/summary', {
+      query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+    });
+    setSummary(fresh);
+  }, [range, currency]);
+
   useEffect(() => {
     if (isFirst.current) {
       isFirst.current = false;
       return;
     }
     let cancelled = false;
-    const { from, to } = resolveRange(range);
     setLoading(true);
-    api
-      .get<Summary>('/dashboard/summary', {
-        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-      })
-      .then((s) => {
-        if (!cancelled) setSummary(s);
+    refreshSummary()
+      .catch((error) => {
+        if (!cancelled) console.error('Failed to refresh dashboard summary', error);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -127,7 +131,7 @@ export function DashboardIsland({
     return () => {
       cancelled = true;
     };
-  }, [range, currency]);
+  }, [refreshSummary]);
 
   const refreshToday = useCallback(async () => {
     const now = new Date();
@@ -153,6 +157,10 @@ export function DashboardIsland({
     setNextLesson(nextL[0] ?? null);
     setTodayLessons(todayL);
   }, [todayStart, todayEnd, weekEnd]);
+
+  const refreshDashboard = useCallback(async () => {
+    await Promise.all([refreshToday(), refreshSummary()]);
+  }, [refreshToday, refreshSummary]);
 
   const displayNextLesson =
     nextLesson && new Date(nextLesson.startsAt) <= weekEnd ? nextLesson : null;
@@ -242,7 +250,7 @@ export function DashboardIsland({
                   key={l.id}
                   lesson={l}
                   studentName={studentNames[l.studentId] ?? l.studentId}
-                  onChanged={refreshToday}
+                  onChanged={refreshDashboard}
                 />
               ))}
             </motion.div>
@@ -268,7 +276,7 @@ export function DashboardIsland({
                   key={l.id}
                   lesson={l}
                   studentName={studentNames[l.studentId] ?? l.studentId}
-                  onChanged={refreshToday}
+                  onChanged={refreshDashboard}
                 />
               ))}
             </motion.div>

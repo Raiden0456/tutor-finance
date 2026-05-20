@@ -1,11 +1,16 @@
-import { formatMoney, fromMinorUnits, type Currency } from '@tutor-finance/shared';
+import {
+  CURRENCY_DECIMALS,
+  formatMoney,
+  fromMinorUnits,
+  type Currency,
+} from '@tutor-finance/shared';
 
 export function fmtMoney(amount: number, currency: Currency, locale = 'en-US') {
   return formatMoney({ amount, currency }, locale);
 }
 
 export function fmtMajor(amount: number, currency: Currency) {
-  return fromMinorUnits(amount, currency).toFixed(2);
+  return fromMinorUnits(amount, currency).toFixed(CURRENCY_DECIMALS[currency]);
 }
 
 export function fmtDate(d: Date | string) {

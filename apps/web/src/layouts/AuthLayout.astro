@@ -13,7 +13,8 @@ interface Props {
 
 const { title = 'Uchetka', description, wide = false } = Astro.props;
 const locale = normalizeLocale(Astro.currentLocale);
-const path = new URL(Astro.request.url).pathname;
+const url = new URL(Astro.request.url);
+const path = `${url.pathname}${url.search}`;
 const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
 ---
 
