@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { createTranslator, I18nProvider, type Locale } from '@/lib/i18n';
 import { fmtMoney } from '@/lib/format';
 import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import { Banknote, CalendarClock, CalendarDays, CheckCircle2, Timer } from 'lucide-react';
@@ -23,13 +24,16 @@ interface Props {
   nextLesson: RecentLesson | null;
   todayLessons: RecentLesson[];
   studentNames: Record<string, string>;
+  locale?: Locale;
 }
 
-const fullDateFmt = new Intl.DateTimeFormat(undefined, {
-  weekday: 'long',
-  month: 'long',
-  day: 'numeric',
-});
+function createFullDateFmt(locale: Locale) {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 function fmtDuration(mins: number): string {
   if (mins < 60) return `${mins}m`;
@@ -73,7 +77,10 @@ export function DashboardIsland({
   nextLesson: initialNextLesson,
   todayLessons: initialTodayLessons,
   studentNames,
+  locale = 'en',
 }: Props) {
+  const t = createTranslator(locale);
+  const fullDateFmt = useMemo(() => createFullDateFmt(locale), [locale]);
   const [range, setRange] = useState<RangeState>(() =>
     inferRange(initialSummary.from, initialSummary.to),
   );
@@ -168,187 +175,197 @@ export function DashboardIsland({
   const totalTodayMin = todayLessons.reduce((sum, l) => sum + l.durationMin, 0);
 
   return (
-    <div className="page-enter space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">Today</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{fullDateFmt.format(new Date())}</p>
-      </div>
-
-      {/* Next lesson hero */}
-      <NextLessonHero lesson={displayNextLesson} studentNames={studentNames} />
-
-      {/* Today overview */}
-      <div>
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <CalendarClock className="h-3.5 w-3.5" />
-          Today's overview
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <MiniStat
-            value={String(pendingLessons.length)}
-            label="Upcoming"
-            color="text-tf-indigo"
-            bg="bg-tf-indigo/10"
-            icon={CalendarDays}
-          />
-          <MiniStat
-            value={String(dueLessons.length)}
-            label="Due Payment"
-            color="text-tf-pollen"
-            bg="bg-tf-pollen/10"
-            icon={Banknote}
-          />
-          <MiniStat
-            value={String(processedLessons.length)}
-            label="Done"
-            color="text-income"
-            bg="bg-income/10"
-            icon={CheckCircle2}
-          />
-          <MiniStat
-            value={totalTodayMin > 0 ? fmtDuration(totalTodayMin) : '—'}
-            label="Total time"
-            color="text-net"
-            bg="bg-net/10"
-            icon={Timer}
-          />
+    <I18nProvider locale={locale}>
+      <div className="page-enter space-y-6">
+        {/* Title */}
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">{t('Today')}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{fullDateFmt.format(new Date())}</p>
         </div>
-      </div>
 
-      <AnimatePresence initial={false}>
-        {pendingLessons.length > 0 && (
-          <motion.div
-            key="pending"
-            layout
-            variants={sectionVariants}
-            initial="initial"
-            animate="enter"
-            exit="exit"
-            className="space-y-3 overflow-hidden"
-          >
-            <SectionHeader dot="bg-tf-indigo" label="Upcoming" count={pendingLessons.length} />
-            {pendingLessons.map((l) => (
-              <LessonCard
-                key={l.id}
-                lesson={l}
-                studentName={studentNames[l.studentId] ?? l.studentId}
-                onChanged={refreshToday}
-              />
-            ))}
-          </motion.div>
-        )}
+        {/* Next lesson hero */}
+        <NextLessonHero lesson={displayNextLesson} studentNames={studentNames} />
 
-        {dueLessons.length > 0 && (
-          <motion.div
-            key="due"
-            layout
-            variants={sectionVariants}
-            initial="initial"
-            animate="enter"
-            exit="exit"
-            className="space-y-3 overflow-hidden"
-          >
-            <SectionHeader dot="bg-tf-pollen" label="Due Payment" count={dueLessons.length} />
-            {dueLessons.map((l) => (
-              <LessonCard
-                key={l.id}
-                lesson={l}
-                studentName={studentNames[l.studentId] ?? l.studentId}
-                onChanged={refreshToday}
-              />
-            ))}
-          </motion.div>
-        )}
-
-        {processedLessons.length > 0 && (
-          <motion.div
-            key="processed"
-            layout
-            variants={sectionVariants}
-            initial="initial"
-            animate="enter"
-            exit="exit"
-            className="space-y-2 overflow-hidden"
-          >
-            <SectionHeader
-              dot="bg-muted-foreground"
-              label="Processed"
-              count={processedLessons.length}
+        {/* Today overview */}
+        <div>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <CalendarClock className="h-3.5 w-3.5" />
+            {t("Today's overview")}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <MiniStat
+              value={String(pendingLessons.length)}
+              label={t('Upcoming')}
+              color="text-tf-indigo"
+              bg="bg-tf-indigo/10"
+              icon={CalendarDays}
             />
-            {processedLessons.map((l) => (
-              <ProcessedLessonRow
-                key={l.id}
-                lesson={l}
-                studentName={studentNames[l.studentId] ?? l.studentId}
-              />
-            ))}
-          </motion.div>
-        )}
-
-        {todayLessons.length === 0 && !nextLesson && (
-          <motion.div
-            key="empty"
-            layout
-            variants={sectionVariants}
-            initial="initial"
-            animate="enter"
-            exit="exit"
-            className="overflow-hidden"
-          >
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-              No lessons today. Enjoy your day off!
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Financial summary */}
-      <div className="space-y-3 border-t border-border pt-5">
-        <div className="flex flex-col-reverse items-start gap-2 md:flex-row">
-          <RangeTabs value={range} onChange={setRange} groupId="dashboard" />
-          <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-            <SelectTrigger className="h-9 w-[88px] shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <MiniStat
+              value={String(dueLessons.length)}
+              label={t('Due Payment')}
+              color="text-tf-pollen"
+              bg="bg-tf-pollen/10"
+              icon={Banknote}
+            />
+            <MiniStat
+              value={String(processedLessons.length)}
+              label={t('Done')}
+              color="text-income"
+              bg="bg-income/10"
+              icon={CheckCircle2}
+            />
+            <MiniStat
+              value={totalTodayMin > 0 ? fmtDuration(totalTodayMin) : '—'}
+              label={t('Total time')}
+              color="text-net"
+              bg="bg-net/10"
+              icon={Timer}
+            />
+          </div>
         </div>
 
-        <div
-          className={
-            'grid grid-cols-2 gap-3 transition-opacity duration-150 sm:grid-cols-4 ' +
-            (loading ? 'opacity-60' : 'opacity-100')
-          }
-        >
-          <FinanceStat
-            label="Planned"
-            value={fmtMoney(summary.plannedIncomeInTargetCurrency, summary.targetCurrency)}
-            tone="planned"
-          />
-          <FinanceStat
-            label="Income"
-            value={fmtMoney(summary.incomeInTargetCurrency, summary.targetCurrency)}
-            tone="income"
-          />
-          <FinanceStat
-            label="Expenses"
-            value={fmtMoney(summary.expenseInTargetCurrency, summary.targetCurrency)}
-            tone="expense"
-          />
-          <FinanceStat
-            label="Net"
-            value={fmtMoney(summary.netInTargetCurrency, summary.targetCurrency)}
-            tone={summary.netInTargetCurrency >= 0 ? 'income' : 'expense'}
-          />
+        <AnimatePresence initial={false}>
+          {pendingLessons.length > 0 && (
+            <motion.div
+              key="pending"
+              layout
+              variants={sectionVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              className="space-y-3 overflow-hidden"
+            >
+              <SectionHeader
+                dot="bg-tf-indigo"
+                label={t('Upcoming')}
+                count={pendingLessons.length}
+              />
+              {pendingLessons.map((l) => (
+                <LessonCard
+                  key={l.id}
+                  lesson={l}
+                  studentName={studentNames[l.studentId] ?? l.studentId}
+                  onChanged={refreshToday}
+                />
+              ))}
+            </motion.div>
+          )}
+
+          {dueLessons.length > 0 && (
+            <motion.div
+              key="due"
+              layout
+              variants={sectionVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              className="space-y-3 overflow-hidden"
+            >
+              <SectionHeader
+                dot="bg-tf-pollen"
+                label={t('Due Payment')}
+                count={dueLessons.length}
+              />
+              {dueLessons.map((l) => (
+                <LessonCard
+                  key={l.id}
+                  lesson={l}
+                  studentName={studentNames[l.studentId] ?? l.studentId}
+                  onChanged={refreshToday}
+                />
+              ))}
+            </motion.div>
+          )}
+
+          {processedLessons.length > 0 && (
+            <motion.div
+              key="processed"
+              layout
+              variants={sectionVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              className="space-y-2 overflow-hidden"
+            >
+              <SectionHeader
+                dot="bg-muted-foreground"
+                label={t('Processed')}
+                count={processedLessons.length}
+              />
+              {processedLessons.map((l) => (
+                <ProcessedLessonRow
+                  key={l.id}
+                  lesson={l}
+                  studentName={studentNames[l.studentId] ?? l.studentId}
+                />
+              ))}
+            </motion.div>
+          )}
+
+          {todayLessons.length === 0 && !nextLesson && (
+            <motion.div
+              key="empty"
+              layout
+              variants={sectionVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              className="overflow-hidden"
+            >
+              <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+                {t('No lessons today. Enjoy your day off!')}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Financial summary */}
+        <div className="space-y-3 border-t border-border pt-5">
+          <div className="flex flex-col-reverse items-start gap-2 md:flex-row">
+            <RangeTabs value={range} onChange={setRange} groupId="dashboard" />
+            <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+              <SelectTrigger className="h-9 w-[88px] shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div
+            className={
+              'grid grid-cols-2 gap-3 transition-opacity duration-150 sm:grid-cols-4 ' +
+              (loading ? 'opacity-60' : 'opacity-100')
+            }
+          >
+            <FinanceStat
+              label={t('Planned')}
+              value={fmtMoney(summary.plannedIncomeInTargetCurrency, summary.targetCurrency)}
+              tone="planned"
+            />
+            <FinanceStat
+              label={t('Income')}
+              value={fmtMoney(summary.incomeInTargetCurrency, summary.targetCurrency)}
+              tone="income"
+            />
+            <FinanceStat
+              label={t('Expenses')}
+              value={fmtMoney(summary.expenseInTargetCurrency, summary.targetCurrency)}
+              tone="expense"
+            />
+            <FinanceStat
+              label={t('Net')}
+              value={fmtMoney(summary.netInTargetCurrency, summary.targetCurrency)}
+              tone={summary.netInTargetCurrency >= 0 ? 'income' : 'expense'}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </I18nProvider>
   );
 }

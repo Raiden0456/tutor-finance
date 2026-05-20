@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import {
   Select,
   SelectContent,
@@ -52,6 +53,8 @@ export function CreateLessonModal({
   loadMonth,
   onCreated,
 }: CreateLessonModalProps) {
+  const { locale, t } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const initialDateRef = useRef(initialDate);
 
   const [createDate, setCreateDate] = useState<Date>(initialDate);
@@ -205,7 +208,13 @@ export function CreateLessonModal({
           status: s.status,
         });
       } catch {
-        errs.push(`Slot ${i + 1} (${format(s.date, 'd MMM')} ${s.time}) failed`);
+        errs.push(
+          t('Slot {index} ({date} {time}) failed', {
+            index: i + 1,
+            date: format(s.date, 'd MMM', { locale: dateLocale }),
+            time: s.time,
+          }),
+        );
       }
       setCreateProgress({ done: i + 1, total: slots.length });
     }
@@ -222,7 +231,7 @@ export function CreateLessonModal({
       <ResponsiveModalContent className="max-w-md md:max-h-[calc(100dvh-2rem)]">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
-            {batchMode ? `Log ${slots.length} lessons` : 'New lesson'}
+            {batchMode ? t('Log {count} lessons', { count: slots.length }) : t('New lesson')}
           </ResponsiveModalTitle>
         </ResponsiveModalHeader>
         <form
@@ -246,7 +255,7 @@ export function CreateLessonModal({
                 >
                   <div className="grid grid-cols-2 gap-3">
                     <div className="grid gap-2">
-                      <Label>Student</Label>
+                      <Label>{t('Student')}</Label>
                       <Select
                         name="studentId"
                         value={createStudentId}
@@ -265,7 +274,7 @@ export function CreateLessonModal({
                       </Select>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Status</Label>
+                      <Label>{t('Status')}</Label>
                       <Select name="status" defaultValue="scheduled">
                         <SelectTrigger>
                           <SelectValue />
@@ -273,7 +282,7 @@ export function CreateLessonModal({
                         <SelectContent>
                           {CREATE_STATUSES.map((s) => (
                             <SelectItem key={s} value={s}>
-                              {statusLabel[s]}
+                              {t(statusLabel[s])}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -281,7 +290,7 @@ export function CreateLessonModal({
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Date</Label>
+                    <Label>{t('Date')}</Label>
                     <CreateCalendar
                       selectedDate={createDate}
                       viewMonth={createViewMonth}
@@ -303,7 +312,7 @@ export function CreateLessonModal({
                   </div>
                   <div className="grid gap-3 grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="createTime">Time</Label>
+                      <Label htmlFor="createTime">{t('Time')}</Label>
                       <Input
                         id="createTime"
                         type="time"
@@ -313,7 +322,7 @@ export function CreateLessonModal({
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="createDurationMin">Duration (min)</Label>
+                      <Label htmlFor="createDurationMin">{t('Duration (min)')}</Label>
                       <Input
                         id="createDurationMin"
                         type="number"
@@ -325,15 +334,15 @@ export function CreateLessonModal({
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="notes">Notes</Label>
+                    <Label htmlFor="notes">{t('Notes')}</Label>
                     <Input id="notes" name="notes" />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="homework">Homework</Label>
+                    <Label htmlFor="homework">{t('Homework')}</Label>
                     <Input id="homework" name="homework" />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="meetingLink">Meeting link</Label>
+                    <Label htmlFor="meetingLink">{t('Meeting link')}</Label>
                     <Input
                       id="meetingLink"
                       name="meetingLink"
@@ -428,7 +437,7 @@ export function CreateLessonModal({
               className="flex items-center gap-1.5 text-xs font-medium text-primary transition-opacity hover:opacity-70 active:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add slot
+              {t('Add slot')}
             </button>
           </ResponsiveModalBody>
 
@@ -446,11 +455,10 @@ export function CreateLessonModal({
                   <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>
-                      Overlaps with{' '}
-                      <span className="font-medium">
-                        {studentMap.get(createOverlapLesson.studentId) ?? 'another lesson'}
-                      </span>{' '}
-                      at {format(new Date(createOverlapLesson.startsAt), 'HH:mm')}
+                      {t('Overlaps with {name} at {time}', {
+                        name: studentMap.get(createOverlapLesson.studentId) ?? t('another lesson'),
+                        time: format(new Date(createOverlapLesson.startsAt), 'HH:mm'),
+                      })}
                     </span>
                   </div>
                 </motion.div>
@@ -468,7 +476,10 @@ export function CreateLessonModal({
                 >
                   <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating {createProgress.done} of {createProgress.total}…
+                    {t('Creating {done} of {total}…', {
+                      done: createProgress.done,
+                      total: createProgress.total,
+                    })}
                   </div>
                 </motion.div>
               )}
@@ -500,10 +511,15 @@ export function CreateLessonModal({
               className="w-full sm:w-auto"
             >
               {createSubmitting
-                ? `Creating ${createProgress?.done ?? 0}/${createProgress?.total ?? 0}…`
+                ? t('Creating {done}/{total}…', {
+                    done: createProgress?.done ?? 0,
+                    total: createProgress?.total ?? 0,
+                  })
                 : batchMode
-                  ? `Create ${slots.length} lesson${slots.length !== 1 ? 's' : ''}`
-                  : 'Create'}
+                  ? t(slots.length === 1 ? 'Create {count} lesson' : 'Create {count} lessons', {
+                      count: slots.length,
+                    })
+                  : t('Create')}
             </Button>
           </ResponsiveModalFooter>
         </form>

@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Archive, Pencil, MoreVertical } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import type { Student } from '@/lib/types';
 
 function initials(name: string): string {
@@ -43,6 +44,7 @@ export function StudentCard({
   onEdit: () => void;
   onArchive: () => void;
 }) {
+  const { t } = useI18n();
   const tint = useMemo(() => avatarTint(student.id), [student.id]);
   return (
     <motion.li
@@ -73,28 +75,30 @@ export function StudentCard({
         </a>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Open menu">
+            <Button variant="ghost" size="icon" aria-label={t('Open menu')}>
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="mr-2 h-4 w-4" /> Edit
+              <Pencil className="mr-2 h-4 w-4" /> {t('Edit')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={onArchive}
               className="text-destructive focus:text-destructive"
             >
-              <Archive className="mr-2 h-4 w-4" /> Archive
+              <Archive className="mr-2 h-4 w-4" /> {t('Archive')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">Hourly rate</span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+          {t('Hourly rate')}
+        </span>
         <span className="text-lg font-semibold tabular-nums">
           {fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">/ hr</span>
+          <span className="ml-1 text-xs font-normal text-muted-foreground">{t('/ hr')}</span>
         </span>
       </div>
     </motion.li>

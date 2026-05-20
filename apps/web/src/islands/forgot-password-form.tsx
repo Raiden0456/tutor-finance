@@ -1,13 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import { requestPasswordReset, sendVerificationEmail } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export function ForgotPasswordForm() {
+type ForgotPasswordFormProps = {
+  locale: Locale;
+};
+
+export function ForgotPasswordForm({ locale }: ForgotPasswordFormProps) {
+  const t = createTranslator(locale);
+  const loginPath = localizePath('/login', locale);
+  const resetPasswordPath = localizePath('/reset-password', locale);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -29,11 +37,11 @@ export function ForgotPasswordForm() {
     setLoading(true);
     const res = await requestPasswordReset({
       email,
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}${resetPasswordPath}`,
     });
     setLoading(false);
     if (res.error) {
-      setError(res.error.message ?? 'Could not send reset email');
+      setError(res.error.message ?? t('Could not send reset email'));
       return;
     }
     setDone(true);
@@ -41,7 +49,7 @@ export function ForgotPasswordForm() {
     setCooldown(RESEND_COOLDOWN_SECONDS);
   }
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     await sendResetLink(null);
   }
@@ -52,14 +60,14 @@ export function ForgotPasswordForm() {
     setVerifying(true);
     const res = await sendVerificationEmail({
       email,
-      callbackURL: `${window.location.origin}/login?verified=1`,
+      callbackURL: `${window.location.origin}${loginPath}?verified=1`,
     });
     setVerifying(false);
     if (res.error) {
-      setError(res.error.message ?? 'Could not send verification email');
+      setError(res.error.message ?? t('Could not send verification email'));
       return;
     }
-    setNotice('Verification link sent. Check your inbox.');
+    setNotice(t('Verification link sent. Check your inbox.'));
     setCooldown(RESEND_COOLDOWN_SECONDS);
   }
 
@@ -69,7 +77,8 @@ export function ForgotPasswordForm() {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 text-center text-sm duration-300">
         <p>
-          If an account exists for <strong>{email}</strong>, a reset link has been sent.
+          {t('If an account exists for')} <strong>{email}</strong>,{' '}
+          {t('a reset link has been sent.')}
         </p>
         <Collapse open={!!notice}>
           <p className="text-sm text-muted-foreground">{notice}</p>
@@ -81,7 +90,7 @@ export function ForgotPasswordForm() {
         </Collapse>
         <Collapse open={cooldown > 0}>
           <p className="text-sm text-muted-foreground">
-            You can request another link in {cooldown}s.
+            {t('You can request another link in {seconds}s.', { seconds: cooldown })}
           </p>
         </Collapse>
         <Collapse open={cooldown === 0}>
@@ -90,20 +99,20 @@ export function ForgotPasswordForm() {
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => sendResetLink('Reset link sent again. Check your inbox.')}
+              onClick={() => sendResetLink(t('Reset link sent again. Check your inbox.'))}
             >
-              {loading ? 'Sending…' : 'Resend reset link'}
+              {loading ? t('Sending…') : t('Resend reset link')}
             </Button>
             <Button type="button" variant="ghost" disabled={busy} onClick={resendVerification}>
-              {verifying ? 'Sending…' : 'Send verification link'}
+              {verifying ? t('Sending…') : t('Send verification link')}
             </Button>
           </div>
         </Collapse>
         <a
-          href="/login"
+          href={loginPath}
           className="underline-offset-4 transition-colors duration-200 hover:underline"
         >
-          Back to sign in
+          {t('Back to sign in')}
         </a>
       </div>
     );
@@ -112,7 +121,7 @@ export function ForgotPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t('Email')}</Label>
         <Input
           id="email"
           type="email"
@@ -125,10 +134,10 @@ export function ForgotPasswordForm() {
         <p className="pt-1 text-sm text-destructive">{error}</p>
       </Collapse>
       <Button type="submit" disabled={loading}>
-        {loading ? 'Sending…' : 'Send reset link'}
+        {loading ? t('Sending…') : t('Send reset link')}
       </Button>
-      <a href="/login" className="text-center text-sm underline-offset-4 hover:underline">
-        Back to sign in
+      <a href={loginPath} className="text-center text-sm underline-offset-4 hover:underline">
+        {t('Back to sign in')}
       </a>
     </form>
   );

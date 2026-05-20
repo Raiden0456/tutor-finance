@@ -4,6 +4,7 @@ import { CalendarRange } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useI18n } from '@/lib/i18n';
 
 export type PresetKey = '7d' | '30d' | '90d';
 export type RangeState =
@@ -35,9 +36,9 @@ export function resolveRange(r: RangeState): { from: Date; to: Date } {
   return { from, to };
 }
 
-export function rangeLabel(r: RangeState): string {
+export function rangeLabel(r: RangeState, locale?: string): string {
   if (r.kind === 'preset') return PRESET_LABELS[r.key];
-  const fmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
   return `${fmt.format(r.from)} – ${fmt.format(r.to)}`;
 }
 
@@ -60,13 +61,14 @@ export function RangeTabs({
   onChange: (r: RangeState) => void;
   groupId?: string;
 }) {
+  const { locale, t } = useI18n();
   const pillId = `range-tabs-pill-${groupId ?? 'default'}`;
   const [open, setOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     value.kind === 'custom' ? { from: value.from, to: value.to } : undefined,
   );
   const customActive = value.kind === 'custom';
-  const customLabel = customActive ? rangeLabel(value) : 'Custom';
+  const customLabel = customActive ? rangeLabel(value, locale) : t('Custom');
 
   function onCalendarSelect(r: DateRange | undefined) {
     setDateRange(r);
@@ -110,7 +112,7 @@ export function RangeTabs({
                 transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.6 }}
               />
             )}
-            <span className="relative z-10">{PRESET_LABELS[k]}</span>
+            <span className="relative z-10">{t(PRESET_LABELS[k])}</span>
           </button>
         );
       })}

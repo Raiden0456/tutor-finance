@@ -1,21 +1,12 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import {
-  Archive,
-  ChevronLeft,
-  Mail,
-  MessageSquare,
-  Pencil,
-  Phone,
-} from 'lucide-react';
+import { Archive, ChevronLeft, Mail, MessageSquare, Pencil, Phone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
+import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
 import { type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
-import {
-  ResponsiveModal,
-  ResponsiveModalTrigger,
-} from '@/components/ui/responsive-modal';
+import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
 import { LessonCard } from '@/components/lesson-card';
 import { StudentDialog } from '@/islands/students-island/student-dialog';
 import type { Lesson, Student } from '@/lib/types';
@@ -50,15 +41,25 @@ interface Props {
   totalIncome: number;
   primaryCurrency: Currency;
   backUrl?: string;
+  locale?: Locale;
 }
 
-export function StudentDetailIsland({
+export function StudentDetailIsland({ locale, ...props }: Props) {
+  return (
+    <I18nProvider locale={locale}>
+      <StudentDetailContent {...props} />
+    </I18nProvider>
+  );
+}
+
+function StudentDetailContent({
   student: initialStudent,
   lessons: initialLessons,
   totalIncome,
   primaryCurrency,
   backUrl = '/students',
-}: Props) {
+}: Omit<Props, 'locale'>) {
+  const { t } = useI18n();
   const [student, setStudent] = useState(initialStudent);
   const [lessons, setLessons] = useState(initialLessons);
   const [editOpen, setEditOpen] = useState(false);
@@ -100,7 +101,10 @@ export function StudentDetailIsland({
       if (owed <= 0) continue;
       map.set(currency, (map.get(currency) ?? 0) + owed);
     }
-    return Array.from(map.entries()).map(([currency, amount]) => ({ currency: currency as Currency, amount }));
+    return Array.from(map.entries()).map(([currency, amount]) => ({
+      currency: currency as Currency,
+      amount,
+    }));
   }, [lessons]);
 
   async function handleEditSubmit(form: HTMLFormElement) {
@@ -125,7 +129,7 @@ export function StudentDetailIsland({
   }
 
   async function handleArchive() {
-    if (!confirm('Archive this student?')) return;
+    if (!confirm(t('Archive this student?'))) return;
     await api.post(`/students/${student.id}/archive`);
     window.location.href = '/students';
   }
@@ -145,7 +149,7 @@ export function StudentDetailIsland({
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
-        {backUrl === '/students' ? 'Students' : 'Back'}
+        {backUrl === '/students' ? t('Students') : t('Back')}
       </a>
 
       {/* Profile card */}
@@ -162,19 +166,30 @@ export function StudentDetailIsland({
             <h2 className="truncate text-xl font-semibold">{student.name}</h2>
             <div className="mt-0.5 text-sm text-muted-foreground">
               {fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)}
-              <span className="ml-1 text-xs">/ hr</span>
+              <span className="ml-1 text-xs">{t('/ hr')}</span>
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
             <ResponsiveModal open={editOpen} onOpenChange={setEditOpen}>
               <ResponsiveModalTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => setEditOpen(true)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditOpen(true)}
+                  aria-label={t('Edit student')}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
               </ResponsiveModalTrigger>
               <StudentDialog editing={student} onSubmit={handleEditSubmit} />
             </ResponsiveModal>
-            <Button variant="ghost" size="icon" onClick={handleArchive} className="text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleArchive}
+              className="text-muted-foreground"
+              aria-label={t('Archive')}
+            >
               <Archive className="h-4 w-4" />
             </Button>
           </div>
@@ -213,14 +228,18 @@ export function StudentDetailIsland({
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total earned</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            {t('Total earned')}
+          </div>
           <div className="mt-1 text-lg font-semibold tabular-nums">
             {fmtMoney(totalIncome, primaryCurrency)}
           </div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">{primaryCurrency}</div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total due</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            {t('Total due')}
+          </div>
           {dueByCurrency.length === 0 ? (
             <div className="mt-1 text-lg font-semibold text-tf-jade">—</div>
           ) : (
@@ -239,7 +258,7 @@ export function StudentDetailIsland({
       {upcomingLessons.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Upcoming
+            {t('Upcoming')}
           </h3>
           <AnimatePresence initial={false}>
             {upcomingLessons.map((lesson) => (
@@ -250,11 +269,7 @@ export function StudentDetailIsland({
                 exit={{ opacity: 0, scale: 0.95, height: 0 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
-                <LessonCard
-                  lesson={lesson}
-                  studentName={student.name}
-                  onChanged={reloadLessons}
-                />
+                <LessonCard lesson={lesson} studentName={student.name} onChanged={reloadLessons} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -265,7 +280,7 @@ export function StudentDetailIsland({
       {recentLessons.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Recent
+            {t('Recent')}
           </h3>
           <AnimatePresence initial={false}>
             {recentLessons.map((lesson) => (
@@ -289,7 +304,7 @@ export function StudentDetailIsland({
       )}
 
       {upcomingLessons.length === 0 && recentLessons.length === 0 && (
-        <div className="py-12 text-center text-sm text-muted-foreground">No lessons yet</div>
+        <div className="py-12 text-center text-sm text-muted-foreground">{t('No lessons yet')}</div>
       )}
     </div>
   );

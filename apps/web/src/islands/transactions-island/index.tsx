@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { RangeTabs, resolveRange, rangeLabel, type RangeState } from '@/components/range-tabs';
+import { I18nProvider, useI18n } from '@/lib/i18n';
+import { RangeTabs, resolveRange, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import {
@@ -9,8 +10,6 @@ import {
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
 } from '@/components/ui/pagination';
 import { FinanceStat } from '@/components/finance-stat';
 import {
@@ -31,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, Plus } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import {
   fromMinorUnits,
@@ -72,9 +71,24 @@ interface Props {
   initialSummary: Summary;
   initialDailyStats: DailyFinanceStats[];
   students: StudentRef[];
+  locale?: string | null;
 }
 
-export function TransactionsIsland({
+function formatRangeLabel(range: RangeState, locale: string, t: (key: string) => string) {
+  if (range.kind === 'preset') return t(range.key);
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
+  return `${fmt.format(range.from)} – ${fmt.format(range.to)}`;
+}
+
+export function TransactionsIsland(props: Props) {
+  return (
+    <I18nProvider locale={props.locale}>
+      <TransactionsIslandContent {...props} />
+    </I18nProvider>
+  );
+}
+
+function TransactionsIslandContent({
   initial,
   primaryCurrency,
   initialRecurring,
@@ -82,6 +96,7 @@ export function TransactionsIsland({
   initialDailyStats,
   students,
 }: Props) {
+  const { locale, t } = useI18n();
   const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
@@ -160,13 +175,13 @@ export function TransactionsIsland({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([cat, amt], i) => ({
-        name: cat,
+        name: t(`category.${cat}`),
         amount: Math.round(fromMinorUnits(amt, currency) * 100) / 100,
         fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]!,
       }));
 
     return { pieData: pie, incomeExpenseSeries: dailyStats };
-  }, [txList, dailyStats, currency]);
+  }, [txList, dailyStats, currency, t]);
 
   const { totalExpense, totalIncome } = useMemo(() => {
     let expense = 0;
@@ -201,15 +216,17 @@ export function TransactionsIsland({
       <header className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="hidden text-xl font-semibold tracking-tight md:block">Transactions</h1>
+            <h1 className="hidden text-xl font-semibold tracking-tight md:block">
+              {t('Transactions')}
+            </h1>
             <p className="text-xs text-muted-foreground">
               {tab === 'transactions'
-                ? `${rangeLabel(range)} · ${txList.length} entries`
+                ? `${formatRangeLabel(range, locale, t)} · ${t('{count} entries', { count: txList.length })}`
                 : tab === 'recurring'
                   ? recurring.length === 0
-                    ? 'No recurring expenses'
-                    : `${recurring.length} rules`
-                  : 'Growth & period comparison'}
+                    ? t('No recurring expenses')
+                    : t('{count} rules', { count: recurring.length })
+                  : t('Growth & period comparison')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -237,12 +254,12 @@ export function TransactionsIsland({
               >
                 <ResponsiveModalTrigger asChild>
                   <Button>
-                    <Plus className="h-4 w-4" /> Add
+                    <Plus className="h-4 w-4" /> {t('Add')}
                   </Button>
                 </ResponsiveModalTrigger>
                 <ResponsiveModalContent className="max-w-md">
                   <ResponsiveModalHeader>
-                    <ResponsiveModalTitle>New transaction</ResponsiveModalTitle>
+                    <ResponsiveModalTitle>{t('New transaction')}</ResponsiveModalTitle>
                   </ResponsiveModalHeader>
                   <form
                     onSubmit={(e) => {
@@ -254,7 +271,7 @@ export function TransactionsIsland({
                     <ResponsiveModalBody className="grid gap-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
-                          <Label htmlFor="type">Type</Label>
+                          <Label htmlFor="type">{t('Type')}</Label>
                           <Select
                             name="type"
                             value={txType}
@@ -264,13 +281,13 @@ export function TransactionsIsland({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="income">Income</SelectItem>
-                              <SelectItem value="expense">Expense</SelectItem>
+                              <SelectItem value="income">{t('Income')}</SelectItem>
+                              <SelectItem value="expense">{t('Expense')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="occurredAt">Date</Label>
+                          <Label htmlFor="occurredAt">{t('Date')}</Label>
                           <Input
                             id="occurredAt"
                             name="occurredAt"
@@ -286,7 +303,7 @@ export function TransactionsIsland({
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
-                          <Label htmlFor="amount">Amount</Label>
+                          <Label htmlFor="amount">{t('Amount')}</Label>
                           <Input
                             id="amount"
                             name="amount"
@@ -297,7 +314,7 @@ export function TransactionsIsland({
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="currency">Currency</Label>
+                          <Label htmlFor="currency">{t('Currency')}</Label>
                           <Select name="currency" defaultValue={primaryCurrency}>
                             <SelectTrigger>
                               <SelectValue />
@@ -313,7 +330,7 @@ export function TransactionsIsland({
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="category">Category</Label>
+                        <Label htmlFor="category">{t('Category')}</Label>
                         <Select name="category" defaultValue="other" key={txType}>
                           <SelectTrigger id="category">
                             <SelectValue />
@@ -322,7 +339,7 @@ export function TransactionsIsland({
                             {(txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(
                               (c) => (
                                 <SelectItem key={c} value={c} className="capitalize">
-                                  {c}
+                                  {t(`category.${c}`)}
                                 </SelectItem>
                               ),
                             )}
@@ -330,13 +347,13 @@ export function TransactionsIsland({
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="description">Description</Label>
+                        <Label htmlFor="description">{t('Description')}</Label>
                         <Input id="description" name="description" />
                       </div>
                     </ResponsiveModalBody>
                     <ResponsiveModalFooter>
                       <Button type="submit" className="w-full sm:w-auto">
-                        Create
+                        {t('Create')}
                       </Button>
                     </ResponsiveModalFooter>
                   </form>
@@ -357,9 +374,9 @@ export function TransactionsIsland({
             onChange={setTab}
             groupId="tx-main"
             tabs={[
-              { key: 'transactions', label: 'Transactions' },
-              { key: 'recurring', label: 'Recurring' },
-              { key: 'analytics', label: 'Analytics' },
+              { key: 'transactions', label: t('Transactions') },
+              { key: 'recurring', label: t('Recurring') },
+              { key: 'analytics', label: t('Analytics') },
             ]}
           />
           <Collapse open={tab === 'transactions'} className="md:flex-1" duration={0.18}>
@@ -378,18 +395,22 @@ export function TransactionsIsland({
           >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <FinanceStat
-                label="Planned"
+                label={t('Planned')}
                 value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
                 tone="planned"
               />
-              <FinanceStat label="Income" value={fmtMoney(totalIncome, currency)} tone="income" />
               <FinanceStat
-                label="Expenses"
+                label={t('Income')}
+                value={fmtMoney(totalIncome, currency)}
+                tone="income"
+              />
+              <FinanceStat
+                label={t('Expenses')}
                 value={fmtMoney(totalExpense, currency)}
                 tone="expense"
               />
               <FinanceStat
-                label="Net"
+                label={t('Net')}
                 value={fmtMoney(totalIncome - totalExpense, currency)}
                 tone={totalIncome >= totalExpense ? 'income' : 'expense'}
               />
@@ -406,7 +427,7 @@ export function TransactionsIsland({
             <FadeSwap motionKey={txList.length === 0 ? 'empty' : 'list'}>
               {txList.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-                  No transactions in this period.
+                  {t('No transactions in this period.')}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -426,22 +447,28 @@ export function TransactionsIsland({
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
-                          <PaginationPrevious
+                          <PaginationLink
                             href="#"
                             aria-disabled={page === 1}
+                            aria-label={t('Go to previous page')}
+                            size="default"
                             className={
-                              page === 1 ? 'pointer-events-none opacity-50' : 'transition-opacity'
+                              'gap-1 px-2.5 sm:pl-2.5 ' +
+                              (page === 1 ? 'pointer-events-none opacity-50' : 'transition-opacity')
                             }
                             onClick={(e) => {
                               e.preventDefault();
                               setPage((current) => Math.max(1, current - 1));
                             }}
-                          />
+                          >
+                            <ChevronLeftIcon />
+                            <span className="hidden sm:block">{t('Previous')}</span>
+                          </PaginationLink>
                         </PaginationItem>
                         {pageItems.map((item, index) => (
                           <PaginationItem key={`${item}-${index}`}>
                             {item === 'ellipsis' ? (
-                              <PaginationEllipsis />
+                              <PaginationEllipsis aria-label={t('More pages')} />
                             ) : (
                               <PaginationLink
                                 href="#"
@@ -457,19 +484,25 @@ export function TransactionsIsland({
                           </PaginationItem>
                         ))}
                         <PaginationItem>
-                          <PaginationNext
+                          <PaginationLink
                             href="#"
                             aria-disabled={page === totalPages}
+                            aria-label={t('Go to next page')}
+                            size="default"
                             className={
-                              page === totalPages
+                              'gap-1 px-2.5 sm:pr-2.5 ' +
+                              (page === totalPages
                                 ? 'pointer-events-none opacity-50'
-                                : 'transition-opacity'
+                                : 'transition-opacity')
                             }
                             onClick={(e) => {
                               e.preventDefault();
                               setPage((current) => Math.min(totalPages, current + 1));
                             }}
-                          />
+                          >
+                            <span className="hidden sm:block">{t('Next')}</span>
+                            <ChevronRightIcon />
+                          </PaginationLink>
                         </PaginationItem>
                       </PaginationContent>
                     </Pagination>

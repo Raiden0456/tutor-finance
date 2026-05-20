@@ -13,6 +13,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { type SelectionMode, dayKey, monthKey, WEEK_START } from '../shared';
 
@@ -31,6 +32,8 @@ export function MonthGrid({
   onSelect: (day: Date) => void;
   onMonthChange: (date: Date) => void;
 }) {
+  const { locale } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(rangeStart));
   const selMonthKey = monthKey(rangeStart);
 
@@ -61,7 +64,7 @@ export function MonthGrid({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {format(viewMonth, 'MMMM yyyy')}
+          {format(viewMonth, 'MMMM yyyy', { locale: dateLocale })}
         </span>
         <button
           onClick={() => changeMonth(1)}
@@ -73,12 +76,12 @@ export function MonthGrid({
 
       {/* Weekday headers */}
       <div className="mb-1 grid grid-cols-7">
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+        {days.slice(0, 7).map((d, i) => (
           <div
             key={i}
             className="py-0.5 text-center text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60"
           >
-            {d}
+            {format(d, 'EEEEE', { locale: dateLocale })}
           </div>
         ))}
       </div>

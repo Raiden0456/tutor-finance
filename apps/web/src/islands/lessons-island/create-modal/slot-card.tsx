@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import {
   Select,
   SelectContent,
@@ -32,27 +33,30 @@ export function SlotCard({
   onChange: (patch: Partial<SlotDraft>) => void;
   onDelete: () => void;
 }) {
+  const { locale, t } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   return (
     <div
       onClick={onFocus}
       className={cn(
         'rounded-xl border p-2.5 transition-all duration-200',
-        isFocused ? 'border-primary/50 bg-primary/[0.03] shadow-sm' : 'border-border/50 bg-muted/20',
+        isFocused
+          ? 'border-primary/50 bg-primary/[0.03] shadow-sm'
+          : 'border-border/50 bg-muted/20',
         hasOverlap && 'border-amber-500/50 bg-amber-500/[0.05]',
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
         {/* Student */}
-        <Select
-          value={slot.studentId}
-          onValueChange={(v) => onChange({ studentId: v })}
-        >
+        <Select value={slot.studentId} onValueChange={(v) => onChange({ studentId: v })}>
           <SelectTrigger className="h-7 w-auto min-w-[100px] flex-1 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {students.map((s) => (
-              <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+              <SelectItem key={s.id} value={s.id} className="text-xs">
+                {s.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -68,7 +72,7 @@ export function SlotCard({
               : 'bg-muted text-foreground hover:bg-muted/70',
           )}
         >
-          {format(slot.date, 'd MMM EEE')}
+          {format(slot.date, 'd MMM EEE', { locale: dateLocale })}
         </button>
 
         {/* Time */}
@@ -88,7 +92,7 @@ export function SlotCard({
             onChange={(e) => onChange({ durationMin: Number(e.target.value) })}
             className="h-7 w-14 text-xs"
           />
-          <span className="text-xs text-muted-foreground">m</span>
+          <span className="text-xs text-muted-foreground">{t('m')}</span>
         </div>
 
         {/* Delete */}
@@ -119,7 +123,7 @@ export function SlotCard({
           >
             <div className="flex items-center gap-1.5 pt-2 text-[11px] text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-3 w-3 shrink-0" />
-              Time overlap detected
+              {t('Time overlap detected')}
             </div>
           </motion.div>
         )}

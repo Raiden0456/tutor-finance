@@ -2,6 +2,8 @@
 import '@/styles/globals.css';
 import Seo from '@/components/seo.astro';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { normalizeLocale } from '@/lib/i18n';
 
 interface Props {
   title?: string;
@@ -10,11 +12,13 @@ interface Props {
 }
 
 const { title = 'Uchetka', description, wide = false } = Astro.props;
+const locale = normalizeLocale(Astro.currentLocale);
+const path = new URL(Astro.request.url).pathname;
 const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -41,8 +45,9 @@ const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' |
     </script>
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
-    <div class="absolute right-4 top-4 z-50">
-      <ThemeToggle initialTheme={themeCookie} variant="button" client:load />
+    <div class="absolute right-4 top-4 z-50 flex items-center gap-2">
+      <LanguageSwitcher current={path} locale={locale} />
+      <ThemeToggle initialTheme={themeCookie} variant="button" locale={locale} client:load />
     </div>
     {
       wide ? (

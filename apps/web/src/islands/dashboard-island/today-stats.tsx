@@ -1,8 +1,7 @@
 import React from 'react';
 import type { RecentLesson } from '@/lib/types';
+import { useI18n } from '@/lib/i18n';
 import { statusLabel, statusStyles } from '@/lib/utils';
-
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
 export function MiniStat({
   value,
@@ -28,7 +27,16 @@ export function MiniStat({
   );
 }
 
-export function SectionHeader({ dot, label, count }: { dot: string; label: string; count: number }) {
+export function SectionHeader({
+  dot,
+  label,
+  count,
+}: {
+  dot: string;
+  label: string;
+  count: number;
+}) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -36,7 +44,7 @@ export function SectionHeader({ dot, label, count }: { dot: string; label: strin
         <span className="text-sm font-semibold">{label}</span>
       </div>
       <span className="text-xs text-muted-foreground">
-        {count} {count === 1 ? 'item' : 'items'}
+        {t(count === 1 ? '{count} item' : '{count} items', { count })}
       </span>
     </div>
   );
@@ -49,12 +57,14 @@ export function ProcessedLessonRow({
   lesson: RecentLesson;
   studentName: string;
 }) {
+  const { locale, t } = useI18n();
+  const timeFmt = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{studentName}</div>
         <div className="text-xs text-muted-foreground">
-          {timeFmt.format(new Date(lesson.startsAt))} · {lesson.durationMin} min
+          {timeFmt.format(new Date(lesson.startsAt))} · {lesson.durationMin} {t('min')}
         </div>
       </div>
       <span
@@ -63,7 +73,7 @@ export function ProcessedLessonRow({
           (statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground')
         }
       >
-        {statusLabel[lesson.status]}
+        {t(statusLabel[lesson.status])}
       </span>
     </div>
   );

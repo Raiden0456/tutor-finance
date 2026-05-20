@@ -2,18 +2,23 @@
 import AuthLayout from '@/layouts/AuthLayout.astro';
 import { LoginForm } from '@/islands/login-form';
 import { getServerSession } from '@/lib/auth-server';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const session = await getServerSession(cookie);
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 if (session.user) {
-  return Astro.redirect('/');
+  return Astro.redirect(locale === 'ru' ? '/ru' : '/');
 }
 ---
 
 <AuthLayout
-  title="Sign in"
-  description="Sign in to Uchetka, an Open-source finance tracker for tutors. Track lessons, students, payments, and income without spreadsheet hell."
+  title={t('Sign in')}
+  description={t(
+    'Sign in to Uchetka, an Open-source finance tracker for tutors. Track lessons, students, payments, and income without spreadsheet hell.',
+  )}
   wide
 >
-  <LoginForm client:load />
+  <LoginForm locale={locale} client:load />
 </AuthLayout>

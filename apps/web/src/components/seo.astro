@@ -1,5 +1,6 @@
 ---
 import { PUBLIC_APP_URL } from '@/lib/env';
+import { createTranslator } from '@/lib/i18n';
 
 interface Props {
   title?: string;
@@ -11,8 +12,10 @@ interface Props {
 }
 
 const appName = 'Uchetka';
-const defaultDescription =
-  'Open-source finance tracker for tutors: lessons, students, payments, and income in one clean dashboard.';
+const t = createTranslator(Astro.currentLocale);
+const defaultDescription = t(
+  'Open-source finance tracker for tutors: lessons, students, payments, and income in one clean dashboard.',
+);
 
 const {
   title = appName,
@@ -45,7 +48,7 @@ const locale = Astro.currentLocale === 'ru' ? 'ru_RU' : 'en_US';
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content={`${appName} finance tracker preview`} />
+<meta property="og:image:alt" content={t('{appName} finance tracker preview', { appName })} />
 
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={pageTitle} />

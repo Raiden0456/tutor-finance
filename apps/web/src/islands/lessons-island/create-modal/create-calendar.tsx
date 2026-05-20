@@ -11,6 +11,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { dayKey, monthKey, WEEK_START } from '../shared';
 
@@ -27,6 +28,8 @@ export function CreateCalendar({
   onSelect: (d: Date) => void;
   onMonthChange: (d: Date) => void;
 }) {
+  const { locale } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const gridStart = startOfWeek(viewMonth, WEEK_START);
   const gridEnd = endOfWeek(endOfMonth(viewMonth), WEEK_START);
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
@@ -43,7 +46,7 @@ export function CreateCalendar({
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
         <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-          {format(viewMonth, 'MMMM yyyy')}
+          {format(viewMonth, 'MMMM yyyy', { locale: dateLocale })}
         </span>
         <button
           type="button"
@@ -55,12 +58,12 @@ export function CreateCalendar({
       </div>
 
       <div className="mb-0.5 grid grid-cols-7">
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+        {days.slice(0, 7).map((d, i) => (
           <div
             key={i}
             className="py-0.5 text-center text-[9px] font-medium uppercase tracking-widest text-muted-foreground/50"
           >
-            {d}
+            {format(d, 'EEEEE', { locale: dateLocale })}
           </div>
         ))}
       </div>

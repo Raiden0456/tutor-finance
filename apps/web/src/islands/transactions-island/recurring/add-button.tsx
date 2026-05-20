@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import {
-  ResponsiveModal,
-  ResponsiveModalTrigger,
-} from '@/components/ui/responsive-modal';
+import { ResponsiveModal, ResponsiveModalTrigger } from '@/components/ui/responsive-modal';
 import { toMinorUnits, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
+import { useI18n } from '@/lib/i18n';
 import { RecurringFormDialog } from './form-dialog';
 
 export function RecurringAddButton({
@@ -17,6 +15,7 @@ export function RecurringAddButton({
   primaryCurrency: Currency;
   onCreated: (r: Recurring) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
   async function onCreate(form: HTMLFormElement) {
@@ -39,11 +38,11 @@ export function RecurringAddButton({
     <ResponsiveModal open={open} onOpenChange={setOpen}>
       <ResponsiveModalTrigger asChild>
         <Button>
-          <Plus className="h-4 w-4" /> Add
+          <Plus className="h-4 w-4" /> {t('Add')}
         </Button>
       </ResponsiveModalTrigger>
       <RecurringFormDialog
-        title="New recurring expense"
+        title={t('New recurring expense')}
         primaryCurrency={primaryCurrency}
         onSubmit={onCreate}
         onClose={() => setOpen(false)}

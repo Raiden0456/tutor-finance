@@ -2,10 +2,13 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { LessonDetailIsland } from '@/islands/lesson-detail-island';
 import { serverApi } from '@/lib/api';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 import type { Lesson, Student } from '@/lib/types';
 
 const { id } = Astro.params;
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 const api = serverApi(cookie);
 
 const lesson = await api.get<Lesson>(`/lessons/${id}`);
@@ -13,8 +16,11 @@ const student = await api.get<Student>(`/students/${lesson.studentId}`);
 ---
 
 <AppLayout
-  title={`Lesson with ${student.name}`}
-  description={`Lesson details for ${student.name}: schedule, payment status, notes, homework, and meeting link in Uchetka.`}
+  title={t('Lesson with {name}', { name: student.name })}
+  description={t(
+    'Lesson details for {name}: schedule, payment status, notes, homework, and meeting link in Uchetka.',
+    { name: student.name },
+  )}
 >
-  <LessonDetailIsland client:load lesson={lesson} student={student} />
+  <LessonDetailIsland client:load lesson={lesson} student={student} locale={locale} />
 </AppLayout>

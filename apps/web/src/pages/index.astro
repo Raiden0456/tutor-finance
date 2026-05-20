@@ -2,10 +2,13 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { DashboardIsland } from '@/islands/dashboard-island';
 import { serverApi } from '@/lib/api';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 import type { Summary, RecentLesson } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 
 const now = new Date();
 
@@ -45,8 +48,10 @@ for (const s of studentsList) studentNames[s.id] = s.name;
 ---
 
 <AppLayout
-  title="Dashboard"
-  description="Your tutor finance dashboard: upcoming lessons, daily stats, recent income, and student activity at a glance."
+  title={t('Dashboard')}
+  description={t(
+    'Your tutor finance dashboard: upcoming lessons, daily stats, recent income, and student activity at a glance.',
+  )}
 >
   <DashboardIsland
     client:load
@@ -54,5 +59,6 @@ for (const s of studentsList) studentNames[s.id] = s.name;
     nextLesson={nextLesson}
     todayLessons={todayLessons}
     studentNames={studentNames}
+    locale={locale}
   />
 </AppLayout>

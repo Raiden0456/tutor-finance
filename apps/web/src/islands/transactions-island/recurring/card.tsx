@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Pencil, Pause, Play, Repeat, Trash2 } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import type { Recurring } from '@/lib/types';
-import { FREQ_LABELS, dateFmt } from '../constants';
+import { useI18n } from '@/lib/i18n';
 
 export function RecurringCard({
   item,
@@ -16,6 +16,8 @@ export function RecurringCard({
   onEdit: (r: Recurring) => void;
   onDelete: (id: string) => void;
 }) {
+  const { locale, t } = useI18n();
+  const dateFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -43,17 +45,21 @@ export function RecurringCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="truncate text-sm font-medium capitalize">{item.category}</span>
+            <span className="truncate text-sm font-medium capitalize">
+              {t(`category.${item.category}`)}
+            </span>
             <span className="text-base font-semibold tabular-nums text-expense">
               -{fmtMoney(item.amount, item.currency)}
             </span>
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
-              {FREQ_LABELS[item.frequency]}
+              {t(item.frequency)}
             </span>
-            <span>Next: {dateFmt.format(new Date(item.nextDueAt))}</span>
-            {!item.isActive && <span className="text-muted-foreground/60">Paused</span>}
+            <span>
+              {t('Next')}: {dateFmt.format(new Date(item.nextDueAt))}
+            </span>
+            {!item.isActive && <span className="text-muted-foreground/60">{t('Paused')}</span>}
           </div>
           {item.description && (
             <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.description}</div>
@@ -64,7 +70,7 @@ export function RecurringCard({
             type="button"
             onClick={() => onToggle(item)}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label={item.isActive ? 'Pause' : 'Resume'}
+            aria-label={item.isActive ? t('Pause') : t('Resume')}
           >
             {item.isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </button>
@@ -72,7 +78,7 @@ export function RecurringCard({
             type="button"
             onClick={() => onEdit(item)}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Edit"
+            aria-label={t('Edit')}
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -83,7 +89,7 @@ export function RecurringCard({
               onClick={() => onDelete(item.id)}
               className="animate-in fade-in zoom-in-95 flex h-8 items-center gap-1 rounded-full bg-destructive/15 px-2 text-xs font-medium text-destructive transition-colors duration-150 hover:bg-destructive hover:text-destructive-foreground"
             >
-              Confirm
+              {t('Confirm')}
             </button>
           ) : (
             <button
@@ -92,7 +98,7 @@ export function RecurringCard({
               onClick={() => setConfirmDelete(true)}
               onBlur={() => setConfirmDelete(false)}
               className="animate-in fade-in zoom-in-95 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-destructive/15 hover:text-destructive"
-              aria-label="Delete"
+              aria-label={t('Delete')}
             >
               <Trash2 className="h-4 w-4" />
             </button>

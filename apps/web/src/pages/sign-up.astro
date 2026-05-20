@@ -1,11 +1,17 @@
 ---
 import AuthLayout from '@/layouts/AuthLayout.astro';
 import { SignupForm } from '@/islands/signup-form';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 ---
 
 <AuthLayout
-  title="Create account"
-  description="Create your Uchetka account and manage tutor lessons, students, payments, and income in one clean dashboard."
+  title={t('Create account')}
+  description={t(
+    'Create your Uchetka account and manage tutor lessons, students, payments, and income in one clean dashboard.',
+  )}
 >
-  <SignupForm client:load />
+  <SignupForm locale={locale} client:load />
 </AuthLayout>

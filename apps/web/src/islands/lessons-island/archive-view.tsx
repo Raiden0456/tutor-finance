@@ -11,6 +11,7 @@ import {
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal';
 import { LessonCard } from '@/components/lesson-card';
+import { useI18n } from '@/lib/i18n';
 import type { Lesson } from '@/lib/types';
 
 export function ArchiveView({
@@ -24,6 +25,7 @@ export function ArchiveView({
   loading: boolean;
   onRefresh: () => void;
 }) {
+  const { t } = useI18n();
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
 
@@ -42,7 +44,7 @@ export function ArchiveView({
     <div className="mt-4 space-y-3">
       <div className="flex items-center justify-between gap-2 px-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">Archive</span>
+          <span className="text-sm font-semibold">{t('Archive')}</span>
           {lessons.length > 0 && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {lessons.length}
@@ -56,14 +58,14 @@ export function ArchiveView({
             className="flex items-center gap-1.5 text-xs text-destructive transition-opacity hover:opacity-70 active:opacity-50"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Delete all
+            {t('Delete all')}
           </button>
         )}
       </div>
 
       {!loading && lessons.length === 0 ? (
         <div className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-sm text-muted-foreground">
-          No archived lessons
+          {t('No archived lessons')}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -82,24 +84,26 @@ export function ArchiveView({
       <ResponsiveModal open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
         <ResponsiveModalContent className="max-w-sm">
           <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Delete all archived?</ResponsiveModalTitle>
+            <ResponsiveModalTitle>{t('Delete all archived?')}</ResponsiveModalTitle>
           </ResponsiveModalHeader>
           <ResponsiveModalBody>
             <p className="text-sm text-muted-foreground">
-              This permanently deletes all {lessons.length} archived lesson
-              {lessons.length !== 1 ? 's' : ''}. This action cannot be undone.
+              {t(
+                'This permanently deletes all {count} archived lessons. This action cannot be undone.',
+                { count: lessons.length },
+              )}
             </p>
           </ResponsiveModalBody>
           <ResponsiveModalFooter>
             <Button variant="outline" onClick={() => setDeleteAllOpen(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               onClick={handleDeleteAll}
               disabled={deletingAll}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete all
+              {t('Delete all')}
             </Button>
           </ResponsiveModalFooter>
         </ResponsiveModalContent>

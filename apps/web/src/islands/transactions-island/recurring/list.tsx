@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { api } from '@/lib/api';
 import { FadeSwap } from '@/components/ui/collapse';
-import {
-  ResponsiveModal,
-} from '@/components/ui/responsive-modal';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { toMinorUnits, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { RecurringCard } from './card';
+import { useI18n } from '@/lib/i18n';
 import { RecurringFormDialog } from './form-dialog';
 
 export function RecurringList({
@@ -19,6 +18,7 @@ export function RecurringList({
   primaryCurrency: Currency;
   onChange: (items: Recurring[]) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState<Recurring | null>(null);
 
   async function handleToggle(item: Recurring) {
@@ -52,7 +52,7 @@ export function RecurringList({
     <FadeSwap motionKey={items.length === 0 ? 'empty' : 'list'}>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-          No recurring expenses yet. Add one to automate regular costs.
+          {t('No recurring expenses yet. Add one to automate regular costs.')}
         </div>
       ) : (
         <>
@@ -72,7 +72,7 @@ export function RecurringList({
           {editing && (
             <ResponsiveModal open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
               <RecurringFormDialog
-                title="Edit recurring expense"
+                title={t('Edit recurring expense')}
                 primaryCurrency={primaryCurrency}
                 defaults={editing}
                 onSubmit={(form) => handleEdit(form, editing.id)}

@@ -2,6 +2,7 @@ import { format, isSameDay } from 'date-fns';
 import { motion } from 'motion/react';
 import { Archive, CalendarRange, ChevronDown, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { SelectionMode } from '../shared';
 
@@ -30,6 +31,8 @@ export function CalendarHeader({
   onLog: () => void;
   disabledLog: boolean;
 }) {
+  const { locale, t } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const isRange = selectionMode === 'range' && rangeEnd && !isSameDay(rangeStart, rangeEnd);
 
   return (
@@ -41,7 +44,7 @@ export function CalendarHeader({
         aria-expanded={monthExpanded}
       >
         <span className="text-base font-semibold tracking-tight">
-          {format(rangeStart, 'MMMM yyyy')}
+          {format(rangeStart, 'MMMM yyyy', { locale: dateLocale })}
         </span>
         <motion.span
           animate={{ rotate: monthExpanded ? 180 : 0 }}
@@ -53,7 +56,8 @@ export function CalendarHeader({
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         {isRange && rangeEnd && (
           <span className="ml-1 truncate text-xs text-muted-foreground">
-            {format(rangeStart, 'd MMM')} – {format(rangeEnd, 'd MMM')}
+            {format(rangeStart, 'd MMM', { locale: dateLocale })} –{' '}
+            {format(rangeEnd, 'd MMM', { locale: dateLocale })}
           </span>
         )}
       </button>
@@ -62,7 +66,7 @@ export function CalendarHeader({
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={onToggleMode}
-          title={selectionMode === 'range' ? 'Single day mode' : 'Range mode'}
+          title={selectionMode === 'range' ? t('Single day mode') : t('Range mode')}
           className={cn(
             'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
             selectionMode === 'range'
@@ -74,7 +78,7 @@ export function CalendarHeader({
         </button>
         <button
           onClick={onToggleArchive}
-          title={showArchive ? 'Back to schedule' : 'View archive'}
+          title={showArchive ? t('Back to schedule') : t('View archive')}
           className={cn(
             'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
             showArchive
@@ -86,7 +90,7 @@ export function CalendarHeader({
         </button>
         <Button size="sm" disabled={disabledLog || showArchive} onClick={onLog}>
           <Plus className="h-4 w-4" />
-          Log
+          {t('Log')}
         </Button>
       </div>
     </div>

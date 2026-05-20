@@ -1,17 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { fmtMajor, fmtMoney } from '@/lib/format';
+import { I18nProvider, type Locale, useI18n } from '@/lib/i18n';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { detectMeetingProvider } from '@/lib/meeting';
 import { AnimatePresence, motion } from 'motion/react';
-import {
-  Ban,
-  Banknote,
-  CheckCircle2,
-  ChevronLeft,
-  MoreHorizontal,
-  UserX,
-} from 'lucide-react';
+import { Ban, Banknote, CheckCircle2, ChevronLeft, MoreHorizontal, UserX } from 'lucide-react';
 import { SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,14 +45,26 @@ function toLocalDateTimeValue(iso: string) {
 interface Props {
   lesson: Lesson;
   student: Student;
+  locale?: Locale;
 }
 
-export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
+export function LessonDetailIsland({ locale = 'en', ...props }: Props) {
+  return (
+    <I18nProvider locale={locale}>
+      <LessonDetailContent {...props} />
+    </I18nProvider>
+  );
+}
+
+function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'locale'>) {
+  const { t } = useI18n();
   const [lesson, setLesson] = useState(initialLesson);
   const [saving, setSaving] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
 
-  const [startsAtValue, setStartsAtValue] = useState(() => toLocalDateTimeValue(initialLesson.startsAt));
+  const [startsAtValue, setStartsAtValue] = useState(() =>
+    toLocalDateTimeValue(initialLesson.startsAt),
+  );
   const [durationMin, setDurationMin] = useState(String(initialLesson.durationMin));
   const [priceAmount, setPriceAmount] = useState(() =>
     initialLesson.effectivePrice
@@ -98,7 +104,16 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
     if (priceAmount !== savedAmount) return true;
     if (lesson.effectivePrice && priceCurrency !== lesson.effectivePrice.currency) return true;
     return false;
-  }, [startsAtValue, durationMin, notes, homework, meetingLink, priceAmount, priceCurrency, lesson]);
+  }, [
+    startsAtValue,
+    durationMin,
+    notes,
+    homework,
+    meetingLink,
+    priceAmount,
+    priceCurrency,
+    lesson,
+  ]);
 
   async function handleSave() {
     setSaving(true);
@@ -112,7 +127,10 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
       };
       const major = parseFloat(priceAmount);
       if (!isNaN(major) && major > 0) {
-        body.priceOverride = { amount: toMinorUnits(major, priceCurrency), currency: priceCurrency };
+        body.priceOverride = {
+          amount: toMinorUnits(major, priceCurrency),
+          currency: priceCurrency,
+        };
       }
       const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, body);
       setLesson(updated);
@@ -138,7 +156,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
-          Lessons
+          {t('Lessons')}
         </a>
         <span
           className={cn(
@@ -146,7 +164,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
             statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground',
           )}
         >
-          {statusLabel[lesson.status]}
+          {t(statusLabel[lesson.status])}
         </span>
       </div>
 
@@ -156,7 +174,9 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
         className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
       >
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Student</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('Student')}
+          </div>
           <div className="mt-0.5 truncate text-base font-semibold">{student.name}</div>
           {(student.email || student.phone) && (
             <div className="mt-0.5 truncate text-sm text-muted-foreground">
@@ -169,14 +189,14 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
 
       {/* Card 1 — Schedule */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border">
-        <FieldRow label="Date & time">
+        <FieldRow label={t('Date & time')}>
           <Input
             type="datetime-local"
             value={startsAtValue}
             onChange={(e) => setStartsAtValue(e.target.value)}
           />
         </FieldRow>
-        <FieldRow label="Duration (min)">
+        <FieldRow label={t('Duration (min)')}>
           <Input
             type="number"
             min="1"
@@ -188,22 +208,26 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
 
       {/* Card 2 — Price */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border">
-        <FieldRow label="Price override">
+        <FieldRow label={t('Price override')}>
           <Input
             type="number"
             min="0.01"
             step="0.01"
-            placeholder="Leave blank to use hourly rate"
+            placeholder={t('Leave blank to use hourly rate')}
             value={priceAmount}
             onChange={(e) => setPriceAmount(e.target.value)}
           />
         </FieldRow>
-        <FieldRow label="Currency">
+        <FieldRow label={t('Currency')}>
           <Select value={priceCurrency} onValueChange={(v) => setPriceCurrency(v as Currency)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {SUPPORTED_CURRENCIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -212,7 +236,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
 
       {/* Card 3 — Meeting & Notes */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border">
-        <FieldRow label={provider ? `Meeting link · ${provider}` : 'Meeting link'}>
+        <FieldRow label={provider ? `${t('Meeting link')} · ${provider}` : t('Meeting link')}>
           <Input
             type="url"
             placeholder="https://…"
@@ -220,21 +244,21 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
             onChange={(e) => setMeetingLink(e.target.value)}
           />
         </FieldRow>
-        <FieldRow label="Notes">
+        <FieldRow label={t('Notes')}>
           <textarea
             rows={4}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add a note…"
+            placeholder={t('Add a note…')}
             className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </FieldRow>
-        <FieldRow label="Homework">
+        <FieldRow label={t('Homework')}>
           <textarea
             rows={4}
             value={homework}
             onChange={(e) => setHomework(e.target.value)}
-            placeholder="Add homework…"
+            placeholder={t('Add homework…')}
             className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </FieldRow>
@@ -250,7 +274,7 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? t('Saving…') : t('Save changes')}
             </Button>
           </motion.div>
         )}
@@ -262,21 +286,19 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
           <button
             type="button"
             onClick={() =>
-              lesson.status === 'scheduled'
-                ? changeStatus('completed')
-                : changeStatus('paid')
+              lesson.status === 'scheduled' ? changeStatus('completed') : changeStatus('paid')
             }
             className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.96]"
           >
             {lesson.status === 'scheduled' ? (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                Mark as Completed
+                {t('Mark as Completed')}
               </>
             ) : (
               <>
                 <Banknote className="h-4 w-4" />
-                {lesson.status === 'partially_paid' ? 'Pay Remaining' : 'Mark as Paid'}
+                {lesson.status === 'partially_paid' ? t('Pay Remaining') : t('Mark as Paid')}
               </>
             )}
           </button>
@@ -294,19 +316,19 @@ export function LessonDetailIsland({ lesson: initialLesson, student }: Props) {
               {needsPayment(lesson.status) && (
                 <DropdownMenuItem onClick={() => setPartialOpen(true)}>
                   <Banknote className="mr-2 h-4 w-4" />
-                  Partial Payment
+                  {t('Partial Payment')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                 <UserX className="mr-2 h-4 w-4" />
-                No-show
+                {t('No-show')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => changeStatus('cancelled')}
                 className="text-destructive focus:text-destructive"
               >
                 <Ban className="mr-2 h-4 w-4" />
-                Cancel lesson
+                {t('Cancel lesson')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -338,13 +360,17 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 }
 
 function PartialModal({
-  open, onOpenChange, lesson, onSaved,
+  open,
+  onOpenChange,
+  lesson,
+  onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   lesson: Lesson;
   onSaved: (amount: number) => void;
 }) {
+  const { t } = useI18n();
   const [input, setInput] = useState('');
   const currency = lesson.effectivePrice?.currency ?? 'USD';
 
@@ -352,27 +378,34 @@ function PartialModal({
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent className="max-w-sm">
         <ResponsiveModalHeader>
-          <ResponsiveModalTitle>Partial Payment</ResponsiveModalTitle>
+          <ResponsiveModalTitle>{t('Partial Payment')}</ResponsiveModalTitle>
         </ResponsiveModalHeader>
         <ResponsiveModalBody className="grid gap-4">
           {lesson.effectivePrice && (
             <p className="text-sm text-muted-foreground">
-              Full price:{' '}
+              {t('Full price:')}{' '}
               <span className="font-medium text-foreground">
                 {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
               </span>
             </p>
           )}
           <div className="grid gap-2">
-            <Label>Amount received ({currency})</Label>
+            <Label>{t('Amount received ({currency})', { currency })}</Label>
             <Input
-              type="number" min="0.01" step="0.01" placeholder="0.00"
-              value={input} onChange={(e) => setInput(e.target.value)} autoFocus
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              autoFocus
             />
           </div>
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('Cancel')}
+          </Button>
           <Button
             disabled={!input}
             onClick={() => {
@@ -380,7 +413,7 @@ function PartialModal({
               if (!isNaN(major) && major > 0) onSaved(toMinorUnits(major, currency));
             }}
           >
-            Save
+            {t('Save')}
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>

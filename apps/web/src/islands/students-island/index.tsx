@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
+import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
@@ -22,9 +23,19 @@ interface Props {
   initial: Student[];
   transactions: IncomeTx[];
   primaryCurrency: Currency;
+  locale?: Locale;
 }
 
-export function StudentsIsland({ initial, transactions, primaryCurrency }: Props) {
+export function StudentsIsland({ locale, ...props }: Props) {
+  return (
+    <I18nProvider locale={locale}>
+      <StudentsContent {...props} />
+    </I18nProvider>
+  );
+}
+
+function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props, 'locale'>) {
+  const { t } = useI18n();
   const [students, setStudents] = useState(initial);
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
@@ -79,7 +90,7 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
   }
 
   async function archive(id: string) {
-    if (!confirm('Archive this student?')) return;
+    if (!confirm(t('Archive this student?'))) return;
     await api.post(`/students/${id}/archive`);
     setStudents((prev) => prev.filter((s) => s.id !== id));
   }
@@ -88,16 +99,16 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
     <div className="page-enter space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="hidden text-xl font-semibold tracking-tight md:block">Students</h1>
+          <h1 className="hidden text-xl font-semibold tracking-tight md:block">{t('Students')}</h1>
           <p className="text-xs text-muted-foreground">
-            {empty ? 'No students yet' : `${students.length} active`}
+            {empty ? t('No students yet') : t('{count} active', { count: students.length })}
           </p>
         </div>
         <ResponsiveModal open={open} onOpenChange={setOpen}>
           <ResponsiveModalTrigger asChild>
             <Button onClick={startCreate} size="default">
               <Plus className="h-4 w-4" />
-              <span>Add</span>
+              <span>{t('Add')}</span>
             </Button>
           </ResponsiveModalTrigger>
           <StudentDialog editing={editing} onSubmit={handleSubmit} />
@@ -107,16 +118,16 @@ export function StudentsIsland({ initial, transactions, primaryCurrency }: Props
       <Collapse open={topEarners.length > 0} className="p-1">
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Top earners · this month</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('Top earners · this month')}</CardTitle>
             <CardDescription className="text-xs">
-              Lesson income totals ({primaryCurrency})
+              {t('Lesson income totals ({currency})', { currency: primaryCurrency })}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={
                 {
-                  total: { label: 'Earned', color: 'var(--tf-indigo)' },
+                  total: { label: t('Earned'), color: 'var(--tf-indigo)' },
                   label: { color: 'var(--background)' },
                 } satisfies ChartConfig
               }

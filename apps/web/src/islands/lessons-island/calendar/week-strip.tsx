@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { addDays, format, isSameDay, isToday } from 'date-fns';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { type SelectionMode, dayKey } from '../shared';
 
@@ -24,6 +25,8 @@ export function WeekStrip({
   onToggleMonth: () => void;
   onWeekNav: (dir: 'prev' | 'next') => void;
 }) {
+  const { locale } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekViewStart, i)),
     [weekViewStart],
@@ -92,7 +95,7 @@ export function WeekStrip({
                     isActive ? 'opacity-60' : 'text-muted-foreground',
                   )}
                 >
-                  {format(day, 'EEE').charAt(0)}
+                  {format(day, 'EEEEE', { locale: dateLocale })}
                 </span>
                 <span
                   className={cn(

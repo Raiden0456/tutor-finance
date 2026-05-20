@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
 import { fromMinorUnits, type Currency } from '@tutor-finance/shared';
 import { api } from '@/lib/api';
 import { fmtMoney } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import type { Summary } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,13 +28,12 @@ import { TabSwitcher } from '../tab-switcher';
 
 type CompMode = 'growth' | 'dual';
 
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-
-function periodLabel(from: Date, to: Date) {
+function periodLabel(from: Date, to: Date, locale: string) {
+  const dateFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
   return `${dateFmt.format(from)} – ${dateFmt.format(to)}`;
 }
 
-function computeGrowthPeriods(range: RangeState) {
+function computeGrowthPeriods(range: RangeState, locale: string) {
   const { from: currFrom, to: currTo } = resolveRange(range);
   const days = Math.round((currTo.getTime() - currFrom.getTime()) / 86_400_000);
   const prevTo = new Date(currFrom);
@@ -41,11 +41,11 @@ function computeGrowthPeriods(range: RangeState) {
   const prevFrom = new Date(prevTo);
   prevFrom.setDate(prevFrom.getDate() - (days - 1));
   return {
-    curr: { from: currFrom, to: currTo, label: periodLabel(currFrom, currTo) },
+    curr: { from: currFrom, to: currTo, label: periodLabel(currFrom, currTo, locale) },
     prev: {
       from: startOfDay(prevFrom),
       to: endOfDay(prevTo),
-      label: periodLabel(prevFrom, prevTo),
+      label: periodLabel(prevFrom, prevTo, locale),
     },
   };
 }
@@ -61,10 +61,12 @@ function DeltaBadge({
   curr,
   prev,
   inverse = false,
+  newLabel,
 }: {
   curr: number;
   prev: number;
   inverse?: boolean;
+  newLabel: string;
 }) {
   const { pct, dir } = getDelta(curr, prev);
   const displayDir = inverse ? (dir === 'up' ? 'down' : dir === 'down' ? 'up' : 'flat') : dir;
@@ -81,7 +83,7 @@ function DeltaBadge({
   return (
     <span className={`flex items-center gap-1 text-xs font-medium ${color}`}>
       <Icon className="h-3.5 w-3.5" />
-      {pct !== null ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : 'New'}
+      {pct !== null ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : newLabel}
     </span>
   );
 }
@@ -95,10 +97,11 @@ function RangePicker({
   onChange: (r: DateRange | undefined) => void;
   placeholder: string;
 }) {
+  const { locale } = useI18n();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(value);
   const isSet = !!(value?.from && value?.to);
-  const label = isSet ? periodLabel(value!.from!, value!.to!) : placeholder;
+  const label = isSet ? periodLabel(value!.from!, value!.to!, locale) : placeholder;
 
   function onOpenChange(next: boolean) {
     if (next) {
@@ -147,6 +150,7 @@ function RangePicker({
 }
 
 export function ComparisonView({ currency }: { currency: Currency }) {
+  const { locale, t } = useI18n();
   const [mode, setMode] = useState<CompMode>('growth');
   const [growthRange, setGrowthRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [dualA, setDualA] = useState<DateRange | undefined>(() => {
@@ -167,24 +171,24 @@ export function ComparisonView({ currency }: { currency: Currency }) {
 
   const periods = useMemo(() => {
     if (mode === 'growth') {
-      return computeGrowthPeriods(growthRange);
+      return computeGrowthPeriods(growthRange, locale);
     }
     if (dualA?.from && dualA?.to && dualB?.from && dualB?.to) {
       return {
         curr: {
           from: startOfDay(dualA.from),
           to: endOfDay(dualA.to),
-          label: periodLabel(dualA.from, dualA.to),
+          label: periodLabel(dualA.from, dualA.to, locale),
         },
         prev: {
           from: startOfDay(dualB.from),
           to: endOfDay(dualB.to),
-          label: periodLabel(dualB.from, dualB.to),
+          label: periodLabel(dualB.from, dualB.to, locale),
         },
       };
     }
     return null;
-  }, [mode, growthRange, dualA, dualB]);
+  }, [mode, growthRange, dualA, dualB, locale]);
 
   useEffect(() => {
     if (!periods) {
@@ -228,17 +232,17 @@ export function ComparisonView({ currency }: { currency: Currency }) {
     summaryA && summaryB
       ? [
           {
-            metric: 'Income',
+            metric: t('Income'),
             a: Math.round(fromMinorUnits(summaryA.incomeInTargetCurrency, currency) * 100) / 100,
             b: Math.round(fromMinorUnits(summaryB.incomeInTargetCurrency, currency) * 100) / 100,
           },
           {
-            metric: 'Expenses',
+            metric: t('Expenses'),
             a: Math.round(fromMinorUnits(summaryA.expenseInTargetCurrency, currency) * 100) / 100,
             b: Math.round(fromMinorUnits(summaryB.expenseInTargetCurrency, currency) * 100) / 100,
           },
           {
-            metric: 'Net',
+            metric: t('Net'),
             a: Math.round(fromMinorUnits(summaryA.netInTargetCurrency, currency) * 100) / 100,
             b: Math.round(fromMinorUnits(summaryB.netInTargetCurrency, currency) * 100) / 100,
           },
@@ -246,29 +250,29 @@ export function ComparisonView({ currency }: { currency: Currency }) {
       : [];
 
   const compChartConfig: ChartConfig = {
-    a: { label: mode === 'growth' ? 'Current' : 'Period A', color: 'var(--tf-jade)' },
-    b: { label: mode === 'growth' ? 'Previous' : 'Period B', color: 'var(--tf-teal)' },
+    a: { label: mode === 'growth' ? t('Current') : t('Period A'), color: 'var(--tf-jade)' },
+    b: { label: mode === 'growth' ? t('Previous') : t('Period B'), color: 'var(--tf-teal)' },
   };
 
   const metrics =
     summaryA && summaryB
       ? [
           {
-            label: 'Income',
+            label: t('Income'),
             a: summaryA.incomeInTargetCurrency,
             b: summaryB.incomeInTargetCurrency,
             color: 'text-income' as const,
             inverse: false,
           },
           {
-            label: 'Expenses',
+            label: t('Expenses'),
             a: summaryA.expenseInTargetCurrency,
             b: summaryB.expenseInTargetCurrency,
             color: 'text-expense' as const,
             inverse: true,
           },
           {
-            label: 'Net',
+            label: t('Net'),
             a: summaryA.netInTargetCurrency,
             b: summaryB.netInTargetCurrency,
             color: (summaryA.netInTargetCurrency >= 0 ? 'text-income' : 'text-expense') as
@@ -287,8 +291,8 @@ export function ComparisonView({ currency }: { currency: Currency }) {
         onChange={setMode}
         groupId="comparison-mode"
         tabs={[
-          { key: 'growth', label: 'Growth' },
-          { key: 'dual', label: 'Compare Periods' },
+          { key: 'growth', label: t('Growth') },
+          { key: 'dual', label: t('Compare Periods') },
         ]}
       />
 
@@ -302,14 +306,14 @@ export function ComparisonView({ currency }: { currency: Currency }) {
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ background: 'var(--tf-jade)' }}
               />
-              Current: {periods?.curr.label}
+              {t('Current')}: {periods?.curr.label}
             </span>
             <span className="flex items-center gap-1.5">
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ background: 'var(--tf-teal)' }}
               />
-              Previous: {periods?.prev.label}
+              {t('Previous')}: {periods?.prev.label}
             </span>
           </div>
         </div>
@@ -323,9 +327,9 @@ export function ComparisonView({ currency }: { currency: Currency }) {
               />
               A
             </span>
-            <RangePicker value={dualA} onChange={setDualA} placeholder="Pick Period A" />
+            <RangePicker value={dualA} onChange={setDualA} placeholder={t('Pick Period A')} />
           </div>
-          <span className="text-xs text-muted-foreground">vs</span>
+          <span className="text-xs text-muted-foreground">{t('vs')}</span>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <span
@@ -334,7 +338,7 @@ export function ComparisonView({ currency }: { currency: Currency }) {
               />
               B
             </span>
-            <RangePicker value={dualB} onChange={setDualB} placeholder="Pick Period B" />
+            <RangePicker value={dualB} onChange={setDualB} placeholder={t('Pick Period B')} />
           </div>
         </div>
       )}
@@ -355,7 +359,7 @@ export function ComparisonView({ currency }: { currency: Currency }) {
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{fmtMoney(b, currency)}</span>
-                <DeltaBadge curr={a} prev={b} inverse={inverse} />
+                <DeltaBadge curr={a} prev={b} inverse={inverse} newLabel={t('New')} />
               </div>
             </div>
           ))}
@@ -364,7 +368,7 @@ export function ComparisonView({ currency }: { currency: Currency }) {
         !loading &&
         mode === 'dual' && (
           <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-            Select both periods to compare.
+            {t('Select both periods to compare.')}
           </div>
         )
       )}
@@ -373,9 +377,10 @@ export function ComparisonView({ currency }: { currency: Currency }) {
       <Collapse open={chartData.length > 0}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Period Comparison</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('Period Comparison')}</CardTitle>
             <CardDescription className="text-xs">
-              {mode === 'growth' ? 'Current vs Previous' : 'Period A vs Period B'} ({currency})
+              {mode === 'growth' ? t('Current vs Previous') : t('Period A vs Period B')} ({currency}
+              )
             </CardDescription>
           </CardHeader>
           <CardContent>

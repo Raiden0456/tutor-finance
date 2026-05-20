@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import type { Tx } from '@/lib/types';
 import type { Currency } from '@tutor-finance/shared';
-import { dateFmt } from './constants';
+import { useI18n } from '@/lib/i18n';
 
 export function TxCard({
   tx,
@@ -13,6 +13,8 @@ export function TxCard({
   primaryCurrency: Currency;
   studentMap: Map<string, string>;
 }) {
+  const { locale, t } = useI18n();
+  const dateFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
   const isIncome = tx.type === 'income';
   const Icon = isIncome ? ArrowUpRight : ArrowDownRight;
   const accent = isIncome ? 'text-income' : 'text-expense';
@@ -34,7 +36,9 @@ export function TxCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium capitalize">{tx.category}</div>
+              <div className="truncate text-sm font-medium capitalize">
+                {t(`category.${tx.category}`)}
+              </div>
               {studentName && (
                 <div className="truncate text-xs text-muted-foreground">{studentName}</div>
               )}

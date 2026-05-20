@@ -2,15 +2,20 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { SettingsIsland } from '@/islands/settings-island';
 import { serverApi } from '@/lib/api';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 import type { Settings } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 const initial = await serverApi(cookie).get<Settings>('/settings/me');
 ---
 
 <AppLayout
-  title="Settings"
-  description="Configure your Uchetka account, tutor finance preferences, currency, and profile settings."
+  title={t('Settings')}
+  description={t(
+    'Configure your Uchetka account, tutor finance preferences, currency, and profile settings.',
+  )}
 >
-  <SettingsIsland client:load initial={initial} />
+  <SettingsIsland client:load initial={initial} locale={locale} />
 </AppLayout>

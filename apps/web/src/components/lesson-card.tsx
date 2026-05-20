@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { fmtMajor, fmtMoney } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import { SUPPORTED_CURRENCIES, toMinorUnits, type Currency } from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,7 +48,9 @@ import {
 import { detectMeetingProvider } from '@/lib/meeting';
 import type { Lesson } from '@/lib/types';
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+function createTimeFmt(locale: string) {
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
+}
 
 export function needsPayment(status: Lesson['status']) {
   return status === 'due' || status === 'partially_paid' || status === 'completed';
@@ -72,7 +75,17 @@ export interface LessonCardProps {
   onDeleted?: () => void;
 }
 
-export function LessonCard({ lesson: initialLesson, studentName, overlapping, isArchived, onChanged, onArchived, onDeleted }: LessonCardProps) {
+export function LessonCard({
+  lesson: initialLesson,
+  studentName,
+  overlapping,
+  isArchived,
+  onChanged,
+  onArchived,
+  onDeleted,
+}: LessonCardProps) {
+  const { locale, t } = useI18n();
+  const timeFmt = createTimeFmt(locale);
   const [lesson, setLesson] = useState(initialLesson);
   const [scheduledVisible, setScheduledVisible] = useState(
     () => initialLesson.status === 'scheduled',
@@ -114,10 +127,12 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
   }
 
   return (
-    <div className={cn(
-      'animate-in fade-in slide-in-from-bottom-2 rounded-2xl border bg-card p-4 shadow-sm duration-300',
-      overlapping ? 'border-amber-500/50 bg-amber-500/[0.03]' : 'border-border',
-    )}>
+    <div
+      className={cn(
+        'animate-in fade-in slide-in-from-bottom-2 rounded-2xl border bg-card p-4 shadow-sm duration-300',
+        overlapping ? 'border-amber-500/50 bg-amber-500/[0.03]' : 'border-border',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-medium">{studentName}</div>
@@ -126,7 +141,9 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
             <Clock className="h-3.5 w-3.5" />
             <span>{timeFmt.format(new Date(lesson.startsAt))}</span>
             <span>·</span>
-            <span>{lesson.durationMin} min</span>
+            <span>
+              {lesson.durationMin} {t('min')}
+            </span>
           </div>
           {lesson.effectivePrice && lesson.status !== 'partially_paid' && (
             <div className="mt-1 text-xs text-muted-foreground">
@@ -137,8 +154,10 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
             lesson.paidAmount !== null &&
             lesson.effectivePrice && (
               <div className="mt-1 text-xs text-tf-coral">
-                Paid {fmtMoney(lesson.paidAmount, lesson.effectivePrice.currency)} of{' '}
-                {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
+                {t('Paid {paid} of {total}', {
+                  paid: fmtMoney(lesson.paidAmount, lesson.effectivePrice.currency),
+                  total: fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency),
+                })}
               </div>
             )}
           {lesson.notes ? (
@@ -172,7 +191,7 @@ export function LessonCard({ lesson: initialLesson, studentName, overlapping, is
               statusStyles[lesson.status] ?? 'bg-muted text-muted-foreground',
             )}
           >
-            {statusLabel[lesson.status]}
+            {t(statusLabel[lesson.status])}
           </span>
           <LessonCardMenu
             lesson={lesson}
@@ -249,6 +268,7 @@ function LessonCardMenu({
   onArchived?: () => void;
   onDeleted?: () => void;
 }) {
+  const { t } = useI18n();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -290,13 +310,13 @@ function LessonCardMenu({
           <DropdownMenuItem asChild>
             <a href={`/lessons/${lesson.id}`}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              View details
+              {t('View details')}
             </a>
           </DropdownMenuItem>
           {!isArchived && (
             <DropdownMenuItem onClick={handleArchive} disabled={busy}>
               <Archive className="mr-2 h-4 w-4" />
-              Archive
+              {t('Archive')}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
@@ -304,7 +324,7 @@ function LessonCardMenu({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('Delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -312,25 +332,25 @@ function LessonCardMenu({
       <ResponsiveModal open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <ResponsiveModalContent className="max-w-sm">
           <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Delete lesson?</ResponsiveModalTitle>
+            <ResponsiveModalTitle>{t('Delete lesson?')}</ResponsiveModalTitle>
           </ResponsiveModalHeader>
           <ResponsiveModalBody>
             <p className="text-sm text-muted-foreground">
-              This permanently deletes the lesson
-              {isPaid ? ' and its income transaction' : ''}.
-              This action cannot be undone.
+              {t('This permanently deletes the lesson')}
+              {isPaid ? ` ${t('and its income transaction')}` : ''}.{' '}
+              {t('This action cannot be undone.')}
             </p>
           </ResponsiveModalBody>
           <ResponsiveModalFooter>
             <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               onClick={handleDelete}
               disabled={busy}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('Delete')}
             </Button>
           </ResponsiveModalFooter>
         </ResponsiveModalContent>
@@ -348,6 +368,7 @@ export function DuePaymentActions({
   onComplete: (status: Lesson['status'], paidAmount?: number | null) => void;
   onEditDetailsClick: () => void;
 }) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
   const [labelSuccess, setLabelSuccess] = useState(false);
@@ -407,12 +428,12 @@ export function DuePaymentActions({
             {labelSuccess ? (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                Paid
+                {t('Paid')}
               </>
             ) : (
               <>
                 <Banknote className="h-4 w-4" />
-                {isPartial ? 'Pay Remaining' : 'Mark as Paid'}
+                {isPartial ? t('Pay Remaining') : t('Mark as Paid')}
               </>
             )}
           </span>
@@ -437,24 +458,24 @@ export function DuePaymentActions({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setPartialOpen(true)}>
                   <Banknote className="mr-2 h-4 w-4" />
-                  Partial Payment
+                  {t('Partial Payment')}
                 </DropdownMenuItem>
                 {canEditDetails && (
                   <DropdownMenuItem onClick={onEditDetailsClick}>
                     <PencilLine className="mr-2 h-4 w-4" />
-                    Edit Details
+                    {t('Edit Details')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                   <UserX className="mr-2 h-4 w-4" />
-                  No-show
+                  {t('No-show')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => changeStatus('cancelled')}
                   className="text-destructive focus:text-destructive"
                 >
                   <Ban className="mr-2 h-4 w-4" />
-                  Cancel lesson
+                  {t('Cancel lesson')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -465,17 +486,17 @@ export function DuePaymentActions({
       <ResponsiveModal open={partialOpen} onOpenChange={setPartialOpen}>
         <ResponsiveModalContent className="max-w-sm">
           <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Partial Payment</ResponsiveModalTitle>
+            <ResponsiveModalTitle>{t('Partial Payment')}</ResponsiveModalTitle>
           </ResponsiveModalHeader>
           <ResponsiveModalBody className="grid gap-4">
             {fullFormatted && (
               <p className="text-sm text-muted-foreground">
-                Full lesson price:{' '}
+                {t('Full lesson price:')}{' '}
                 <span className="font-medium text-foreground">{fullFormatted}</span>
               </p>
             )}
             <div className="grid gap-2">
-              <Label>Amount received ({effectiveCurrency})</Label>
+              <Label>{t('Amount received ({currency})', { currency: effectiveCurrency })}</Label>
               <Input
                 type="number"
                 min="0.01"
@@ -489,10 +510,10 @@ export function DuePaymentActions({
           </ResponsiveModalBody>
           <ResponsiveModalFooter>
             <Button variant="outline" onClick={() => setPartialOpen(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button onClick={submitPartial} disabled={!partialInput}>
-              Save
+              {t('Save')}
             </Button>
           </ResponsiveModalFooter>
         </ResponsiveModalContent>
@@ -512,6 +533,7 @@ export function ScheduledActions({
   onRescheduled?: () => void;
   onEditDetailsClick: () => void;
 }) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<'idle' | 'success'>('idle');
   const [labelVisible, setLabelVisible] = useState(true);
   const [labelSuccess, setLabelSuccess] = useState(false);
@@ -567,12 +589,12 @@ export function ScheduledActions({
             {labelSuccess ? (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                Completed
+                {t('Completed')}
               </>
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                Mark as Completed
+                {t('Mark as Completed')}
               </>
             )}
           </span>
@@ -589,7 +611,7 @@ export function ScheduledActions({
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
-            title="Join meeting"
+            title={t('Join meeting')}
           >
             <Video className="h-4 w-4" />
           </a>
@@ -613,22 +635,22 @@ export function ScheduledActions({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setRescheduleOpen(true)}>
                 <CalendarClock className="mr-2 h-4 w-4" />
-                Reschedule
+                {t('Reschedule')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEditDetailsClick}>
                 <PencilLine className="mr-2 h-4 w-4" />
-                Edit Details
+                {t('Edit Details')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => changeStatus('no_show')}>
                 <UserX className="mr-2 h-4 w-4" />
-                No-show
+                {t('No-show')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => changeStatus('cancelled')}
                 className="text-destructive focus:text-destructive"
               >
                 <Ban className="mr-2 h-4 w-4" />
-                Cancel lesson
+                {t('Cancel lesson')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -638,7 +660,7 @@ export function ScheduledActions({
       <ResponsiveModal open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
         <ResponsiveModalContent className="max-w-sm">
           <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Reschedule lesson</ResponsiveModalTitle>
+            <ResponsiveModalTitle>{t('Reschedule lesson')}</ResponsiveModalTitle>
           </ResponsiveModalHeader>
           <form
             onSubmit={(e) => {
@@ -649,7 +671,7 @@ export function ScheduledActions({
           >
             <ResponsiveModalBody className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="reschedule-startsAt">New date &amp; time</Label>
+                <Label htmlFor="reschedule-startsAt">{t('New date & time')}</Label>
                 <Input
                   id="reschedule-startsAt"
                   name="startsAt"
@@ -659,7 +681,7 @@ export function ScheduledActions({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="reschedule-duration">Duration (min)</Label>
+                <Label htmlFor="reschedule-duration">{t('Duration (min)')}</Label>
                 <Input
                   id="reschedule-duration"
                   name="durationMin"
@@ -672,9 +694,9 @@ export function ScheduledActions({
             </ResponsiveModalBody>
             <ResponsiveModalFooter>
               <Button variant="outline" type="button" onClick={() => setRescheduleOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t('Save')}</Button>
             </ResponsiveModalFooter>
           </form>
         </ResponsiveModalContent>
@@ -699,6 +721,7 @@ export function EditDetailsModal({
     meetingLink?: string | null;
   }) => void;
 }) {
+  const { t } = useI18n();
   const [notes, setNotes] = useState('');
   const [homework, setHomework] = useState('');
   const [meetingLink, setMeetingLink] = useState('');
@@ -748,33 +771,33 @@ export function EditDetailsModal({
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent className="max-w-sm">
         <ResponsiveModalHeader>
-          <ResponsiveModalTitle>Edit Details</ResponsiveModalTitle>
+          <ResponsiveModalTitle>{t('Edit Details')}</ResponsiveModalTitle>
         </ResponsiveModalHeader>
         <ResponsiveModalBody className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="edit-notes">Notes</Label>
+            <Label htmlFor="edit-notes">{t('Notes')}</Label>
             <textarea
               id="edit-notes"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add a note…"
+              placeholder={t('Add a note…')}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="edit-homework">Homework</Label>
+            <Label htmlFor="edit-homework">{t('Homework')}</Label>
             <textarea
               id="edit-homework"
               rows={3}
               value={homework}
               onChange={(e) => setHomework(e.target.value)}
-              placeholder="Add homework…"
+              placeholder={t('Add homework…')}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="edit-link">Meeting link</Label>
+            <Label htmlFor="edit-link">{t('Meeting link')}</Label>
             <Input
               id="edit-link"
               type="url"
@@ -784,7 +807,7 @@ export function EditDetailsModal({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Price override</Label>
+            <Label>{t('Price override')}</Label>
             <div className="grid grid-cols-[auto_1fr] gap-2">
               <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
                 <SelectTrigger className="w-24">
@@ -811,9 +834,9 @@ export function EditDetailsModal({
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('Cancel')}
           </Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave}>{t('Save')}</Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
     </ResponsiveModal>

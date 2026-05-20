@@ -10,6 +10,7 @@ import {
   subDays,
 } from 'date-fns';
 import { api } from '@/lib/api';
+import { I18nProvider, type Locale } from '@/lib/i18n';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import type { Lesson, StudentRef } from '@/lib/types';
 import { dayKey, monthKey, WEEK_START } from './shared';
@@ -24,9 +25,18 @@ interface Props {
   initial: Lesson[];
   students: StudentRef[];
   initialMonthStr: string;
+  locale?: Locale;
 }
 
-export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
+export function LessonsIsland({ locale = 'en', ...props }: Props) {
+  return (
+    <I18nProvider locale={locale}>
+      <LessonsContent {...props} />
+    </I18nProvider>
+  );
+}
+
+function LessonsContent({ initial, students, initialMonthStr }: Omit<Props, 'locale'>) {
   const todayDate = useMemo(() => startOfDay(new Date()), []);
 
   const [selectionMode, setSelectionMode] = useState<'single' | 'range'>('single');
@@ -96,7 +106,9 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
   const loadArchive = useCallback(async () => {
     setLoadingArchive(true);
     try {
-      const data = await api.get<Lesson[]>('/lessons', { query: { showArchived: 'true', limit: '500' } });
+      const data = await api.get<Lesson[]>('/lessons', {
+        query: { showArchived: 'true', limit: '500' },
+      });
       setArchivedLessons(data);
     } finally {
       setLoadingArchive(false);
@@ -166,14 +178,17 @@ export function LessonsIsland({ initial, students, initialMonthStr }: Props) {
     setCreateOpen(true);
   }
 
-  const handleModalCreated = useCallback(async (affectedDates: Date[]) => {
-    const distinctMonths = [...new Set(affectedDates.map((d) => monthKey(d)))];
-    for (const mk of distinctMonths) loadedMonthsRef.current.delete(mk);
-    const uniqueDates = affectedDates.filter(
-      (d, i, arr) => arr.findIndex((x) => monthKey(x) === monthKey(d)) === i,
-    );
-    await Promise.all(uniqueDates.map((d) => loadMonth(d, true)));
-  }, [loadMonth]);
+  const handleModalCreated = useCallback(
+    async (affectedDates: Date[]) => {
+      const distinctMonths = [...new Set(affectedDates.map((d) => monthKey(d)))];
+      for (const mk of distinctMonths) loadedMonthsRef.current.delete(mk);
+      const uniqueDates = affectedDates.filter(
+        (d, i, arr) => arr.findIndex((x) => monthKey(x) === monthKey(d)) === i,
+      );
+      await Promise.all(uniqueDates.map((d) => loadMonth(d, true)));
+    },
+    [loadMonth],
+  );
 
   return (
     <div className="page-enter flex flex-col">

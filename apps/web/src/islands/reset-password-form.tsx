@@ -1,11 +1,19 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { resetPassword } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
-export function ResetPasswordForm() {
+type ResetPasswordFormProps = {
+  locale: Locale;
+};
+
+export function ResetPasswordForm({ locale }: ResetPasswordFormProps) {
+  const t = useMemo(() => createTranslator(locale), [locale]);
+  const loginPath = localizePath('/login', locale);
+  const forgotPasswordPath = localizePath('/forgot-password', locale);
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,20 +27,20 @@ export function ResetPasswordForm() {
     const errorParam = url.searchParams.get('error');
     setToken(tokenParam);
     if (errorParam) {
-      setError('This reset link is invalid or expired. Request a new one.');
+      setError(t('This reset link is invalid or expired. Request a new one.'));
     } else if (!tokenParam) {
-      setError('Missing reset token. Use the link from your email.');
+      setError(t('Missing reset token. Use the link from your email.'));
     }
-  }, []);
+  }, [t]);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!token) {
-      setError('Missing or invalid reset token');
+      setError(t('Missing or invalid reset token'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('Passwords do not match'));
       return;
     }
     setError(null);
@@ -40,7 +48,7 @@ export function ResetPasswordForm() {
     const res = await resetPassword({ newPassword: password, token });
     setLoading(false);
     if (res.error) {
-      setError(res.error.message ?? 'Could not reset password');
+      setError(res.error.message ?? t('Could not reset password'));
       return;
     }
     setDone(true);
@@ -49,9 +57,9 @@ export function ResetPasswordForm() {
   if (done) {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col gap-4 text-center text-sm duration-300">
-        <p>Password updated. You can now sign in.</p>
-        <a href="/login" className="underline-offset-4 hover:underline">
-          Go to sign in
+        <p>{t('Password updated. You can now sign in.')}</p>
+        <a href={loginPath} className="underline-offset-4 hover:underline">
+          {t('Go to sign in')}
         </a>
       </div>
     );
@@ -60,7 +68,7 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">New password</Label>
+        <Label htmlFor="password">{t('New password')}</Label>
         <PasswordInput
           id="password"
           autoComplete="new-password"
@@ -71,7 +79,7 @@ export function ResetPasswordForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Label htmlFor="confirmPassword">{t('Confirm password')}</Label>
         <PasswordInput
           id="confirmPassword"
           autoComplete="new-password"
@@ -86,16 +94,16 @@ export function ResetPasswordForm() {
           <p className="text-sm text-destructive">{error}</p>
           {!token ? (
             <a
-              href="/forgot-password"
+              href={forgotPasswordPath}
               className="text-sm underline-offset-4 transition-colors duration-200 hover:underline"
             >
-              Request a new reset link
+              {t('Request a new reset link')}
             </a>
           ) : null}
         </div>
       </Collapse>
       <Button type="submit" disabled={loading || !token}>
-        {loading ? 'Updating…' : 'Update password'}
+        {loading ? t('Updating…') : t('Update password')}
       </Button>
     </form>
   );

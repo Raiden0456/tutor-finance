@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/responsive-modal';
 import { fromMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
-import { EXPENSE_CATEGORIES } from '../constants';
+import { useI18n } from '@/lib/i18n';
+import { EXPENSE_CATEGORIES, FREQUENCIES } from '../constants';
 
 export function RecurringFormDialog({
   title,
@@ -33,9 +34,10 @@ export function RecurringFormDialog({
   onSubmit: (form: HTMLFormElement) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: { preventDefault: () => void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -63,7 +65,7 @@ export function RecurringFormDialog({
         <ResponsiveModalBody className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="rec-amount">Amount</Label>
+              <Label htmlFor="rec-amount">{t('Amount')}</Label>
               <Input
                 id="rec-amount"
                 name="amount"
@@ -75,7 +77,7 @@ export function RecurringFormDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="rec-currency">Currency</Label>
+              <Label htmlFor="rec-currency">{t('Currency')}</Label>
               <Select name="currency" defaultValue={defaultCurrency}>
                 <SelectTrigger id="rec-currency">
                   <SelectValue />
@@ -91,25 +93,22 @@ export function RecurringFormDialog({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="rec-category">Category</Label>
-            <Select
-              name="category"
-              defaultValue={defaults?.category ?? EXPENSE_CATEGORIES[0]}
-            >
+            <Label htmlFor="rec-category">{t('Category')}</Label>
+            <Select name="category" defaultValue={defaults?.category ?? EXPENSE_CATEGORIES[0]}>
               <SelectTrigger id="rec-category">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c} className="capitalize">
-                    {c}
+                    {t(`category.${c}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="rec-description">Description</Label>
+            <Label htmlFor="rec-description">{t('Description')}</Label>
             <Input
               id="rec-description"
               name="description"
@@ -118,21 +117,22 @@ export function RecurringFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="rec-frequency">Frequency</Label>
+              <Label htmlFor="rec-frequency">{t('Frequency')}</Label>
               <Select name="frequency" defaultValue={defaults?.frequency ?? 'monthly'}>
                 <SelectTrigger id="rec-frequency">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  {FREQUENCIES.map((frequency) => (
+                    <SelectItem key={frequency} value={frequency}>
+                      {t(frequency)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="rec-start">Start date</Label>
+              <Label htmlFor="rec-start">{t('Start date')}</Label>
               <Input
                 id="rec-start"
                 name="startDate"
@@ -145,7 +145,7 @@ export function RecurringFormDialog({
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-            Save
+            {t('Save')}
           </Button>
         </ResponsiveModalFooter>
       </form>

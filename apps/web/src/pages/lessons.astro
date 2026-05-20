@@ -2,10 +2,13 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { LessonsIsland } from '@/islands/lessons-island';
 import { serverApi } from '@/lib/api';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 import type { Lesson, StudentRef } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 
 const now = new Date();
 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -28,13 +31,16 @@ const students = studentsList.map((s) => ({ id: s.id, name: s.name }));
 ---
 
 <AppLayout
-  title="Lessons"
-  description="Plan, track, and archive tutor lessons with statuses, payments, homework, and meeting links."
+  title={t('Lessons')}
+  description={t(
+    'Plan, track, and archive tutor lessons with statuses, payments, homework, and meeting links.',
+  )}
 >
   <LessonsIsland
     client:load
     initial={lessons}
     students={students}
     initialMonthStr={initialMonthStr}
+    locale={locale}
   />
 </AppLayout>

@@ -1,35 +1,44 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n, type TFunction } from '@/lib/i18n';
 import { detectMeetingProvider } from '@/lib/meeting';
 import { PartyPopper, Video } from 'lucide-react';
 import type { RecentLesson } from '@/lib/types';
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const dateFmt = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-});
-
-function formatCountdown(startsAt: Date): string {
-  const diffMs = startsAt.getTime() - Date.now();
-  if (diffMs <= 0) return 'now';
-  const diffMins = Math.floor(diffMs / 60_000);
-  if (diffMins < 60) return `in ${diffMins}m`;
-  const h = Math.floor(diffMins / 60);
-  const m = diffMins % 60;
-  if (h < 24) return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
-  return `in ${Math.floor(h / 24)}d`;
+function createTimeFmt(locale: string) {
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' });
 }
 
-function formatNextLessonLabel(startsAt: Date): string {
+function createDateFmt(locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatCountdown(startsAt: Date, t: TFunction): string {
+  const diffMs = startsAt.getTime() - Date.now();
+  if (diffMs <= 0) return t('now');
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 60) return t('in {time}', { time: `${diffMins}${t('m')}` });
+  const h = Math.floor(diffMins / 60);
+  const m = diffMins % 60;
+  if (h < 24) {
+    const time = m > 0 ? `${h}${t('h')} ${m}${t('m')}` : `${h}${t('h')}`;
+    return t('in {time}', { time });
+  }
+  return t('in {time}', { time: `${Math.floor(h / 24)}${t('d')}` });
+}
+
+function formatNextLessonLabel(startsAt: Date, dateFmt: Intl.DateTimeFormat, t: TFunction): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today.getTime() + 86_400_000);
   const ld = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
-  if (ld.getTime() === today.getTime()) return 'Next session today';
-  if (ld.getTime() === tomorrow.getTime()) return 'Next session tomorrow';
-  return `Next session · ${dateFmt.format(startsAt)}`;
+  if (ld.getTime() === today.getTime()) return t('Next session today');
+  if (ld.getTime() === tomorrow.getTime()) return t('Next session tomorrow');
+  return t('Next session · {date}', { date: dateFmt.format(startsAt) });
 }
 
 function checkCanJoin(lesson: RecentLesson, startsAt: Date): boolean {
@@ -47,12 +56,13 @@ export function NextLessonHero({
   lesson: RecentLesson | null;
   studentNames: Record<string, string>;
 }) {
+  const { locale, t } = useI18n();
+  const timeFmt = createTimeFmt(locale);
+  const dateFmt = createDateFmt(locale);
   const hasLesson = !!lesson;
   const startsAt = lesson ? new Date(lesson.startsAt) : null;
 
-  const [countdown, setCountdown] = useState(() =>
-    startsAt ? formatCountdown(startsAt) : '',
-  );
+  const [countdown, setCountdown] = useState(() => (startsAt ? formatCountdown(startsAt, t) : ''));
   const [canJoin, setCanJoin] = useState(() =>
     lesson && startsAt ? checkCanJoin(lesson, startsAt) : false,
   );
@@ -60,7 +70,7 @@ export function NextLessonHero({
   useEffect(() => {
     if (!lesson || !startsAt) return;
     const tick = () => {
-      setCountdown(formatCountdown(startsAt));
+      setCountdown(formatCountdown(startsAt, t));
       setCanJoin(checkCanJoin(lesson, startsAt));
     };
     const id = setInterval(tick, 30_000);
@@ -94,13 +104,15 @@ export function NextLessonHero({
       >
         {hasLesson && startsAt ? (
           <>
-            <p className="text-sm font-medium text-white/70">{formatNextLessonLabel(startsAt)}</p>
+            <p className="text-sm font-medium text-white/70">
+              {formatNextLessonLabel(startsAt, dateFmt, t)}
+            </p>
             <div className="mt-1 flex items-baseline gap-3">
               <span className="text-5xl font-bold tabular-nums leading-none">
                 {timeFmt.format(startsAt)}
               </span>
               <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-medium">
-                {lesson!.durationMin} min
+                {lesson!.durationMin} {t('min')}
               </span>
             </div>
             <p className="mt-3 text-xl font-semibold">
@@ -121,7 +133,7 @@ export function NextLessonHero({
                   className="flex items-center gap-2 whitespace-nowrap rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm transition-colors hover:bg-white/30 active:scale-95"
                 >
                   <Video className="h-4 w-4" />
-                  {detectMeetingProvider(lesson!.meetingLink!) ?? 'Join'}
+                  {detectMeetingProvider(lesson!.meetingLink!) ?? t('Join')}
                 </a>
               </div>
             </div>
@@ -132,11 +144,13 @@ export function NextLessonHero({
               <PartyPopper className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white/80">All clear</p>
+              <p className="text-sm font-medium text-white/80">{t('All clear')}</p>
               <p className="mt-0.5 text-xl font-semibold leading-tight">
-                Nothing on schedule this week
+                {t('Nothing on schedule this week')}
               </p>
-              <p className="mt-1 text-sm text-white/70">The week is clear. Enjoy the time off!</p>
+              <p className="mt-1 text-sm text-white/70">
+                {t('The week is clear. Enjoy the time off!')}
+              </p>
             </div>
           </div>
         )}

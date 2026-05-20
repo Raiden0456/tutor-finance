@@ -11,6 +11,12 @@ export default defineConfig({
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'ru'],
+    fallback: {
+      ru: 'en',
+    },
+    routing: {
+      fallbackType: 'rewrite',
+    },
   },
   vite: {
     plugins: [tailwindcss()],

@@ -1,5 +1,6 @@
 import { useState, type JSX } from 'react';
 import { Moon, Sun, Laptop } from 'lucide-react';
+import { createTranslator, type Locale } from '@/lib/i18n';
 import { Button } from './ui/button';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -27,10 +28,13 @@ const LABELS: Record<Theme, string> = { light: 'Light', dark: 'Dark', system: 'S
 export function ThemeToggle({
   initialTheme = 'system',
   variant = 'icon',
+  locale = 'en',
 }: {
   initialTheme?: Theme;
   variant?: 'icon' | 'nav' | 'button';
+  locale?: Locale;
 }) {
+  const t = createTranslator(locale);
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
   function cycle() {
@@ -51,7 +55,7 @@ export function ThemeToggle({
         <span key={theme} className="theme-icon-animate h-4 w-4">
           {ICONS[theme]}
         </span>
-        <span>{LABELS[theme]}</span>
+        <span>{t(LABELS[theme])}</span>
       </button>
     );
   }
@@ -62,7 +66,7 @@ export function ThemeToggle({
         className="transition-all duration-150 active:scale-90"
         variant="outline"
         size="icon-lg"
-        aria-label="Toggle theme"
+        aria-label={t('Toggle theme')}
         onClick={cycle}
       >
         <span key={theme} className="theme-icon-animate">
@@ -73,7 +77,7 @@ export function ThemeToggle({
   }
 
   return (
-    <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={cycle}>
+    <Button variant="ghost" size="icon" aria-label={t('Toggle theme')} onClick={cycle}>
       <span key={theme} className="theme-icon-animate">
         {ICONS[theme]}
       </span>

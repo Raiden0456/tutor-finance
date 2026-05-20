@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { signIn } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,12 +6,17 @@ import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
+import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
-function LoginHeroImage() {
+type LoginFormProps = {
+  locale: Locale;
+};
+
+function LoginHeroImage({ alt }: { alt: string }) {
   return (
     <img
       src="/login-hero.svg"
-      alt="Uchetka dashboard preview"
+      alt={alt}
       className="h-auto w-full max-w-md select-none transition-transform duration-300 ease-in-out hover:scale-[1.02]"
       draggable={false}
     />
@@ -24,6 +29,7 @@ function LoginFields({
   loading,
   error,
   notice,
+  locale,
   onEmail,
   onPassword,
 }: {
@@ -32,17 +38,20 @@ function LoginFields({
   loading: boolean;
   error: string | null;
   notice: string | null;
+  locale: Locale;
   onEmail: (v: string) => void;
   onPassword: (v: string) => void;
 }) {
+  const t = createTranslator(locale);
+
   return (
     <FieldGroup>
       <Field>
-        <FieldLabel htmlFor="email">Email</FieldLabel>
+        <FieldLabel htmlFor="email">{t('Email')}</FieldLabel>
         <Input
           id="email"
           type="email"
-          placeholder="you@example.com"
+          placeholder={t('you@example.com')}
           autoComplete="email"
           required
           value={email}
@@ -52,9 +61,12 @@ function LoginFields({
 
       <Field>
         <div className="flex items-center">
-          <FieldLabel htmlFor="password">Password</FieldLabel>
-          <a href="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
-            Forgot password?
+          <FieldLabel htmlFor="password">{t('Password')}</FieldLabel>
+          <a
+            href={localizePath('/forgot-password', locale)}
+            className="ml-auto text-sm underline-offset-4 hover:underline"
+          >
+            {t('Forgot password?')}
           </a>
         </div>
         <PasswordInput
@@ -79,18 +91,20 @@ function LoginFields({
 
       <Field>
         <Button type="submit" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? t('Signing in…') : t('Sign in')}
         </Button>
       </Field>
 
       <FieldDescription className="text-center">
-        No account? <a href="/sign-up">Sign up</a>
+        {t('No account?')} <a href={localizePath('/sign-up', locale)}>{t('Sign up')}</a>
       </FieldDescription>
     </FieldGroup>
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ locale }: LoginFormProps) {
+  const t = useMemo(() => createTranslator(locale), [locale]);
+  const loginPath = localizePath('/', locale);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -100,24 +114,24 @@ export function LoginForm() {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('verified') === '1') {
-      setNotice('Email verified. You can sign in now.');
+      setNotice(t('Email verified. You can sign in now.'));
       url.searchParams.delete('verified');
       window.history.replaceState(null, '', url.toString());
     }
-  }, []);
+  }, [t]);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setNotice(null);
     setLoading(true);
-    const res = await signIn.email({ email, password, callbackURL: '/' });
+    const res = await signIn.email({ email, password, callbackURL: loginPath });
     setLoading(false);
     if (res.error) {
-      setError(res.error.message ?? 'Invalid email or password');
+      setError(res.error.message ?? t('Invalid email or password'));
       return;
     }
-    window.location.href = '/';
+    window.location.href = loginPath;
   }
 
   return (
@@ -127,15 +141,15 @@ export function LoginForm() {
         {/* Hero section */}
         <div className="flex flex-1 flex-col items-center justify-center bg-[var(--tf-indigo)] px-6 text-white">
           <div className="w-full max-w-sm">
-            <LoginHeroImage />
+            <LoginHeroImage alt={t('Uchetka dashboard preview')} />
           </div>
         </div>
 
         {/* Form sheet */}
         <div className=" bg-card px-6 pb-10 pt-8 shadow-2xl">
           <div className="mb-6 text-center">
-            <h1 className="text-xl font-bold">Welcome back</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to your account</p>
+            <h1 className="text-xl font-bold">{t('Welcome back')}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t('Sign in to your account')}</p>
           </div>
           <form onSubmit={onSubmit}>
             <LoginFields
@@ -144,6 +158,7 @@ export function LoginForm() {
               loading={loading}
               error={error}
               notice={notice}
+              locale={locale}
               onEmail={setEmail}
               onPassword={setPassword}
             />
@@ -158,8 +173,10 @@ export function LoginForm() {
             <form onSubmit={onSubmit} className="p-8">
               <FieldGroup>
                 <div className="mb-2 flex flex-col items-center gap-2 text-center">
-                  <h1 className="text-2xl font-bold">Welcome back</h1>
-                  <p className="text-sm text-muted-foreground">Sign in to your Uchetka account</p>
+                  <h1 className="text-2xl font-bold">{t('Welcome back')}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {t('Sign in to your Uchetka account')}
+                  </p>
                 </div>
                 <LoginFields
                   email={email}
@@ -167,6 +184,7 @@ export function LoginForm() {
                   loading={loading}
                   error={error}
                   notice={notice}
+                  locale={locale}
                   onEmail={setEmail}
                   onPassword={setPassword}
                 />
@@ -175,7 +193,7 @@ export function LoginForm() {
 
             {/* Brand panel */}
             <div className="flex flex-col items-center justify-center bg-[var(--tf-indigo)] p-4 text-white">
-              <LoginHeroImage />
+              <LoginHeroImage alt={t('Uchetka dashboard preview')} />
             </div>
           </CardContent>
         </Card>

@@ -3,6 +3,7 @@ import { format, isSameDay, isToday } from 'date-fns';
 import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FadeSwap } from '@/components/ui/collapse';
+import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { LessonCard } from '@/components/lesson-card';
 import type { Lesson } from '@/lib/types';
 import { type SelectionMode, findOverlaps, dayKey } from './shared';
@@ -28,15 +29,17 @@ export function DayDetail({
   onLog: () => void;
   hasStudents: boolean;
 }) {
+  const { locale, t } = useI18n();
+  const dateLocale = getDateFnsLocale(locale);
   const effectiveEnd = selectionMode === 'range' && rangeEnd ? rangeEnd : rangeStart;
   const isRange = !isSameDay(rangeStart, effectiveEnd);
   const overlappingIds = useMemo(() => findOverlaps(lessons), [lessons]);
 
   const label = isRange
-    ? `${format(rangeStart, 'd MMM')} – ${format(effectiveEnd, 'd MMM')}`
+    ? `${format(rangeStart, 'd MMM', { locale: dateLocale })} – ${format(effectiveEnd, 'd MMM', { locale: dateLocale })}`
     : isToday(rangeStart)
-      ? 'Today'
-      : format(rangeStart, 'EEEE, d MMMM');
+      ? t('Today')
+      : format(rangeStart, 'EEEE, d MMMM', { locale: dateLocale });
 
   const rangeKey = `${dayKey(rangeStart)}_${dayKey(effectiveEnd)}`;
 
@@ -56,15 +59,17 @@ export function DayDetail({
         {lessons.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
             {!hasStudents ? (
-              <span>Add a student first to log lessons.</span>
+              <span>{t('Add a student first to log lessons.')}</span>
             ) : loading ? (
-              <span>Loading…</span>
+              <span>{t('Loading')}…</span>
             ) : (
               <>
-                <span>{isRange ? 'No lessons in this range.' : 'No lessons on this day.'}</span>
+                <span>
+                  {isRange ? t('No lessons in this range.') : t('No lessons on this day.')}
+                </span>
                 <Button size="sm" variant="outline" onClick={onLog}>
                   <Plus className="h-4 w-4" />
-                  Add lesson
+                  {t('Add lesson')}
                 </Button>
               </>
             )}

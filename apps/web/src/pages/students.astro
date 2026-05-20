@@ -2,11 +2,14 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import { StudentsIsland } from '@/islands/students-island';
 import { serverApi } from '@/lib/api';
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
 import type { Currency } from '@tutor-finance/shared';
 import type { Student, IncomeTx } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
 
 const settingsPromise = api.get<{ primaryCurrency: Currency }>('/settings/me');
 const studentsPromise = api.get<Student[]>('/students');
@@ -30,13 +33,14 @@ const transactions = await api.get<IncomeTx[]>('/transactions', {
 ---
 
 <AppLayout
-  title="Students"
-  description="Manage tutor students, rates, notes, lesson history, and income in Uchetka."
+  title={t('Students')}
+  description={t('Manage tutor students, rates, notes, lesson history, and income in Uchetka.')}
 >
   <StudentsIsland
     client:load
     initial={students}
     transactions={transactions}
     primaryCurrency={primary}
+    locale={locale}
   />
 </AppLayout>

@@ -16,15 +16,16 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { fromMinorUnits, type Currency } from '@tutor-finance/shared';
+import { useI18n } from '@/lib/i18n';
 
-const ieBarConfig = {
-  planned: { label: 'Planned', color: 'var(--tf-indigo)' },
-  income: { label: 'Income', color: 'var(--tf-jade)' },
-  expense: { label: 'Expenses', color: 'var(--tf-coral)' },
-  net: { label: 'Net', color: 'var(--tf-teal)' },
-} satisfies ChartConfig;
+const metricColors = {
+  planned: 'var(--tf-indigo)',
+  income: 'var(--tf-jade)',
+  expense: 'var(--tf-coral)',
+  net: 'var(--tf-teal)',
+} as const;
 
-type BarMetric = keyof typeof ieBarConfig;
+type BarMetric = keyof typeof metricColors;
 
 type IncomeExpenseRow = {
   date: string;
@@ -42,14 +43,7 @@ type ChartRow = IncomeExpenseRow & {
 
 const barMetrics: BarMetric[] = ['planned', 'income', 'expense', 'net'];
 
-const aggregations: { key: Aggregation; label: string; description: string }[] = [
-  { key: 'day', label: 'Day', description: 'Daily totals' },
-  { key: 'week', label: 'Week', description: 'Weekly totals' },
-  { key: 'month', label: 'Month', description: 'Monthly totals' },
-];
-
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
+const aggregations: Aggregation[] = ['day', 'week', 'month'];
 
 const parseDateOnly = (date: string) => {
   const [year, month, day] = date.split('-').map(Number);
@@ -75,7 +69,9 @@ const aggregationKey = (date: Date, aggregation: Aggregation) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-const aggregationLabel = (key: string, aggregation: Aggregation) => {
+const aggregationLabel = (key: string, aggregation: Aggregation, locale: string) => {
+  const dateFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
   const start = parseDateOnly(key);
   if (aggregation === 'day') return dateFmt.format(start);
   if (aggregation === 'month') return monthFmt.format(start);
@@ -88,10 +84,6 @@ const aggregationLabel = (key: string, aggregation: Aggregation) => {
 const toChartAmount = (amount: number, currency: Currency) =>
   Math.round(fromMinorUnits(amount, currency) * 100) / 100;
 
-const pieCfg: ChartConfig = {
-  amount: { label: 'Expenses' },
-};
-
 export function IncomeExpenseBarChart({
   data,
   currency,
@@ -99,6 +91,17 @@ export function IncomeExpenseBarChart({
   data: IncomeExpenseRow[];
   currency: Currency;
 }) {
+  const { locale, t } = useI18n();
+  const ieBarConfig = useMemo(
+    () =>
+      ({
+        planned: { label: t('Planned'), color: metricColors.planned },
+        income: { label: t('Income'), color: metricColors.income },
+        expense: { label: t('Expenses'), color: metricColors.expense },
+        net: { label: t('Net'), color: metricColors.net },
+      }) satisfies ChartConfig,
+    [t],
+  );
   const [visible, setVisible] = useState<Record<BarMetric, boolean>>({
     planned: false,
     income: true,
@@ -108,8 +111,7 @@ export function IncomeExpenseBarChart({
   const [aggregation, setAggregation] = useState<Aggregation>('day');
 
   const visibleMetrics = barMetrics.filter((metric) => visible[metric]);
-  const activeAggregation =
-    aggregations.find((item) => item.key === aggregation) ?? aggregations[0]!;
+  const activeAggregation = aggregation;
   const chartData = useMemo(() => {
     const grouped = new Map<string, IncomeExpenseRow>();
 
@@ -125,35 +127,35 @@ export function IncomeExpenseBarChart({
     return Array.from(grouped.values())
       .map<ChartRow>((row) => ({
         date: row.date,
-        label: aggregationLabel(row.date, aggregation),
+        label: aggregationLabel(row.date, aggregation, locale),
         planned: toChartAmount(row.planned, currency),
         income: toChartAmount(row.income, currency),
         expense: toChartAmount(row.expense, currency),
         net: toChartAmount(row.income - row.expense, currency),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [aggregation, currency, data]);
+  }, [aggregation, currency, data, locale]);
 
   return (
     <Card>
       <CardHeader className="gap-3">
         <div>
-          <CardTitle className="text-sm font-medium">Income vs Expenses</CardTitle>
+          <CardTitle className="text-sm font-medium">{t('Income vs Expenses')}</CardTitle>
           <CardDescription className="text-xs">
-            {activeAggregation.description} ({currency})
+            {t(`${activeAggregation} totals`)} ({currency})
           </CardDescription>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {aggregations.map((item) => (
             <Button
-              key={item.key}
+              key={item}
               type="button"
               size="xs"
-              variant={aggregation === item.key ? 'secondary' : 'ghost'}
+              variant={aggregation === item ? 'secondary' : 'ghost'}
               className="transition-all duration-200 ease-in-out"
-              onClick={() => setAggregation(item.key)}
+              onClick={() => setAggregation(item)}
             >
-              {item.label}
+              {t(item)}
             </Button>
           ))}
         </div>
@@ -200,7 +202,7 @@ export function IncomeExpenseBarChart({
             >
               <span
                 className="h-2 w-2 rounded-full transition-transform duration-200"
-                style={{ background: ieBarConfig[metric].color }}
+                style={{ background: metricColors[metric] }}
               />
               {ieBarConfig[metric].label}
             </Button>
@@ -218,12 +220,15 @@ export function CategoryPieChart({
   data: { name: string; amount: number; fill: string }[];
   currency: Currency;
 }) {
+  const { t } = useI18n();
+  const pieCfg = useMemo<ChartConfig>(() => ({ amount: { label: t('Expenses') } }), [t]);
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle className="text-sm font-medium">Expenses by category</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('Expenses by category')}</CardTitle>
         <CardDescription className="text-xs">
-          Top {data.length} categories ({currency})
+          {t('Top {count} categories', { count: data.length })} ({currency})
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">

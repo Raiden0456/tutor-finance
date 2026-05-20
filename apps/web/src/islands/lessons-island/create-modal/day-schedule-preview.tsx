@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { useI18n } from '@/lib/i18n';
 import type { Lesson } from '@/lib/types';
 
 export function DaySchedulePreview({
@@ -8,9 +9,12 @@ export function DaySchedulePreview({
   lessons: Lesson[];
   studentMap: Map<string, string>;
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-      <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Schedule for this day</p>
+      <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+        {t('Schedule for this day')}
+      </p>
       <ul className="divide-y divide-border/40">
         {lessons.map((l) => (
           <li key={l.id} className="flex items-center gap-2 py-1.5 text-xs">
@@ -20,7 +24,10 @@ export function DaySchedulePreview({
             <span className="flex-1 truncate text-foreground/80">
               {studentMap.get(l.studentId) ?? l.studentId}
             </span>
-            <span className="shrink-0 text-muted-foreground">{l.durationMin}m</span>
+            <span className="shrink-0 text-muted-foreground">
+              {l.durationMin}
+              {t('m')}
+            </span>
           </li>
         ))}
       </ul>
