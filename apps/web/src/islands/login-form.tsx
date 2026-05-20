@@ -6,6 +6,7 @@ import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
+import { GitHubSourceLink } from '@/components/github-source-link';
 import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
 type LoginFormProps = {
@@ -163,6 +164,9 @@ export function LoginForm({ locale }: LoginFormProps) {
               onPassword={setPassword}
             />
           </form>
+          <div className="mt-6 flex justify-center border-t border-border/60 pt-5">
+            <GitHubSourceLink className="text-muted-foreground hover:text-foreground" />
+          </div>
         </div>
       </div>
 
@@ -189,6 +193,9 @@ export function LoginForm({ locale }: LoginFormProps) {
                   onPassword={setPassword}
                 />
               </FieldGroup>
+              <div className="mt-6 flex justify-center border-t border-border/60 pt-5">
+                <GitHubSourceLink className="text-muted-foreground hover:text-foreground" />
+              </div>
             </form>
 
             {/* Brand panel */}

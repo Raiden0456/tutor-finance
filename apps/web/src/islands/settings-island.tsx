@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { signOut } from '@/lib/auth-client';
 import { BrandMark } from '@/components/app-logo';
+import { GitHubSourceLink } from '@/components/github-source-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -70,9 +71,14 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
           </div>
         </div>
 
-        <header>
-          <h1 className="hidden text-xl font-semibold tracking-tight md:block">{t('Settings')}</h1>
-          <p className="text-xs text-muted-foreground">{t('Personalise the app')}</p>
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="hidden text-xl font-semibold tracking-tight md:block">
+              {t('Settings')}
+            </h1>
+            <p className="text-xs text-muted-foreground">{t('Personalise the app')}</p>
+          </div>
+          <GitHubSourceLink />
         </header>
         <Card>
           <CardHeader>
