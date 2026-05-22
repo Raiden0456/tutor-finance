@@ -73,7 +73,6 @@ services:
   - type: web
     name: tutor-finance-landing
     runtime: static
-    region: frankfurt
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/landing...
     staticPublishPath: ./apps/landing/dist
     envVars:
