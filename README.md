@@ -13,12 +13,6 @@ Open-source finance dashboard for tutors. Lessons, students, payments, expenses,
 - Use auth, protected pages, and first-party cookies via the web reverse proxy.
 - Run locally with PostgreSQL and Redis through Docker Compose.
 
-## Preview assets
-
-| Social preview                                    | Login illustration                                            |
-| ------------------------------------------------- | ------------------------------------------------------------- |
-| ![Uchetka social preview](apps/web/public/og.png) | ![Uchetka login illustration](apps/web/public/login-hero.svg) |
-
 ## Stack
 
 - Turborepo + pnpm workspaces
