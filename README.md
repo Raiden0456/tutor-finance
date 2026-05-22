@@ -1,3 +1,7 @@
+<a href="https://devglobe.app/projects/uchetka?utm_source=badge&utm_medium=embed" target="_blank" rel="noopener">
+  <img src="https://devglobe.app/badges/featured-on-devglobe-dark.svg" alt="Featured on DevGlobe" width="250" height="54" />
+</a>
+
 # Uchetka
 
 Open-source finance dashboard for tutors. Lessons, students, payments, expenses, and income tracking — without spreadsheet chaos.
