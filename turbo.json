@@ -22,13 +22,15 @@
     "SERVER_API_URL",
     "REDIS_URL",
     "CACHE_ENABLED",
-    "FX_API_URL"
+    "FX_API_URL",
+    "PUBLIC_WEB_URL",
+    "PUBLIC_LANDING_URL"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".astro/**", "build/**"],
-      "env": ["PUBLIC_API_URL", "PUBLIC_APP_URL"]
+      "env": ["PUBLIC_API_URL", "PUBLIC_APP_URL", "PUBLIC_WEB_URL", "PUBLIC_LANDING_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],

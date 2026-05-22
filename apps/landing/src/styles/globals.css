@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark ([data-theme='dark'] &);
+
+/* ----------------------------------------------------------------------- */
+/* Uchetka palette (brand slice — kept in sync with apps/web by convention) */
+/*   light = Daybreak  · warm neutrals + Space Indigo primary              */
+/*   dark  = Midnight  · classic neutral dark + Ocean Mist primary         */
+/* ----------------------------------------------------------------------- */
+
+:root {
+  /* Brand accent colors (constant across themes) */
+  --tf-coral: #ff7a59;
+  --tf-pollen: #ffcf56;
+  --tf-jade: #22c55e;
+  --tf-teal: #14b8a6;
+  --tf-indigo: #2d2a5f;
+
+  /* Daybreak surface scale */
+  --tf-base: #fafaf9;
+  --tf-surface: #ffffff;
+  --tf-overlay: #f0eff8;
+  --tf-muted: #6868a0;
+  --tf-subtle: #4a4a7a;
+  --tf-text: #1a1833;
+  --tf-hl-low: #f5f5fa;
+  --tf-hl-med: #e8e7f2;
+  --tf-hl-high: #d4d3e8;
+
+  /* shadcn semantic tokens */
+  --background: var(--tf-base);
+  --foreground: var(--tf-text);
+  --card: var(--tf-surface);
+  --card-foreground: var(--tf-text);
+  --popover: var(--tf-surface);
+  --popover-foreground: var(--tf-text);
+  --primary: var(--tf-indigo);
+  --primary-foreground: #ffffff;
+  --secondary: var(--tf-overlay);
+  --secondary-foreground: var(--tf-indigo);
+  --muted: var(--tf-hl-low);
+  --muted-foreground: var(--tf-muted);
+  --accent: var(--tf-hl-med);
+  --accent-foreground: var(--tf-text);
+  --destructive: var(--tf-coral);
+  --destructive-foreground: #ffffff;
+  --border: var(--tf-hl-med);
+  --input: var(--tf-hl-med);
+  --ring: var(--tf-teal);
+  --radius: 0.875rem;
+}
+
+[data-theme='dark'] {
+  --tf-base: #111113;
+  --tf-surface: #1a1a1d;
+  --tf-overlay: #242428;
+  --tf-muted: #a1a1aa;
+  --tf-subtle: #d4d4d8;
+  --tf-text: #f4f4f5;
+  --tf-hl-low: #18181b;
+  --tf-hl-med: #2a2a2f;
+  --tf-hl-high: #3f3f46;
+
+  --tf-indigo: #8b88ff;
+
+  --background: var(--tf-base);
+  --foreground: var(--tf-text);
+  --card: var(--tf-surface);
+  --card-foreground: var(--tf-text);
+  --popover: var(--tf-surface);
+  --popover-foreground: var(--tf-text);
+  --primary: var(--tf-teal);
+  --primary-foreground: #071311;
+  --secondary: var(--tf-overlay);
+  --secondary-foreground: var(--tf-text);
+  --muted: var(--tf-hl-low);
+  --muted-foreground: var(--tf-muted);
+  --accent: var(--tf-hl-med);
+  --accent-foreground: var(--tf-text);
+  --destructive: var(--tf-coral);
+  --destructive-foreground: #ffffff;
+  --border: var(--tf-hl-med);
+  --input: var(--tf-hl-med);
+  --ring: var(--tf-teal);
+}
+
+/* ----------------------------------------------------------------------- */
+/* @theme — exposes CSS vars to Tailwind v4 utilities (bg-*, text-*, etc.) */
+/* ----------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-tf-coral: var(--tf-coral);
+  --color-tf-pollen: var(--tf-pollen);
+  --color-tf-jade: var(--tf-jade);
+  --color-tf-teal: var(--tf-teal);
+  --color-tf-indigo: var(--tf-indigo);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: 'Onest', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Theme toggle icon animation                                              */
+/* ----------------------------------------------------------------------- */
+
+@keyframes theme-icon-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.4);
+  }
+  60% {
+    transform: rotate(12deg) scale(1.15);
+  }
+  80% {
+    transform: rotate(-6deg) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.theme-icon-animate {
+  display: flex;
+  animation: theme-icon-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Section reveal on scroll                                                 */
+/* ----------------------------------------------------------------------- */
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: reveal-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Base                                                                     */
+/* ----------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+}

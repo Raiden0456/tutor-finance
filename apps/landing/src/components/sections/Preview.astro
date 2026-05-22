@@ -1,0 +1,49 @@
+---
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+
+const shots = [
+  { src: '/dashboard.png', alt: 'Dashboard screenshot' },
+  { src: '/lessons.png', alt: 'Lessons screenshot' },
+  { src: '/transactions.png', alt: 'Transactions screenshot' },
+];
+---
+
+<section id="preview" class="scroll-mt-20 border-t border-border/60">
+  <div class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-24">
+    <div class="mx-auto mb-10 max-w-2xl text-center md:mb-14">
+      <h2 class="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+        {t('See it in action')}
+      </h2>
+      <p class="mt-3 text-balance text-muted-foreground md:text-lg">
+        {t('A clean, mobile-first interface designed for daily use.')}
+      </p>
+    </div>
+
+    <div class="mx-auto grid max-w-md grid-cols-1 gap-8 sm:max-w-3xl sm:grid-cols-3 sm:gap-6 md:gap-8">
+      {
+        shots.map((shot, i) => (
+          <div
+            class="group relative flex items-end justify-center"
+            style={`transform: translateY(${i === 1 ? '0' : '1.5rem'});`}
+          >
+            <div
+              aria-hidden="true"
+              class="absolute inset-x-4 bottom-0 -z-10 h-3/4 rounded-3xl bg-gradient-to-br from-tf-indigo/20 via-tf-teal/15 to-tf-coral/15 blur-2xl"
+            />
+            <div class="relative w-full max-w-[260px] overflow-hidden rounded-[2rem] border border-border/80 bg-card shadow-2xl shadow-tf-indigo/15 transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-tf-indigo/25">
+              <img
+                src={shot.src}
+                alt={t(shot.alt)}
+                class="block h-auto w-full"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

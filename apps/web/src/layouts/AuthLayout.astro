@@ -16,6 +16,8 @@ const locale = normalizeLocale(Astro.currentLocale);
 const url = new URL(Astro.request.url);
 const path = `${url.pathname}${url.search}`;
 const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
+const landingBase = import.meta.env.PUBLIC_LANDING_URL;
+const landingHref = landingBase ? `${landingBase}${locale === 'ru' ? '/ru/' : '/'}` : null;
 ---
 
 <!doctype html>
@@ -46,6 +48,17 @@ const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' |
     </script>
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
+    {
+      landingHref && (
+        <a
+          href={landingHref}
+          class="absolute left-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm transition-all duration-200 hover:bg-accent active:scale-95"
+        >
+          <img src="/favicon.svg" alt="" width="20" height="20" class="rounded" />
+          <span>Uchetka</span>
+        </a>
+      )
+    }
     <div class="absolute right-4 top-4 z-50 flex items-center gap-2">
       <LanguageSwitcher current={path} locale={locale} />
       <ThemeToggle initialTheme={themeCookie} variant="button" locale={locale} client:load />

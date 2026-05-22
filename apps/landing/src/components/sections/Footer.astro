@@ -1,0 +1,62 @@
+---
+import { createTranslator, normalizeLocale, localizePath } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/language-switcher';
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+const githubUrl = 'https://github.com/Raiden0456/tutor-finance';
+const switcherPath = `${Astro.url.pathname}${Astro.url.search}`;
+const year = new Date().getFullYear();
+const termsHref = localizePath('/terms', locale);
+const privacyHref = localizePath('/privacy', locale);
+---
+
+<footer class="border-t border-border/60 bg-muted/20">
+  <div class="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-12">
+    <div class="flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/favicon.svg" alt="Uchetka" width="32" height="32" class="rounded-md" />
+        <div>
+          <div class="text-sm font-semibold tracking-tight">Uchetka</div>
+          <div class="text-xs text-muted-foreground">{t('Finance tracker for tutors.')}</div>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
+        <nav class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+          <a href="#features" class="transition-colors hover:text-foreground">{t('Features')}</a>
+          <a href="#pricing" class="transition-colors hover:text-foreground">{t('Pricing')}</a>
+          <a
+            href={githubUrl}
+            target="_blank"
+            rel="noreferrer"
+            class="transition-colors hover:text-foreground"
+          >
+            GitHub
+          </a>
+          <a href={termsHref} class="transition-colors hover:text-foreground">
+            {t('Terms of Service')}
+          </a>
+          <a href={privacyHref} class="transition-colors hover:text-foreground">
+            {t('Privacy Policy')}
+          </a>
+        </nav>
+        <LanguageSwitcher current={switcherPath} locale={locale} />
+      </div>
+    </div>
+
+    <div
+      class="mt-8 border-t border-border/60 pt-6 text-xs text-muted-foreground md:flex md:items-center md:justify-between"
+    >
+      <div>© {year} Uchetka. {t('All rights reserved.')}</div>
+      <a
+        href={githubUrl + '/blob/master/LICENSE'}
+        target="_blank"
+        rel="noreferrer"
+        class="mt-2 inline-block transition-colors hover:text-foreground md:mt-0"
+      >
+        {t('MIT License')}
+      </a>
+    </div>
+  </div>
+</footer>

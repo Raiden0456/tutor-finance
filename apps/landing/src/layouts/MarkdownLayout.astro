@@ -1,0 +1,99 @@
+---
+import LandingLayout from './LandingLayout.astro';
+import Footer from '@/components/sections/Footer.astro';
+import { normalizeLocale, createTranslator } from '@/lib/i18n';
+
+interface Frontmatter {
+  title: string;
+  description?: string;
+  updated?: string;
+}
+
+const { frontmatter } = Astro.props as { frontmatter: Frontmatter };
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+---
+
+<LandingLayout title={`${frontmatter.title} — Uchetka`} description={frontmatter.description}>
+  <article class="mx-auto w-full max-w-3xl px-4 py-12 md:px-6 md:py-16">
+    <header class="mb-8 md:mb-10">
+      <h1 class="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+        {frontmatter.title}
+      </h1>
+      {
+        frontmatter.updated && (
+          <p class="mt-2 text-sm text-muted-foreground">
+            {t('Last updated')}:{' '}
+            <time datetime={frontmatter.updated}>{frontmatter.updated}</time>
+          </p>
+        )
+      }
+    </header>
+    <div class="markdown-body">
+      <slot />
+    </div>
+  </article>
+  <Footer />
+</LandingLayout>
+
+<style is:global>
+  .markdown-body {
+    color: var(--foreground);
+    line-height: 1.7;
+  }
+  .markdown-body > * + * {
+    margin-top: 1em;
+  }
+  .markdown-body h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 2em;
+    letter-spacing: -0.01em;
+  }
+  .markdown-body h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.5em;
+  }
+  .markdown-body a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: opacity 0.15s ease;
+  }
+  .markdown-body a:hover {
+    opacity: 0.8;
+  }
+  .markdown-body ul,
+  .markdown-body ol {
+    padding-left: 1.5rem;
+  }
+  .markdown-body ul {
+    list-style: disc;
+  }
+  .markdown-body ol {
+    list-style: decimal;
+  }
+  .markdown-body li + li {
+    margin-top: 0.25em;
+  }
+  .markdown-body strong {
+    font-weight: 600;
+  }
+  .markdown-body code {
+    background: var(--muted);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+  }
+  .markdown-body hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2em 0;
+  }
+  .markdown-body blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 1rem;
+    color: var(--muted-foreground);
+  }
+</style>

@@ -1,0 +1,21 @@
+---
+import LandingLayout from '@/layouts/LandingLayout.astro';
+import Hero from '@/components/sections/Hero.astro';
+import Features from '@/components/sections/Features.astro';
+import Preview from '@/components/sections/Preview.astro';
+import Pricing from '@/components/sections/Pricing.astro';
+import OpenSource from '@/components/sections/OpenSource.astro';
+import Footer from '@/components/sections/Footer.astro';
+---
+
+<LandingLayout
+  title="Uchetka — финансы для репетиторов"
+  description="Open-source дашборд для репетиторов. Занятия, ученики, оплаты и расходы в одном месте, в любой валюте."
+>
+  <Hero />
+  <Features />
+  <Preview />
+  <Pricing />
+  <OpenSource />
+  <Footer />
+</LandingLayout>

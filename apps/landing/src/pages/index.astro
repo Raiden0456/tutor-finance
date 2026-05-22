@@ -1,0 +1,21 @@
+---
+import LandingLayout from '@/layouts/LandingLayout.astro';
+import Hero from '@/components/sections/Hero.astro';
+import Features from '@/components/sections/Features.astro';
+import Preview from '@/components/sections/Preview.astro';
+import Pricing from '@/components/sections/Pricing.astro';
+import OpenSource from '@/components/sections/OpenSource.astro';
+import Footer from '@/components/sections/Footer.astro';
+---
+
+<LandingLayout
+  title="Uchetka — Finance tracker for tutors"
+  description="Open-source dashboard for tutors. Lessons, students, payments and expenses in one place — across any currency."
+>
+  <Hero />
+  <Features />
+  <Preview />
+  <Pricing />
+  <OpenSource />
+  <Footer />
+</LandingLayout>

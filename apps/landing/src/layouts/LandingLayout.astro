@@ -1,0 +1,91 @@
+---
+import '@/styles/globals.css';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { normalizeLocale, createTranslator } from '@/lib/i18n';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Uchetka — Finance tracker for tutors',
+  description = 'Open-source finance dashboard for tutors. Lessons, students, payments, expenses — without spreadsheet chaos.',
+} = Astro.props;
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+const switcherPath = `${Astro.url.pathname}${Astro.url.search}`;
+const webUrl = import.meta.env.PUBLIC_WEB_URL ?? 'http://localhost:4321';
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme') || 'system';
+          document.cookie = 'theme=' + t + ';path=/;max-age=31536000;samesite=lax';
+          var dark =
+            t === 'dark' ||
+            (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground antialiased">
+    <header
+      class="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md transition-all duration-200"
+    >
+      <div class="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4 md:h-16 md:px-6">
+        <a href={locale === 'ru' ? '/ru/' : '/'} class="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <img src="/favicon.svg" alt="Uchetka" width="28" height="28" class="rounded-md" />
+          <span class="text-base font-semibold tracking-tight md:text-lg">Uchetka</span>
+        </a>
+
+        <nav class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+          <a href="#features" class="transition-colors hover:text-foreground">{t('Features')}</a>
+          <a href="#preview" class="transition-colors hover:text-foreground">{t('Preview')}</a>
+          <a href="#pricing" class="transition-colors hover:text-foreground">{t('Pricing')}</a>
+          <a href="#open-source" class="transition-colors hover:text-foreground">{t('Open source')}</a>
+        </nav>
+
+        <div class="flex items-center gap-2">
+          <LanguageSwitcher current={switcherPath} locale={locale} />
+          <ThemeToggle locale={locale} client:load />
+          <a
+            href={`${webUrl}/sign-up`}
+            class="hidden h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 sm:inline-flex"
+          >
+            {t('Try the beta')}
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

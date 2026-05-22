@@ -1,0 +1,202 @@
+---
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+const webUrl = import.meta.env.PUBLIC_WEB_URL ?? 'http://localhost:4321';
+const githubUrl = 'https://github.com/Raiden0456/tutor-finance';
+
+type Plan = {
+  key: 'Starter' | 'Pro' | 'Expert';
+  description: string;
+  usd: number;
+  rub: number;
+  features: string[];
+  highlight: boolean;
+  cta: 'Get started' | 'Join the beta';
+};
+
+const plans: Plan[] = [
+  {
+    key: 'Starter',
+    description: 'Try Uchetka without commitment. Perfect to see if it fits your practice.',
+    usd: 0,
+    rub: 0,
+    features: [
+      'Lesson schedule & calendar',
+      'Income & expense tracking',
+      'Dashboard analytics',
+      'Up to 5 students',
+    ],
+    highlight: false,
+    cta: 'Get started',
+  },
+  {
+    key: 'Pro',
+    description: 'For active tutors — unlimited students and the tools you use daily.',
+    usd: 4,
+    rub: 269,
+    features: [
+      'Everything in Starter',
+      'Unlimited students & lessons',
+      'Google & Yandex Disk sync',
+      'Google & Yandex Calendar sync',
+      'CSV / Excel export',
+    ],
+    highlight: true,
+    cta: 'Join the beta',
+  },
+  {
+    key: 'Expert',
+    description: 'Maximum automation. Save hours every week with reminders and integrations.',
+    usd: 6,
+    rub: 399,
+    features: [
+      'Everything in Pro',
+      'Email notifications',
+      'Priority support',
+      'Exclusive features & early access to experimental updates',
+    ],
+    highlight: false,
+    cta: 'Join the beta',
+  },
+];
+
+const fmt = (usd: number, rub: number) =>
+  locale === 'ru' ? `${rub.toLocaleString('ru-RU')} ₽` : `$${usd}`;
+---
+
+<section id="pricing" class="scroll-mt-20 border-t border-border/60 bg-muted/30">
+  <div class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-24">
+    <div class="mx-auto mb-10 max-w-2xl text-center md:mb-14">
+      <h2 class="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+        {t('Simple, honest pricing')}
+      </h2>
+      <p class="mt-3 text-balance text-muted-foreground md:text-lg">
+        {t('Free in beta. Pick a plan when we launch — or self-host forever.')}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+      {
+        plans.map((plan) => {
+          const isFree = plan.usd === 0;
+          return (
+            <div
+              class={`relative flex flex-col rounded-3xl border p-7 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:p-8 ${
+                plan.highlight
+                  ? 'border-tf-indigo/40 bg-card shadow-tf-indigo/10 hover:shadow-tf-indigo/20'
+                  : 'border-border bg-card'
+              }`}
+            >
+              {plan.highlight && (
+                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-tf-indigo px-3 py-1 text-xs font-medium text-white shadow-sm">
+                  {t('Best value')}
+                </span>
+              )}
+
+              <h3 class="text-xl font-semibold tracking-tight">{t(plan.key)}</h3>
+              <p class="mt-2 min-h-[3.5rem] text-sm text-muted-foreground">
+                {t(plan.description)}
+              </p>
+
+              <div class="mt-5 border-t border-border/60 pt-5">
+                {isFree ? (
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-4xl font-bold tracking-tight md:text-5xl">{t('Free')}</span>
+                  </div>
+                ) : (
+                  <div class="space-y-1">
+                    <div class="flex items-baseline gap-2">
+                      <span class="text-4xl font-bold tracking-tight text-muted-foreground/70 line-through decoration-tf-coral/70 decoration-[3px] md:text-5xl">
+                        {fmt(plan.usd, plan.rub)}
+                      </span>
+                      <span class="text-sm text-muted-foreground">{t('/ month')}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div class="mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-tf-jade/15 px-3 py-1 text-xs font-medium text-tf-jade">
+                  <span class="inline-block h-1.5 w-1.5 rounded-full bg-tf-jade" />
+                  {isFree ? t('Always free') : t('Free in beta')}
+                </div>
+              </div>
+
+              <ul class="mt-6 flex-1 space-y-2.5 text-sm">
+                {plan.features.map((feature) => (
+                  <li class="flex items-start gap-2.5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="mt-0.5 h-4 w-4 shrink-0 text-tf-jade"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span class="text-foreground/90">{t(feature)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href={`${webUrl}/sign-up`}
+                class={`mt-7 inline-flex h-11 w-full items-center justify-center rounded-md px-6 text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  plan.highlight
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'border border-border bg-background text-foreground hover:bg-accent'
+                }`}
+              >
+                {t(plan.cta)}
+              </a>
+            </div>
+          );
+        })
+      }
+    </div>
+
+    <div class="mx-auto mt-6 max-w-2xl rounded-xl border border-tf-pollen/40 bg-tf-pollen/10 p-4 text-center text-sm">
+      <span class="font-medium text-foreground">
+        {t('Beta testers get +3 months of Pro free at launch.')}
+      </span>
+    </div>
+
+    <div class="mt-10 grid grid-cols-1 items-center gap-5 rounded-3xl border border-border bg-card p-7 md:grid-cols-[1fr_auto] md:gap-8 md:p-8">
+      <div>
+        <div class="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" class="h-5 w-5 text-foreground" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+            />
+          </svg>
+          <h3 class="text-lg font-semibold tracking-tight">{t('Or self-host — free forever')}</h3>
+        </div>
+        <p class="mt-2 text-sm text-muted-foreground">
+          {
+            t(
+              'Clone the repo and run it on your own server. Same features, MIT licensed, your data stays yours.',
+            )
+          }
+        </p>
+      </div>
+      <a
+        href={githubUrl}
+        target="_blank"
+        rel="noreferrer"
+        class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-6 text-sm font-medium text-foreground transition-all duration-200 hover:bg-accent active:scale-95"
+      >
+        <svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+          />
+        </svg>
+        {t('Clone on GitHub')}
+      </a>
+    </div>
+  </div>
+</section>

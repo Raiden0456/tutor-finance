@@ -1,0 +1,175 @@
+---
+import { createTranslator, normalizeLocale } from '@/lib/i18n';
+
+const locale = normalizeLocale(Astro.currentLocale);
+const t = createTranslator(locale);
+
+const features = [
+  {
+    title: 'Lessons & schedule',
+    body: 'Plan single and recurring lessons, see today at a glance, reschedule in two taps.',
+    accent: 'tf-indigo',
+    icon: 'calendar',
+  },
+  {
+    title: 'Students CRM',
+    body: 'Profiles, contact info, hourly rates, payment history — one source of truth per student.',
+    accent: 'tf-teal',
+    icon: 'users',
+  },
+  {
+    title: 'Multi-currency',
+    body: 'USD, EUR, RUB, GBP, UAH, KZT, TRY, PLN, USDT, USDC. FX rates refresh daily.',
+    accent: 'tf-jade',
+    icon: 'globe',
+  },
+  {
+    title: 'Recurring transactions',
+    body: 'Set up rent, subscriptions, retainers once — let Uchetka post them on schedule.',
+    accent: 'tf-pollen',
+    icon: 'repeat',
+  },
+  {
+    title: 'Dashboard analytics',
+    body: 'Income, expenses, outstanding payments, net profit — broken down by period.',
+    accent: 'tf-coral',
+    icon: 'chart',
+  },
+  {
+    title: 'Self-hostable',
+    body: 'MIT licensed. Run it on your own server with Docker. Your data stays yours.',
+    accent: 'tf-teal',
+    icon: 'server',
+  },
+];
+
+const accentClass: Record<string, string> = {
+  'tf-indigo': 'bg-tf-indigo/10 text-tf-indigo',
+  'tf-teal': 'bg-tf-teal/10 text-tf-teal',
+  'tf-jade': 'bg-tf-jade/10 text-tf-jade',
+  'tf-pollen': 'bg-tf-pollen/15 text-tf-pollen',
+  'tf-coral': 'bg-tf-coral/10 text-tf-coral',
+};
+---
+
+<section id="features" class="scroll-mt-20 border-t border-border/60 bg-muted/30">
+  <div class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-24">
+    <div class="mx-auto mb-10 max-w-2xl text-center md:mb-14">
+      <h2 class="text-balance text-3xl font-bold tracking-tight md:text-4xl">
+        {t('Everything you need to run your tutoring practice')}
+      </h2>
+      <p class="mt-3 text-balance text-muted-foreground md:text-lg">
+        {t('Built for tutors who teach across schedules, students, and currencies.')}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+      {
+        features.map((f) => (
+          <div class="group rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+            <div
+              class={`mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 ${accentClass[f.accent]}`}
+            >
+              {f.icon === 'calendar' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <rect width="18" height="18" x="3" y="4" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              )}
+              {f.icon === 'users' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              )}
+              {f.icon === 'globe' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              )}
+              {f.icon === 'repeat' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <path d="m17 2 4 4-4 4" />
+                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                  <path d="m7 22-4-4 4-4" />
+                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                </svg>
+              )}
+              {f.icon === 'chart' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <path d="M3 3v18h18" />
+                  <path d="m19 9-5 5-4-4-3 3" />
+                </svg>
+              )}
+              {f.icon === 'server' && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                >
+                  <rect width="20" height="8" x="2" y="2" rx="2" />
+                  <rect width="20" height="8" x="2" y="14" rx="2" />
+                  <path d="M6 6h.01M6 18h.01" />
+                </svg>
+              )}
+            </div>
+            <h3 class="mb-1.5 text-lg font-semibold tracking-tight">{t(f.title)}</h3>
+            <p class="text-sm text-muted-foreground">{t(f.body)}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
