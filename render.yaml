@@ -63,6 +63,23 @@ services:
       # origin and are proxied to the API, so PUBLIC_API_URL is not needed.
       - key: PUBLIC_APP_URL
         sync: false
+      # Public URL of the marketing landing site. Used by AuthLayout to render
+      # the "Uchetka" link back to the landing from /login, /sign-up, etc.
+      # If unset, the link is hidden.
+      - key: PUBLIC_LANDING_URL
+        sync: false
+
+  # ── Landing (static Astro) ───────────────────────────────────────────────────
+  - type: web
+    name: tutor-finance-landing
+    runtime: static
+    region: frankfurt
+    buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/landing...
+    staticPublishPath: ./apps/landing/dist
+    envVars:
+      # Public URL of the web (app) service. CTAs link to ${PUBLIC_WEB_URL}/sign-up.
+      - key: PUBLIC_WEB_URL
+        sync: false
 
 databases:
   - name: tutor-finance-db
