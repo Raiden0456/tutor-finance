@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import { AnimatePresence, motion } from 'motion/react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +28,18 @@ import { cn } from '@/lib/utils';
 // Jan 5 2025 = Sunday (index 0)
 const REF_SUNDAY = new Date(2025, 0, 5);
 
+function timeToMinutes(time: string): number | null {
+  const [h, m] = time.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h! * 60 + m!;
+}
+
+function timeRangesOverlap(aStart: number, aDuration: number, bStart: number, bDuration: number) {
+  const aEnd = aStart + aDuration;
+  const bEnd = bStart + bDuration;
+  return aStart < bEnd && bStart < aEnd;
+}
+
 export interface ScheduleFormPayload {
   studentId: string;
   daysOfWeek: number[];
@@ -43,12 +57,14 @@ export function ScheduleFormDialog({
   title,
   students,
   defaults,
+  schedules = [],
   weekStartsOn = 1,
   onSubmit,
 }: {
   title: string;
   students: StudentRef[];
   defaults?: RecurringLesson;
+  schedules?: RecurringLesson[];
   weekStartsOn?: WeekStartsOn;
   onSubmit: (payload: ScheduleFormPayload) => Promise<void>;
 }) {
@@ -60,11 +76,32 @@ export function ScheduleFormDialog({
 
   function toggleDay(idx: number) {
     setDaysOfWeek((prev) =>
-      prev.includes(idx) ? (prev.length > 1 ? prev.filter((d) => d !== idx) : prev) : [...prev, idx],
+      prev.includes(idx)
+        ? prev.length > 1
+          ? prev.filter((d) => d !== idx)
+          : prev
+        : [...prev, idx],
     );
   }
   const [frequency, setFrequency] = useState<LessonFrequency>(defaults?.frequency ?? 'weekly');
+  const [startTime, setStartTime] = useState(defaults?.startTime ?? '09:00');
+  const [durationMin, setDurationMin] = useState(defaults?.durationMin ?? 60);
   const [showPrice, setShowPrice] = useState(!!defaults?.priceOverride);
+
+  const overlappingSchedules = useMemo(() => {
+    const start = timeToMinutes(startTime);
+    if (start == null || durationMin <= 0) return [];
+
+    return schedules.filter((schedule) => {
+      if (schedule.id === defaults?.id) return false;
+      if (!schedule.daysOfWeek.some((day) => daysOfWeek.includes(day))) return false;
+
+      const scheduleStart = timeToMinutes(schedule.startTime);
+      if (scheduleStart == null) return false;
+
+      return timeRangesOverlap(start, durationMin, scheduleStart, schedule.durationMin);
+    });
+  }, [defaults?.id, daysOfWeek, durationMin, schedules, startTime]);
 
   const defaultPriceCurrency = defaults?.priceOverride?.currency ?? 'USD';
   const defaultPriceAmount =
@@ -83,11 +120,7 @@ export function ScheduleFormDialog({
     const startDate = String(data.get('startDate') ?? '').trim() || undefined;
     const endDateRaw = String(data.get('endDate') ?? '').trim();
     // On edit, send null to clear; on create, omit
-    const endDate: string | null | undefined = endDateRaw
-      ? endDateRaw
-      : isEdit
-        ? null
-        : undefined;
+    const endDate: string | null | undefined = endDateRaw ? endDateRaw : isEdit ? null : undefined;
     const meetingLink = String(data.get('meetingLink') ?? '').trim() || undefined;
     const notes = String(data.get('notes') ?? '').trim() || undefined;
 
@@ -164,7 +197,9 @@ export function ScheduleFormDialog({
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
-                  {format(new Date(REF_SUNDAY.getTime() + dow * 86400000), 'EEEEE', { locale: dateLocale }).toUpperCase()}
+                  {format(new Date(REF_SUNDAY.getTime() + dow * 86400000), 'EEEEE', {
+                    locale: dateLocale,
+                  }).toUpperCase()}
                 </button>
               ))}
             </div>
@@ -178,7 +213,8 @@ export function ScheduleFormDialog({
                 name="startTime"
                 type="time"
                 required
-                defaultValue={defaults?.startTime ?? '09:00'}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -189,10 +225,35 @@ export function ScheduleFormDialog({
                 type="number"
                 min="1"
                 required
-                defaultValue={String(defaults?.durationMin ?? 60)}
+                value={durationMin}
+                onChange={(e) => setDurationMin(Number(e.target.value))}
               />
             </div>
           </div>
+
+          <AnimatePresence initial={false}>
+            {overlappingSchedules.length > 0 && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    {t('Overlaps with {name} at {time}', {
+                      name:
+                        students.find((s) => s.id === overlappingSchedules[0]?.studentId)?.name ??
+                        t('another lesson'),
+                      time: overlappingSchedules[0]?.startTime ?? startTime,
+                    })}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid gap-2">
             <Label>{t('Frequency')}</Label>
@@ -237,9 +298,7 @@ export function ScheduleFormDialog({
                 name="endDate"
                 type="date"
                 defaultValue={
-                  defaults?.endDate
-                    ? new Date(defaults.endDate).toISOString().slice(0, 10)
-                    : ''
+                  defaults?.endDate ? new Date(defaults.endDate).toISOString().slice(0, 10) : ''
                 }
               />
             </div>

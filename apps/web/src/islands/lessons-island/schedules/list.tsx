@@ -113,6 +113,7 @@ export function SchedulesView({
         <ScheduleFormDialog
           title={t('New schedule')}
           students={students}
+          schedules={schedules}
           weekStartsOn={weekStartsOn}
           onSubmit={handleCreate}
         />
@@ -124,6 +125,7 @@ export function SchedulesView({
             title={t('Edit schedule')}
             students={students}
             defaults={editing}
+            schedules={schedules}
             weekStartsOn={weekStartsOn}
             onSubmit={(p) => handleEdit(editing.id, p)}
           />

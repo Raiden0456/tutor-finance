@@ -1,5 +1,5 @@
 import { addDays, differenceInWeeks, format, isToday, startOfWeek } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RecurringLesson } from '@/lib/types';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
@@ -8,6 +8,7 @@ const SLOT_PX = 48; // px per 30-min slot
 const HOUR_PX = SLOT_PX * 2; // px per hour = 96
 const MAX_HEIGHT = 400; // scrollable viewport height
 const COL_W = 90; // min px width per day column
+const OVERLAP_LANE_W = 104; // readable px width per overlapping lane
 const TIME_W = 36; // px width of time axis
 
 const BLOCK_COLORS = [
@@ -30,6 +31,56 @@ function hashColor(id: string): string {
 function parseTime(time: string): { h: number; m: number } {
   const [h, m] = time.split(':').map(Number);
   return { h: h!, m: m! };
+}
+
+function timeToMinutes(time: string): number {
+  const { h, m } = parseTime(time);
+  return h * 60 + m;
+}
+
+type PositionedSchedule = {
+  schedule: RecurringLesson;
+  lane: number;
+  laneCount: number;
+};
+
+function layoutOverlappingSchedules(schedules: RecurringLesson[]): PositionedSchedule[] {
+  const intervals = schedules
+    .map((schedule) => {
+      const start = timeToMinutes(schedule.startTime);
+      return { schedule, start, end: start + schedule.durationMin };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const positioned: PositionedSchedule[] = [];
+  let group: typeof intervals = [];
+  let groupEnd = -1;
+
+  function flushGroup() {
+    if (group.length === 0) return;
+
+    const laneEnds: number[] = [];
+    const groupPositioned = group.map((item) => {
+      let lane = laneEnds.findIndex((end) => end <= item.start);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = item.end;
+      return { schedule: item.schedule, lane, laneCount: 1 };
+    });
+
+    const laneCount = Math.max(1, laneEnds.length);
+    positioned.push(...groupPositioned.map((item) => ({ ...item, laneCount })));
+    group = [];
+    groupEnd = -1;
+  }
+
+  for (const item of intervals) {
+    if (group.length > 0 && item.start >= groupEnd) flushGroup();
+    group.push(item);
+    groupEnd = Math.max(groupEnd, item.end);
+  }
+  flushGroup();
+
+  return positioned;
 }
 
 function computeRange(schedules: RecurringLesson[]): { startHour: number; endHour: number } {
@@ -96,7 +147,20 @@ export function WeekGrid({
     return Math.max((durationMin / 30) * SLOT_PX, SLOT_PX / 2);
   }
 
-  const innerWidth = TIME_W + orderedDays.length * COL_W;
+  const dayLayouts = orderedDays.map((dow) => {
+    const schedulesForDay = schedules.filter(
+      (s) => s.daysOfWeek.includes(dow) && occursInWeek(s, weekStart, weekStartsOn),
+    );
+    const positioned = layoutOverlappingSchedules(schedulesForDay);
+    const maxLaneCount = Math.max(1, ...positioned.map((item) => item.laneCount));
+    return {
+      dow,
+      positioned,
+      width: Math.max(COL_W, maxLaneCount * OVERLAP_LANE_W),
+    };
+  });
+
+  const innerWidth = TIME_W + dayLayouts.reduce((sum, day) => sum + day.width, 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card">
@@ -124,116 +188,129 @@ export function WeekGrid({
       </div>
 
       <div className="overflow-x-auto">
-      <div style={{ minWidth: innerWidth }}>
-        {/* Day headers with actual dates */}
-        <div className="sticky top-0 z-10 flex border-b border-border bg-card">
-          <div className="flex-none" style={{ width: TIME_W }} />
-          {orderedDays.map((dow) => {
-            const date = dowToDate[dow]!;
-            const todayCol = isToday(date);
-            return (
-              <div
-                key={dow}
-                className="flex-1 border-l border-border/50 py-1.5 text-center"
-                style={{ minWidth: COL_W }}
-              >
-                <div
-                  className={
-                    'text-[10px] font-medium leading-tight ' +
-                    (todayCol ? 'text-primary' : 'text-muted-foreground')
-                  }
-                >
-                  {capitalizeFirst(format(date, 'EEE', { locale: dateLocale }))}
-                </div>
-                <div
-                  className={
-                    'text-[11px] font-semibold leading-tight ' +
-                    (todayCol ? 'text-primary' : 'text-muted-foreground/70')
-                  }
-                >
-                  {format(date, 'd')}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto" style={{ maxHeight: MAX_HEIGHT }}>
-          <div className="relative flex" style={{ height: gridHeight }}>
-            {/* Time axis */}
-            <div className="relative flex-none border-r border-border/30" style={{ width: TIME_W }}>
-              {hours.map((h) => (
-                <div
-                  key={h}
-                  className="absolute right-1 text-[9px] leading-none text-muted-foreground/60"
-                  style={{ top: (h - startHour) * HOUR_PX - 4 }}
-                >
-                  {String(h).padStart(2, '0')}:00
-                </div>
-              ))}
-            </div>
-
-            {/* Day columns */}
-            {orderedDays.map((dow) => {
-              const colSchedules = schedules.filter(
-                (s) => s.daysOfWeek.includes(dow) && occursInWeek(s, weekStart, weekStartsOn),
-              );
-              const todayCol = isToday(dowToDate[dow]!);
+        <div style={{ minWidth: innerWidth }}>
+          {/* Day headers with actual dates */}
+          <div className="sticky top-0 z-10 flex border-b border-border bg-card">
+            <div className="flex-none" style={{ width: TIME_W }} />
+            {dayLayouts.map(({ dow, width }) => {
+              const date = dowToDate[dow]!;
+              const todayCol = isToday(date);
               return (
                 <div
                   key={dow}
-                  className={
-                    'relative flex-1 border-l border-border/50' +
-                    (todayCol ? ' bg-primary/[0.03]' : '')
-                  }
-                  style={{ minWidth: COL_W, height: '100%' }}
+                  className="flex-none border-l border-border/50 py-1.5 text-center transition-[width] duration-200 ease-in-out"
+                  style={{ width }}
                 >
-                  {/* Gridlines every 30 min */}
-                  {Array.from({ length: totalHours * 2 + 1 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={
-                        'pointer-events-none absolute inset-x-0 border-t ' +
-                        (i % 2 === 0 ? 'border-border/40' : 'border-border/15')
-                      }
-                      style={{ top: i * SLOT_PX }}
-                    />
-                  ))}
-
-                  {/* Schedule blocks */}
-                  {colSchedules.map((s) => {
-                    const topPx = timeToTopPx(s.startTime);
-                    const heightPx = durationToHeightPx(s.durationMin);
-                    const clamped = Math.min(heightPx, gridHeight - topPx);
-                    if (topPx < 0 || topPx >= gridHeight) return null;
-
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => onEdit(s)}
-                        className={
-                          'absolute inset-x-0.5 overflow-hidden rounded-md border px-1 py-0.5 text-left transition-opacity hover:opacity-75 ' +
-                          hashColor(s.studentId)
-                        }
-                        style={{ top: topPx, height: clamped }}
-                      >
-                        <div className="truncate text-[10px] font-semibold leading-tight">
-                          {studentMap.get(s.studentId) ?? '—'}
-                        </div>
-                        {clamped >= SLOT_PX && (
-                          <div className="text-[9px] leading-tight opacity-80">{s.startTime}</div>
-                        )}
-                      </button>
-                    );
-                  })}
+                  <div
+                    className={
+                      'text-[10px] font-medium leading-tight ' +
+                      (todayCol ? 'text-primary' : 'text-muted-foreground')
+                    }
+                  >
+                    {capitalizeFirst(format(date, 'EEE', { locale: dateLocale }))}
+                  </div>
+                  <div
+                    className={
+                      'text-[11px] font-semibold leading-tight ' +
+                      (todayCol ? 'text-primary' : 'text-muted-foreground/70')
+                    }
+                  >
+                    {format(date, 'd')}
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto" style={{ maxHeight: MAX_HEIGHT }}>
+            <div className="relative flex" style={{ height: gridHeight }}>
+              {/* Time axis */}
+              <div
+                className="relative flex-none border-r border-border/30"
+                style={{ width: TIME_W }}
+              >
+                {hours.map((h) => (
+                  <div
+                    key={h}
+                    className="absolute right-1 text-[9px] leading-none text-muted-foreground/60"
+                    style={{ top: (h - startHour) * HOUR_PX - 4 }}
+                  >
+                    {String(h).padStart(2, '0')}:00
+                  </div>
+                ))}
+              </div>
+
+              {/* Day columns */}
+              {dayLayouts.map(({ dow, positioned: positionedSchedules, width }) => {
+                const todayCol = isToday(dowToDate[dow]!);
+                return (
+                  <div
+                    key={dow}
+                    className={
+                      'relative flex-none border-l border-border/50 transition-[width] duration-200 ease-in-out' +
+                      (todayCol ? ' bg-primary/[0.03]' : '')
+                    }
+                    style={{ width, height: '100%' }}
+                  >
+                    {/* Gridlines every 30 min */}
+                    {Array.from({ length: totalHours * 2 + 1 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={
+                          'pointer-events-none absolute inset-x-0 border-t ' +
+                          (i % 2 === 0 ? 'border-border/40' : 'border-border/15')
+                        }
+                        style={{ top: i * SLOT_PX }}
+                      />
+                    ))}
+
+                    {/* Schedule blocks */}
+                    {positionedSchedules.map(({ schedule: s, lane, laneCount }) => {
+                      const topPx = timeToTopPx(s.startTime);
+                      const heightPx = durationToHeightPx(s.durationMin);
+                      const clamped = Math.min(heightPx, gridHeight - topPx);
+                      if (topPx < 0 || topPx >= gridHeight) return null;
+
+                      const widthPct = 100 / laneCount;
+                      const leftPct = lane * widthPct;
+                      const isOverlapping = laneCount > 1;
+
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => onEdit(s)}
+                          className={
+                            'absolute overflow-hidden rounded-md border px-1 py-0.5 text-left transition-all duration-150 hover:opacity-75 ' +
+                            (isOverlapping ? 'ring-1 ring-amber-500/60 ' : '') +
+                            hashColor(s.studentId)
+                          }
+                          style={{
+                            top: topPx,
+                            height: clamped,
+                            left: `calc(${leftPct}% + 2px)`,
+                            width: `calc(${widthPct}% - 4px)`,
+                          }}
+                        >
+                          <div className="flex min-w-0 items-center gap-0.5 text-[10px] font-semibold leading-tight">
+                            {isOverlapping && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                            <span className="truncate">{studentMap.get(s.studentId) ?? '—'}</span>
+                          </div>
+                          {clamped >= SLOT_PX && (
+                            <div className="truncate text-[9px] leading-tight opacity-80">
+                              {s.startTime}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
