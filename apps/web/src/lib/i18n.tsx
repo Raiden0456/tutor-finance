@@ -219,6 +219,7 @@ const ru: Record<string, string> = {
     'Планируйте, отслеживайте и архивируйте занятия со статусами, оплатами, домашкой и ссылками на встречи.',
   Scheduled: 'Запланировано',
   Completed: 'Завершено',
+  Paid: 'Оплачено',
   Cancelled: 'Отменено',
   'No-show': 'Не пришёл',
   Due: 'К оплате',
@@ -407,6 +408,8 @@ const ru: Record<string, string> = {
   // Recurring lesson schedules
   Schedules: 'Расписания',
   'Weekly template': 'Недельный шаблон',
+  'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.':
+    'Расписания создают реальные занятия только на ближайшие 2 недели. Дальние занятия появятся автоматически, когда подойдут ближе.',
   'Add schedule': 'Добавить расписание',
   'New schedule': 'Новое расписание',
   'Edit schedule': 'Изменить расписание',

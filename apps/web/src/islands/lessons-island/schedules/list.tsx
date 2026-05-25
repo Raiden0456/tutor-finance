@@ -63,9 +63,16 @@ export function SchedulesView({
 
   return (
     <div className="mt-1 space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{t('Weekly template')}</span>
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-sm font-semibold">{t('Weekly template')}</span>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {t(
+              'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.',
+            )}
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="shrink-0">
           <Plus className="h-4 w-4" />
           {t('Add schedule')}
         </Button>
