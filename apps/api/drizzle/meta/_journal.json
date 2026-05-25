@@ -78,6 +78,13 @@
       "when": 1779304395726,
       "tag": "0011_chilly_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779723844545,
+      "tag": "0012_closed_machine_man",
+      "breakpoints": true
     }
   ]
 }

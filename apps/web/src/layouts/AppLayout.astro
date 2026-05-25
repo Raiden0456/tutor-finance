@@ -6,6 +6,7 @@ import { Sidebar, MobileTabBar } from '@/components/nav';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { MobilePushBridge } from '@/components/mobile-push-bridge';
 import { getServerSession } from '@/lib/auth-server';
 import { normalizeLocale } from '@/lib/i18n';
 
@@ -91,6 +92,7 @@ const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' |
         </main>
       </div>
     </div>
+    <MobilePushBridge client:load />
     <MobileTabBar current={path} locale={locale} client:load />
   </body>
 </html>

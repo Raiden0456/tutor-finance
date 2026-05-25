@@ -21,6 +21,9 @@ const FREQUENCY_SQL = sql.raw("'daily','weekly','monthly','yearly'");
 const LESSON_FREQUENCY_SQL = sql.raw("'weekly','biweekly'");
 const THEME_SQL = sql.raw("'light','dark','system'");
 const LOCALE_SQL = sql.raw("'en','ru'");
+const PUSH_PLATFORM_SQL = sql.raw("'ios','android'");
+const NOTIFICATION_TYPE_SQL = sql.raw("'lesson_reminder','daily_due_summary'");
+const NOTIFICATION_STATUS_SQL = sql.raw("'pending','sent','failed'");
 
 // --- Better Auth tables ---------------------------------------------------
 // Matches the standard Better Auth Drizzle/pg layout. Regenerate with:
@@ -321,6 +324,61 @@ export const userSettings = pgTable(
   ],
 );
 
+export const devicePushTokens = pgTable(
+  'device_push_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    platform: text('platform'),
+    lastSeenAt: timestamp('last_seen_at').notNull().defaultNow(),
+    disabledAt: timestamp('disabled_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('device_push_tokens_user_id_idx').on(t.userId),
+    uniqueIndex('device_push_tokens_token_uq').on(t.token),
+    check(
+      'device_push_tokens_platform_chk',
+      sql`${t.platform} is null or ${t.platform} in (${PUSH_PLATFORM_SQL})`,
+    ),
+  ],
+);
+
+export const notificationDeliveries = pgTable(
+  'notification_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    entityId: text('entity_id').notNull(),
+    scheduledFor: timestamp('scheduled_for').notNull(),
+    status: text('status').notNull().default('pending'),
+    sentAt: timestamp('sent_at'),
+    error: text('error'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('notification_deliveries_user_id_idx').on(t.userId),
+    index('notification_deliveries_scheduled_for_idx').on(t.scheduledFor),
+    uniqueIndex('notification_deliveries_dedupe_uq').on(t.type, t.entityId, t.scheduledFor),
+    check('notification_deliveries_type_chk', sql`${t.type} in (${NOTIFICATION_TYPE_SQL})`),
+    check('notification_deliveries_status_chk', sql`${t.status} in (${NOTIFICATION_STATUS_SQL})`),
+  ],
+);
+
 export const schema = {
   ...authSchema,
   students,
@@ -330,4 +388,6 @@ export const schema = {
   transactions,
   fxRates,
   userSettings,
+  devicePushTokens,
+  notificationDeliveries,
 };

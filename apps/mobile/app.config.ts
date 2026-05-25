@@ -1,0 +1,26 @@
+import type { ExpoConfig } from 'expo/config';
+
+const config: ExpoConfig = {
+  name: 'Uchetka',
+  slug: 'uchetka-mobile',
+  version: '0.0.1',
+  orientation: 'portrait',
+  scheme: 'uchetka',
+  userInterfaceStyle: 'automatic',
+  plugins: ['expo-notifications'],
+  ios: {
+    supportsTablet: false,
+    bundleIdentifier: 'com.tutorfinance.uchetka',
+  },
+  android: {
+    package: 'com.tutorfinance.uchetka',
+  },
+  extra: {
+    webAppUrl: process.env.EXPO_PUBLIC_WEB_APP_URL,
+    eas: {
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+    },
+  },
+};
+
+export default config;

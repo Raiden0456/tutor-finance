@@ -24,13 +24,24 @@
     "CACHE_ENABLED",
     "FX_API_URL",
     "PUBLIC_WEB_URL",
-    "PUBLIC_LANDING_URL"
+    "PUBLIC_LANDING_URL",
+    "PUSH_NOTIFICATIONS_ENABLED",
+    "EXPO_PUBLIC_WEB_APP_URL",
+    "EXPO_PUBLIC_EAS_PROJECT_ID"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".astro/**", "build/**"],
-      "env": ["PUBLIC_API_URL", "PUBLIC_APP_URL", "PUBLIC_WEB_URL", "PUBLIC_LANDING_URL"]
+      "env": [
+        "PUBLIC_API_URL",
+        "PUBLIC_APP_URL",
+        "PUBLIC_WEB_URL",
+        "PUBLIC_LANDING_URL",
+        "PUSH_NOTIFICATIONS_ENABLED",
+        "EXPO_PUBLIC_WEB_APP_URL",
+        "EXPO_PUBLIC_EAS_PROJECT_ID"
+      ]
     },
     "dev": {
       "dependsOn": ["^build"],
