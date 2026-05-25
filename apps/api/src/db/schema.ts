@@ -19,6 +19,7 @@ const LESSON_STATUS_SQL = sql.raw(
 const TRANSACTION_TYPE_SQL = sql.raw("'income','expense'");
 const FREQUENCY_SQL = sql.raw("'daily','weekly','monthly','yearly'");
 const LESSON_FREQUENCY_SQL = sql.raw("'weekly','biweekly'");
+const PRICING_MODE_SQL = sql.raw("'hourly','package'");
 const THEME_SQL = sql.raw("'light','dark','system'");
 const LOCALE_SQL = sql.raw("'en','ru'");
 const PUSH_PLATFORM_SQL = sql.raw("'ios','android'");
@@ -107,7 +108,12 @@ export const students = pgTable(
     phone: text('phone'),
     hourlyRateAmount: integer('hourly_rate_amount').notNull(),
     hourlyRateCurrency: text('hourly_rate_currency').notNull(),
+    ratePeriodMin: integer('rate_period_min').notNull().default(60),
+    pricingMode: text('pricing_mode').notNull().default('hourly'),
     defaultCurrency: text('default_currency').notNull(),
+    meetingLink: text('meeting_link'),
+    telegramLink: text('telegram_link'),
+    whatsappLink: text('whatsapp_link'),
     notes: text('notes'),
     archivedAt: timestamp('archived_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -121,7 +127,50 @@ export const students = pgTable(
     index('students_user_name_idx').on(t.userId, t.name),
     check('students_hourly_rate_amount_nonnegative_chk', sql`${t.hourlyRateAmount} >= 0`),
     check('students_hourly_rate_currency_chk', sql`${t.hourlyRateCurrency} in (${CURRENCY_SQL})`),
+    check('students_rate_period_min_positive_chk', sql`${t.ratePeriodMin} > 0`),
+    check('students_pricing_mode_chk', sql`${t.pricingMode} in (${PRICING_MODE_SQL})`),
     check('students_default_currency_chk', sql`${t.defaultCurrency} in (${CURRENCY_SQL})`),
+  ],
+);
+
+export const studentLessonPackages = pgTable(
+  'student_lesson_packages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'cascade' }),
+    lessonCount: integer('lesson_count').notNull(),
+    priceAmount: integer('price_amount').notNull(),
+    priceCurrency: text('price_currency').notNull(),
+    paidAmount: integer('paid_amount').notNull().default(0),
+    paidAt: timestamp('paid_at'),
+    closedAt: timestamp('closed_at'),
+    closedPaidLessons: integer('closed_paid_lessons'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('student_packages_user_id_idx').on(t.userId),
+    index('student_packages_student_id_idx').on(t.studentId),
+    index('student_packages_active_idx').on(t.studentId, t.closedAt),
+    check('student_packages_lesson_count_positive_chk', sql`${t.lessonCount} > 0`),
+    check('student_packages_price_amount_positive_chk', sql`${t.priceAmount} > 0`),
+    check('student_packages_price_currency_chk', sql`${t.priceCurrency} in (${CURRENCY_SQL})`),
+    check(
+      'student_packages_paid_amount_chk',
+      sql`${t.paidAmount} >= 0 and ${t.paidAmount} <= ${t.priceAmount}`,
+    ),
+    check(
+      'student_packages_closed_paid_lessons_chk',
+      sql`${t.closedPaidLessons} is null or ${t.closedPaidLessons} >= 0`,
+    ),
   ],
 );
 
@@ -267,6 +316,10 @@ export const transactions = pgTable(
     category: text('category').notNull(),
     studentId: uuid('student_id').references(() => students.id, { onDelete: 'set null' }),
     lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'set null' }),
+    studentLessonPackageId: uuid('student_lesson_package_id').references(
+      () => studentLessonPackages.id,
+      { onDelete: 'set null' },
+    ),
     recurringExpenseId: uuid('recurring_expense_id').references(() => recurringExpenses.id, {
       onDelete: 'set null',
     }),
@@ -281,6 +334,7 @@ export const transactions = pgTable(
     index('transactions_user_id_idx').on(t.userId),
     index('transactions_user_occurred_idx').on(t.userId, t.occurredAt),
     uniqueIndex('transactions_user_lesson_uq').on(t.userId, t.lessonId),
+    uniqueIndex('transactions_user_package_uq').on(t.userId, t.studentLessonPackageId),
     uniqueIndex('transactions_recurring_occurrence_uq').on(t.recurringExpenseId, t.occurredAt),
     check('transactions_type_chk', sql`${t.type} in (${TRANSACTION_TYPE_SQL})`),
     check('transactions_amount_positive_chk', sql`${t.amount} > 0`),
@@ -382,6 +436,7 @@ export const notificationDeliveries = pgTable(
 export const schema = {
   ...authSchema,
   students,
+  studentLessonPackages,
   recurringLessons,
   lessons,
   recurringExpenses,

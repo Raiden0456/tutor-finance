@@ -73,6 +73,16 @@ export function ScheduleFormDialog({
   const [submitting, setSubmitting] = useState(false);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(defaults?.daysOfWeek ?? [1]);
   const isEdit = !!defaults;
+  const [selectedStudentId, setSelectedStudentId] = useState(
+    defaults?.studentId ?? students[0]?.id ?? '',
+  );
+  const [meetingLink, setMeetingLink] = useState(
+    defaults?.meetingLink ?? students[0]?.meetingLink ?? '',
+  );
+
+  function studentMeetingLink(studentId: string) {
+    return students.find((s) => s.id === studentId)?.meetingLink ?? '';
+  }
 
   function toggleDay(idx: number) {
     setDaysOfWeek((prev) =>
@@ -114,14 +124,14 @@ export function ScheduleFormDialog({
     const form = e.currentTarget;
     const data = new FormData(form);
 
-    const studentId = String(data.get('studentId') ?? '');
+    const studentId = selectedStudentId;
     const startTime = String(data.get('startTime') ?? '');
     const durationMin = parseInt(String(data.get('durationMin') ?? '60'), 10);
     const startDate = String(data.get('startDate') ?? '').trim() || undefined;
     const endDateRaw = String(data.get('endDate') ?? '').trim();
     // On edit, send null to clear; on create, omit
     const endDate: string | null | undefined = endDateRaw ? endDateRaw : isEdit ? null : undefined;
-    const meetingLink = String(data.get('meetingLink') ?? '').trim() || undefined;
+    const meetingLinkValue = meetingLink.trim() || undefined;
     const notes = String(data.get('notes') ?? '').trim() || undefined;
 
     let priceOverride: ScheduleFormPayload['priceOverride'] = undefined;
@@ -147,7 +157,7 @@ export function ScheduleFormDialog({
         startDate,
         endDate,
         priceOverride,
-        meetingLink,
+        meetingLink: meetingLinkValue,
         notes,
       });
     } finally {
@@ -166,7 +176,11 @@ export function ScheduleFormDialog({
             <Label htmlFor="sch-student">{t('Student')}</Label>
             <Select
               name="studentId"
-              defaultValue={defaults?.studentId ?? students[0]?.id ?? ''}
+              value={selectedStudentId}
+              onValueChange={(studentId) => {
+                setSelectedStudentId(studentId);
+                if (!isEdit) setMeetingLink(studentMeetingLink(studentId));
+              }}
               disabled={isEdit}
             >
               <SelectTrigger id="sch-student">
@@ -348,7 +362,8 @@ export function ScheduleFormDialog({
               name="meetingLink"
               type="url"
               placeholder="https://"
-              defaultValue={defaults?.meetingLink ?? ''}
+              value={meetingLink}
+              onChange={(e) => setMeetingLink(e.target.value)}
             />
           </div>
 

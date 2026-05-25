@@ -46,6 +46,9 @@ export function StudentCard({
 }) {
   const { t } = useI18n();
   const tint = useMemo(() => avatarTint(student.id), [student.id]);
+  const activePackage = student.activePackage;
+  const showPackage =
+    !!activePackage && (student.pricingMode === 'package' || activePackage.remainingLessons > 0);
   return (
     <motion.li
       layout
@@ -67,7 +70,7 @@ export function StudentCard({
         <a href={`/students/${student.id}`} className="min-w-0 flex-1 group">
           <div className="truncate text-base font-medium group-hover:underline">{student.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {student.email || student.phone || '—'}
+            {student.email || student.phone || student.telegramLink || student.whatsappLink || '—'}
           </div>
           {student.notes ? (
             <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{student.notes}</div>
@@ -94,13 +97,29 @@ export function StudentCard({
       </div>
       <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
         <span className="text-xs uppercase tracking-wide text-muted-foreground">
-          {t('Hourly rate')}
+          {showPackage ? t('Package') : t('Rate')}
         </span>
-        <span className="text-lg font-semibold tabular-nums">
-          {fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">{t('/ hr')}</span>
-        </span>
+        {showPackage && activePackage ? (
+          <span className="text-right text-sm font-semibold tabular-nums">
+            {fmtMoney(activePackage.price.amount, activePackage.price.currency)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              · {activePackage.coveredLessons}/{activePackage.lessonCount} {t('lessons')}
+            </span>
+          </span>
+        ) : (
+          <span className="text-lg font-semibold tabular-nums">
+            {fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / {student.ratePeriodMin} {t('min')}
+            </span>
+          </span>
+        )}
       </div>
+      {activePackage?.overageLessons ? (
+        <div className="mt-2 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 transition-colors dark:text-amber-400">
+          {t('Package overrun: {count} extra lessons', { count: activePackage.overageLessons })}
+        </div>
+      ) : null}
     </motion.li>
   );
 }

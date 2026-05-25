@@ -140,6 +140,7 @@ export interface LessonResponse {
   priceOverride: { amount: number; currency: Currency } | null;
   paidAmount: number | null;
   effectivePrice: { amount: number; currency: Currency } | null;
+  isPackageCovered: boolean;
   notes: string | null;
   homework: string | null;
   meetingLink: string | null;

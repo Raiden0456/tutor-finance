@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { and, asc, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lte } from 'drizzle-orm';
 import type { Currency, LessonFrequency } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
@@ -23,9 +23,14 @@ type Row = typeof recurringLessons.$inferSelect;
 
 const LOOKAHEAD_DAYS = 14;
 
-function firstOccurrence(from: Date, daysOfWeek: number[]): Date {
-  const d = new Date(from);
+function startOfUtcDay(date: Date): Date {
+  const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function firstOccurrence(from: Date, daysOfWeek: number[]): Date {
+  const d = startOfUtcDay(from);
   for (let i = 0; i < 7; i++) {
     if (daysOfWeek.includes(d.getUTCDay())) return d;
     d.setUTCDate(d.getUTCDate() + 1);
@@ -44,6 +49,27 @@ function addDay(date: Date): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + 1);
   return d;
+}
+
+function nextGenerationCursor(
+  startDate: Date,
+  daysOfWeek: number[],
+  startTime: string,
+  from = new Date(),
+): Date {
+  const today = startOfUtcDay(from);
+  const scheduleStart = startOfUtcDay(startDate);
+  let d = scheduleStart > today ? scheduleStart : today;
+
+  for (let i = 0; i <= 7; i++) {
+    if (daysOfWeek.includes(d.getUTCDay())) {
+      const startsAt = applyTime(d, startTime);
+      if (startsAt >= from) return startsAt;
+    }
+    d = addDay(d);
+  }
+
+  return applyTime(firstOccurrence(d, daysOfWeek), startTime);
 }
 
 function toResponse(r: Row): RecurringLessonResponse {
@@ -95,12 +121,9 @@ export class RecurringLessonsService implements OnModuleInit {
     return response;
   }
 
-  async create(
-    userId: string,
-    input: CreateRecurringLessonDto,
-  ): Promise<RecurringLessonResponse> {
+  async create(userId: string, input: CreateRecurringLessonDto): Promise<RecurringLessonResponse> {
     const [student] = await this.db
-      .select({ id: students.id })
+      .select({ id: students.id, meetingLink: students.meetingLink })
       .from(students)
       .where(and(eq(students.id, input.studentId), eq(students.userId, userId)))
       .limit(1);
@@ -109,10 +132,7 @@ export class RecurringLessonsService implements OnModuleInit {
     const startDate = input.startDate ? new Date(input.startDate) : new Date();
     startDate.setUTCHours(0, 0, 0, 0);
 
-    const nextAt = applyTime(
-      firstOccurrence(startDate, input.daysOfWeek),
-      input.startTime,
-    );
+    const nextAt = nextGenerationCursor(startDate, input.daysOfWeek, input.startTime);
 
     const [row] = await this.db
       .insert(recurringLessons)
@@ -129,7 +149,7 @@ export class RecurringLessonsService implements OnModuleInit {
         isActive: true,
         priceOverrideAmount: input.priceOverride?.amount ?? null,
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
-        meetingLink: input.meetingLink ?? null,
+        meetingLink: input.meetingLink ?? student.meetingLink ?? null,
         notes: input.notes ?? null,
       })
       .returning();
@@ -149,6 +169,28 @@ export class RecurringLessonsService implements OnModuleInit {
     }
 
     const set: Partial<typeof recurringLessons.$inferInsert> = {};
+
+    if (patch.isActive === true) {
+      const [current] = await this.db
+        .select()
+        .from(recurringLessons)
+        .where(
+          and(
+            eq(recurringLessons.id, id),
+            eq(recurringLessons.userId, userId),
+            isNull(recurringLessons.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!current) throw new NotFoundException('Recurring lesson schedule not found');
+
+      set.nextScheduledAt = nextGenerationCursor(
+        current.startDate,
+        patch.daysOfWeek ?? current.daysOfWeek,
+        patch.startTime ?? current.startTime,
+      );
+    }
+
     if (patch.daysOfWeek !== undefined) set.daysOfWeek = patch.daysOfWeek;
     if (patch.startTime !== undefined) set.startTime = patch.startTime;
     if (patch.durationMin !== undefined) set.durationMin = patch.durationMin;
@@ -179,7 +221,9 @@ export class RecurringLessonsService implements OnModuleInit {
       )
       .returning();
     if (!row) throw new NotFoundException('Recurring lesson schedule not found');
+    if (patch.isActive === false) await this.deleteFutureScheduledOccurrences(userId, id);
     await this.invalidateUserCache(userId);
+    if (patch.isActive === true) await this.dispatch();
     return toResponse(row);
   }
 
@@ -219,8 +263,11 @@ export class RecurringLessonsService implements OnModuleInit {
     const freqWeeks = (f: LessonFrequency) => (f === 'biweekly' ? 2 : 1);
 
     for (const schedule of due) {
-      let d = new Date(schedule.nextScheduledAt);
-      d.setUTCHours(0, 0, 0, 0);
+      let d = startOfUtcDay(schedule.nextScheduledAt);
+      const today = startOfUtcDay(now);
+      const scheduleStart = startOfUtcDay(schedule.startDate);
+      if (d < today) d = today;
+      if (d < scheduleStart) d = scheduleStart;
 
       await this.db.transaction(async (tx) => {
         while (d <= horizon) {
@@ -232,23 +279,26 @@ export class RecurringLessonsService implements OnModuleInit {
               (d.getTime() - schedule.startDate.getTime()) / msPerWeek,
             );
             if (weeksSinceStart % freqWeeks(schedule.frequency as LessonFrequency) === 0) {
-              await tx
-                .insert(lessons)
-                .values({
-                  userId: schedule.userId,
-                  studentId: schedule.studentId,
-                  startsAt: applyTime(d, schedule.startTime),
-                  durationMin: schedule.durationMin,
-                  status: 'scheduled',
-                  priceOverrideAmount: schedule.priceOverrideAmount,
-                  priceOverrideCurrency: schedule.priceOverrideCurrency,
-                  meetingLink: schedule.meetingLink,
-                  notes: schedule.notes,
-                  recurringLessonId: schedule.id,
-                })
-                .onConflictDoNothing({
-                  target: [lessons.recurringLessonId, lessons.startsAt],
-                });
+              const startsAt = applyTime(d, schedule.startTime);
+              if (startsAt >= now) {
+                await tx
+                  .insert(lessons)
+                  .values({
+                    userId: schedule.userId,
+                    studentId: schedule.studentId,
+                    startsAt,
+                    durationMin: schedule.durationMin,
+                    status: 'scheduled',
+                    priceOverrideAmount: schedule.priceOverrideAmount,
+                    priceOverrideCurrency: schedule.priceOverrideCurrency,
+                    meetingLink: schedule.meetingLink,
+                    notes: schedule.notes,
+                    recurringLessonId: schedule.id,
+                  })
+                  .onConflictDoNothing({
+                    target: [lessons.recurringLessonId, lessons.startsAt],
+                  });
+              }
             }
           }
 
@@ -263,6 +313,20 @@ export class RecurringLessonsService implements OnModuleInit {
 
       await this.invalidateUserCache(schedule.userId);
     }
+  }
+
+  private async deleteFutureScheduledOccurrences(userId: string, recurringLessonId: string) {
+    await this.db
+      .delete(lessons)
+      .where(
+        and(
+          eq(lessons.userId, userId),
+          eq(lessons.recurringLessonId, recurringLessonId),
+          eq(lessons.status, 'scheduled'),
+          isNull(lessons.archivedAt),
+          gte(lessons.startsAt, new Date()),
+        ),
+      );
   }
 
   private async invalidateUserCache(userId: string): Promise<void> {

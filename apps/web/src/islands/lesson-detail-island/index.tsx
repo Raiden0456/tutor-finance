@@ -154,7 +154,11 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
   }
 
   const provider = meetingLink.trim() ? detectMeetingProvider(meetingLink.trim()) : null;
-  const hasPrimaryAction = lesson.status === 'scheduled' || needsPayment(lesson.status);
+  const packageNeedsCompletion = lesson.isPackageCovered && lesson.status === 'due';
+  const hasPrimaryAction =
+    lesson.status === 'scheduled' ||
+    packageNeedsCompletion ||
+    (!lesson.isPackageCovered && needsPayment(lesson.status));
 
   return (
     <div className="page-enter space-y-6">
@@ -304,11 +308,13 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
           <button
             type="button"
             onClick={() =>
-              lesson.status === 'scheduled' ? changeStatus('completed') : changeStatus('paid')
+              lesson.status === 'scheduled' || packageNeedsCompletion
+                ? changeStatus('completed')
+                : changeStatus('paid')
             }
             className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.96]"
           >
-            {lesson.status === 'scheduled' ? (
+            {lesson.status === 'scheduled' || packageNeedsCompletion ? (
               <>
                 <CheckCircle2 className="h-4 w-4" />
                 {t('Mark as Completed')}
@@ -331,7 +337,7 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {needsPayment(lesson.status) && (
+              {!lesson.isPackageCovered && needsPayment(lesson.status) && (
                 <DropdownMenuItem onClick={() => setPartialOpen(true)}>
                   <Banknote className="mr-2 h-4 w-4" />
                   {t('Partial Payment')}

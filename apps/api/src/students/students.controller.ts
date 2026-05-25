@@ -1,7 +1,25 @@
-import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseBoolPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Delete,
+  Get,
+  Param,
+  ParseBoolPipe,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser, type CurrentUserData } from '../auth/current-user.decorator.js';
 import { StudentsService } from './students.service.js';
-import { CreateStudentDto, UpdateStudentDto, type StudentResponse } from './students.dto.js';
+import {
+  CloseStudentPackageDto,
+  CreateStudentDto,
+  UpdateStudentDto,
+  UpdateStudentPackagePaymentDto,
+  type StudentResponse,
+} from './students.dto.js';
 
 @Controller('students')
 export class StudentsController {
@@ -38,6 +56,24 @@ export class StudentsController {
     @Body() patch: UpdateStudentDto,
   ): Promise<StudentResponse> {
     return this.service.update(user.id, id, patch);
+  }
+
+  @Post(':id/package/payment')
+  updatePackagePayment(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: UpdateStudentPackagePaymentDto,
+  ): Promise<StudentResponse> {
+    return this.service.updatePackagePayment(user.id, id, input);
+  }
+
+  @Post(':id/package/close')
+  closePackage(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: CloseStudentPackageDto,
+  ): Promise<StudentResponse> {
+    return this.service.closePackage(user.id, id, input);
   }
 
   @Post(':id/archive')

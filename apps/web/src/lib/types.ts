@@ -10,9 +10,20 @@ import type {
   CurrencyTotal,
   WeekStartsOn,
   RecurringLesson,
+  PackagePaymentStatus,
+  PricingMode,
+  StudentLessonPackage,
 } from '@tutor-finance/shared';
 
-export type { CurrencyTotal, Frequency, LessonFrequency, RecurringLesson };
+export type {
+  CurrencyTotal,
+  Frequency,
+  LessonFrequency,
+  PackagePaymentStatus,
+  PricingMode,
+  RecurringLesson,
+  StudentLessonPackage,
+};
 
 export interface Lesson {
   id: string;
@@ -24,6 +35,7 @@ export interface Lesson {
   paidAmount: number | null;
   priceOverride: Money | null;
   effectivePrice: Money | null;
+  isPackageCovered?: boolean;
   notes?: string | null;
   homework?: string | null;
   meetingLink?: string | null;
@@ -65,6 +77,7 @@ export interface DailyFinanceStats {
 export interface StudentRef {
   id: string;
   name: string;
+  meetingLink?: string | null;
 }
 
 export interface Student {
@@ -73,7 +86,13 @@ export interface Student {
   email?: string | null;
   phone?: string | null;
   hourlyRate: Money;
+  ratePeriodMin: number;
+  pricingMode: PricingMode;
+  activePackage: StudentLessonPackage | null;
   defaultCurrency: Currency;
+  meetingLink?: string | null;
+  telegramLink?: string | null;
+  whatsappLink?: string | null;
   notes?: string | null;
   archivedAt?: string | null;
 }
@@ -103,6 +122,8 @@ export interface Tx {
   occurredAt: string;
   category: string;
   studentId?: string | null;
+  lessonId?: string | null;
+  studentLessonPackageId?: string | null;
   description?: string | null;
   convertedAmount?: number | null;
 }

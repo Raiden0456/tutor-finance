@@ -19,7 +19,7 @@ import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { lessons, students } from '../db/schema.js';
+import { lessons, studentLessonPackages, students } from '../db/schema.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import type {
   CreateLessonDto,
@@ -49,6 +49,8 @@ const JOIN_COLS = {
   updatedAt: lessons.updatedAt,
   studentHourlyRateAmount: students.hourlyRateAmount,
   studentHourlyRateCurrency: students.hourlyRateCurrency,
+  studentRatePeriodMin: students.ratePeriodMin,
+  studentPricingMode: students.pricingMode,
 };
 
 type JoinRow = {
@@ -70,21 +72,16 @@ type JoinRow = {
   updatedAt: Date;
   studentHourlyRateAmount: number | null;
   studentHourlyRateCurrency: string | null;
+  studentRatePeriodMin: number | null;
+  studentPricingMode: string | null;
 };
 
-function toResponse(r: JoinRow): LessonResponse {
-  let effectivePrice: { amount: number; currency: Currency } | null = null;
-  if (r.priceOverrideAmount !== null && r.priceOverrideCurrency !== null) {
-    effectivePrice = {
-      amount: r.priceOverrideAmount,
-      currency: r.priceOverrideCurrency as Currency,
-    };
-  } else if (r.studentHourlyRateAmount !== null && r.studentHourlyRateCurrency !== null) {
-    effectivePrice = {
-      amount: Math.round((r.studentHourlyRateAmount * r.durationMin) / 60),
-      currency: r.studentHourlyRateCurrency as Currency,
-    };
-  }
+type EffectivePrice = { amount: number; currency: Currency };
+type PriceResolution = { price: EffectivePrice; source: 'override' | 'package' | 'hourly' };
+
+type PackageRow = typeof studentLessonPackages.$inferSelect;
+
+function toLessonResponse(r: JoinRow, resolution: PriceResolution | null): LessonResponse {
   return {
     id: r.id,
     studentId: r.studentId,
@@ -97,7 +94,8 @@ function toResponse(r: JoinRow): LessonResponse {
         ? { amount: r.priceOverrideAmount, currency: r.priceOverrideCurrency as Currency }
         : null,
     paidAmount: r.paidAmount ?? null,
-    effectivePrice,
+    effectivePrice: resolution?.price ?? null,
+    isPackageCovered: resolution?.source === 'package',
     notes: r.notes,
     homework: r.homework,
     meetingLink: r.meetingLink,
@@ -108,6 +106,29 @@ function toResponse(r: JoinRow): LessonResponse {
 }
 
 const PAYMENT_STATUSES = ['paid', 'partially_paid'];
+const CONDUCTED_STATUSES = ['completed', 'due', 'paid', 'partially_paid'];
+
+function isConductedStatus(status: string): boolean {
+  return CONDUCTED_STATUSES.includes(status);
+}
+
+function packageUnitPrice(pkg: PackageRow, lessonNumber?: number): EffectivePrice {
+  const baseAmount = Math.floor(pkg.priceAmount / pkg.lessonCount);
+  const remainder = pkg.priceAmount - baseAmount * pkg.lessonCount;
+  const remainderShare = lessonNumber !== undefined && lessonNumber <= remainder ? 1 : 0;
+
+  return {
+    amount: baseAmount + remainderShare,
+    currency: pkg.priceCurrency as Currency,
+  };
+}
+
+function hourlyPrice(amount: number, currency: string, durationMin: number, ratePeriodMin: number) {
+  return {
+    amount: Math.round((amount * durationMin) / ratePeriodMin),
+    currency: currency as Currency,
+  };
+}
 
 @Injectable()
 export class LessonsService {
@@ -147,7 +168,7 @@ export class LessonsService {
       .orderBy(filter?.orderDir === 'asc' ? asc(lessons.startsAt) : desc(lessons.startsAt))
       .offset(offset)
       .limit(limit);
-    const response = rows.map((r) => toResponse(r as JoinRow));
+    const response = await Promise.all(rows.map((r) => this.toResponse(r as JoinRow)));
     await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
     return response;
   }
@@ -166,11 +187,12 @@ export class LessonsService {
       );
 
     for (const row of stale) {
+      const resolution = await this.resolveEffectivePriceForStoredLesson(userId, row);
       await this.db
         .update(lessons)
-        .set({ status: 'due' })
+        .set({ status: resolution?.source === 'package' ? 'completed' : 'due' })
         .where(and(eq(lessons.id, row.id), eq(lessons.userId, userId)));
-      // no syncTransaction — payment must be explicitly confirmed
+      // no syncTransaction — payment must be explicitly confirmed for non-package lessons
     }
 
     if (stale.length > 0) {
@@ -184,7 +206,7 @@ export class LessonsService {
     if (cached) return cached;
 
     const row = await this.findJoinRow(userId, id);
-    const response = toResponse(row);
+    const response = await this.toResponse(row);
     await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
     return response;
   }
@@ -210,13 +232,35 @@ export class LessonsService {
     return row;
   }
 
-  private async assertStudentOwned(userId: string, studentId: string): Promise<void> {
+  private async toResponse(row: JoinRow): Promise<LessonResponse> {
+    const resolution = await this.resolveEffectivePriceFromJoin(row);
+    if (
+      resolution?.source === 'package' &&
+      (row.status === 'due' || row.status === 'paid' || row.status === 'partially_paid')
+    ) {
+      await this.db
+        .update(lessons)
+        .set({ status: 'completed', paidAmount: null })
+        .where(and(eq(lessons.id, row.id), eq(lessons.userId, row.userId)));
+      await this.transactions.deleteForLesson(row.userId, row.id);
+      await this.invalidateUserCache(row.userId);
+      return toLessonResponse({ ...row, status: 'completed', paidAmount: null }, resolution);
+    }
+
+    return toLessonResponse(row, resolution);
+  }
+
+  private async findStudentOwned(
+    userId: string,
+    studentId: string,
+  ): Promise<typeof students.$inferSelect> {
     const [student] = await this.db
-      .select({ id: students.id })
+      .select()
       .from(students)
       .where(and(eq(students.id, studentId), eq(students.userId, userId)))
       .limit(1);
     if (!student) throw new NotFoundException('Student not found');
+    return student;
   }
 
   private assertPaymentState(status: string, paidAmount: number | null): void {
@@ -225,8 +269,168 @@ export class LessonsService {
     }
   }
 
+  private async resolveEffectivePriceFromJoin(row: JoinRow): Promise<PriceResolution | null> {
+    if (row.priceOverrideAmount !== null && row.priceOverrideCurrency !== null) {
+      return {
+        price: { amount: row.priceOverrideAmount, currency: row.priceOverrideCurrency as Currency },
+        source: 'override',
+      };
+    }
+
+    if (row.studentHourlyRateAmount === null || row.studentHourlyRateCurrency === null) {
+      return null;
+    }
+
+    return this.resolveStudentPrice({
+      userId: row.userId,
+      studentId: row.studentId,
+      startsAt: row.startsAt,
+      durationMin: row.durationMin,
+      status: row.status,
+      hourlyRateAmount: row.studentHourlyRateAmount,
+      hourlyRateCurrency: row.studentHourlyRateCurrency,
+      ratePeriodMin: row.studentRatePeriodMin ?? 60,
+      pricingMode: row.studentPricingMode ?? 'hourly',
+    });
+  }
+
+  private async resolveEffectivePriceForStoredLesson(
+    userId: string,
+    lesson: Row,
+  ): Promise<PriceResolution | null> {
+    if (lesson.priceOverrideAmount !== null && lesson.priceOverrideCurrency !== null) {
+      return {
+        price: {
+          amount: lesson.priceOverrideAmount,
+          currency: lesson.priceOverrideCurrency as Currency,
+        },
+        source: 'override',
+      };
+    }
+
+    const student = await this.findStudentOwned(userId, lesson.studentId);
+    return this.resolveStudentPrice({
+      userId,
+      studentId: lesson.studentId,
+      startsAt: lesson.startsAt,
+      durationMin: lesson.durationMin,
+      status: lesson.status,
+      hourlyRateAmount: student.hourlyRateAmount,
+      hourlyRateCurrency: student.hourlyRateCurrency,
+      ratePeriodMin: student.ratePeriodMin,
+      pricingMode: student.pricingMode,
+    });
+  }
+
+  private async resolveStudentPrice(input: {
+    userId: string;
+    studentId: string;
+    startsAt: Date;
+    durationMin: number;
+    status: string;
+    hourlyRateAmount: number;
+    hourlyRateCurrency: string;
+    ratePeriodMin: number;
+    pricingMode: string;
+  }): Promise<PriceResolution> {
+    const activePackage = await this.findActivePackageRow(input.userId, input.studentId);
+
+    if (activePackage) {
+      const packageCoverage = await this.getPackageCoverage(
+        input.userId,
+        input.studentId,
+        activePackage,
+        input.startsAt,
+        input.status,
+      );
+
+      if (packageCoverage.covered || input.pricingMode === 'package') {
+        return {
+          price: packageUnitPrice(activePackage, packageCoverage.lessonNumber),
+          source: 'package',
+        };
+      }
+    }
+
+    return {
+      price: hourlyPrice(
+        input.hourlyRateAmount,
+        input.hourlyRateCurrency,
+        input.durationMin,
+        input.ratePeriodMin,
+      ),
+      source: 'hourly',
+    };
+  }
+
+  private async findActivePackageRow(
+    userId: string,
+    studentId: string,
+  ): Promise<PackageRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(studentLessonPackages)
+      .where(
+        and(
+          eq(studentLessonPackages.userId, userId),
+          eq(studentLessonPackages.studentId, studentId),
+          isNull(studentLessonPackages.closedAt),
+        ),
+      )
+      .orderBy(desc(studentLessonPackages.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
+  private async getPackageCoverage(
+    userId: string,
+    studentId: string,
+    pkg: PackageRow,
+    startsAt: Date,
+    status: string,
+  ): Promise<{ covered: boolean; lessonNumber: number | undefined }> {
+    if (startsAt < pkg.createdAt) return { covered: false, lessonNumber: undefined };
+
+    const conducted = isConductedStatus(status);
+    const countedUntil = conducted ? startsAt : undefined;
+    const conductedCount = await this.countConductedLessons(
+      userId,
+      studentId,
+      pkg.createdAt,
+      countedUntil,
+    );
+    const lessonNumber = conducted ? conductedCount : conductedCount + 1;
+
+    return {
+      covered: lessonNumber <= pkg.lessonCount,
+      lessonNumber,
+    };
+  }
+
+  private async countConductedLessons(
+    userId: string,
+    studentId: string,
+    from: Date,
+    to?: Date,
+  ): Promise<number> {
+    const conds = [
+      eq(lessons.userId, userId),
+      eq(lessons.studentId, studentId),
+      inArray(lessons.status, CONDUCTED_STATUSES),
+      gte(lessons.startsAt, from),
+    ];
+    if (to) conds.push(lte(lessons.startsAt, to));
+
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(lessons)
+      .where(and(...conds));
+
+    return Number(row?.count ?? 0);
+  }
+
   async create(userId: string, input: CreateLessonDto): Promise<LessonResponse> {
-    await this.assertStudentOwned(userId, input.studentId);
+    const student = await this.findStudentOwned(userId, input.studentId);
     this.assertPaymentState(input.status, input.paidAmount ?? null);
 
     const [row] = await this.db
@@ -242,7 +446,7 @@ export class LessonsService {
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
         notes: input.notes ?? null,
         homework: input.homework ?? null,
-        meetingLink: input.meetingLink ?? null,
+        meetingLink: input.meetingLink ?? student.meetingLink ?? null,
       })
       .returning();
     if (!row) throw new NotFoundException('Insert failed');
@@ -259,7 +463,8 @@ export class LessonsService {
     }
 
     const before = await this.findRowById(userId, id);
-    if (patch.studentId !== undefined) await this.assertStudentOwned(userId, patch.studentId);
+    const nextStudent =
+      patch.studentId !== undefined ? await this.findStudentOwned(userId, patch.studentId) : null;
     this.assertPaymentState(patch.status ?? before.status, patch.paidAmount ?? before.paidAmount);
 
     const set: Partial<typeof lessons.$inferInsert> = {};
@@ -279,7 +484,11 @@ export class LessonsService {
     }
     if (patch.notes !== undefined) set.notes = patch.notes || null;
     if (patch.homework !== undefined) set.homework = patch.homework || null;
-    if (patch.meetingLink !== undefined) set.meetingLink = patch.meetingLink || null;
+    if (patch.meetingLink !== undefined) {
+      set.meetingLink = patch.meetingLink || null;
+    } else if (nextStudent && before.meetingLink === null) {
+      set.meetingLink = nextStudent.meetingLink;
+    }
 
     const [row] = await this.db
       .update(lessons)
@@ -347,38 +556,19 @@ export class LessonsService {
 
   private async syncTransaction(userId: string, lesson: Row, updateOccurredAt: boolean) {
     const occurredAt = updateOccurredAt ? new Date() : undefined;
-    let amount: number;
-    let currency: Currency;
+    const resolution = await this.resolveEffectivePriceForStoredLesson(userId, lesson);
+    if (!resolution) throw new NotFoundException('Student not found');
 
-    if (lesson.status === 'partially_paid' && lesson.paidAmount !== null) {
-      if (lesson.priceOverrideAmount !== null && lesson.priceOverrideCurrency !== null) {
-        amount = lesson.paidAmount;
-        currency = lesson.priceOverrideCurrency as Currency;
-      } else {
-        const [student] = await this.db
-          .select()
-          .from(students)
-          .where(and(eq(students.id, lesson.studentId), eq(students.userId, userId)))
-          .limit(1);
-        if (!student) throw new NotFoundException('Student not found');
-        amount = lesson.paidAmount;
-        currency = student.hourlyRateCurrency as Currency;
-      }
-    } else {
-      if (lesson.priceOverrideAmount !== null && lesson.priceOverrideCurrency !== null) {
-        amount = lesson.priceOverrideAmount;
-        currency = lesson.priceOverrideCurrency as Currency;
-      } else {
-        const [student] = await this.db
-          .select()
-          .from(students)
-          .where(and(eq(students.id, lesson.studentId), eq(students.userId, userId)))
-          .limit(1);
-        if (!student) throw new NotFoundException('Student not found');
-        amount = Math.round((student.hourlyRateAmount * lesson.durationMin) / 60);
-        currency = student.hourlyRateCurrency as Currency;
-      }
+    if (resolution.source === 'package') {
+      await this.transactions.deleteForLesson(userId, lesson.id);
+      return;
     }
+
+    const amount =
+      lesson.status === 'partially_paid' && lesson.paidAmount !== null
+        ? lesson.paidAmount
+        : resolution.price.amount;
+    const currency = resolution.price.currency;
 
     await this.transactions.upsertForLesson({
       userId,
@@ -398,9 +588,8 @@ export class LessonsService {
   ): Promise<{ amount: number; currency: Currency }[]> {
     const rows = await this.plannedIncomeRows(userId, from, to);
 
-    return rows
-      .map((r) => this.resolvePlannedAmount(r))
-      .filter((x): x is { amount: number; currency: Currency } => x !== null);
+    const resolved = await Promise.all(rows.map((r) => this.resolvePlannedAmount(userId, r)));
+    return resolved.filter((x): x is { amount: number; currency: Currency } => x !== null);
   }
 
   async plannedIncomeDailyRaw(
@@ -410,23 +599,31 @@ export class LessonsService {
   ): Promise<{ date: string; amount: number; currency: Currency }[]> {
     const rows = await this.plannedIncomeRows(userId, from, to);
 
-    return rows
-      .map((r) => {
-        const planned = this.resolvePlannedAmount(r);
+    const resolved = await Promise.all(
+      rows.map(async (r) => {
+        const planned = await this.resolvePlannedAmount(userId, r);
         return planned ? { date: r.date, ...planned } : null;
-      })
-      .filter((x): x is { date: string; amount: number; currency: Currency } => x !== null);
+      }),
+    );
+    return resolved.filter(
+      (x): x is { date: string; amount: number; currency: Currency } => x !== null,
+    );
   }
 
   private async plannedIncomeRows(userId: string, from: Date, to: Date) {
     return this.db
       .select({
         date: sql<string>`to_char(${lessons.startsAt}, 'YYYY-MM-DD')`,
+        studentId: lessons.studentId,
+        startsAt: lessons.startsAt,
+        status: lessons.status,
         priceOverrideAmount: lessons.priceOverrideAmount,
         priceOverrideCurrency: lessons.priceOverrideCurrency,
         durationMin: lessons.durationMin,
         studentHourlyRateAmount: students.hourlyRateAmount,
         studentHourlyRateCurrency: students.hourlyRateCurrency,
+        studentRatePeriodMin: students.ratePeriodMin,
+        studentPricingMode: students.pricingMode,
       })
       .from(lessons)
       .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.userId, userId)))
@@ -441,19 +638,29 @@ export class LessonsService {
       );
   }
 
-  private resolvePlannedAmount(r: Awaited<ReturnType<typeof this.plannedIncomeRows>>[number]) {
+  private async resolvePlannedAmount(
+    userId: string,
+    r: Awaited<ReturnType<typeof this.plannedIncomeRows>>[number],
+  ): Promise<EffectivePrice | null> {
     if (r.priceOverrideAmount !== null && r.priceOverrideCurrency !== null) {
       return { amount: r.priceOverrideAmount, currency: r.priceOverrideCurrency as Currency };
     }
 
-    if (r.studentHourlyRateAmount !== null && r.studentHourlyRateCurrency !== null) {
-      return {
-        amount: Math.round((r.studentHourlyRateAmount * r.durationMin) / 60),
-        currency: r.studentHourlyRateCurrency as Currency,
-      };
-    }
+    if (r.studentHourlyRateAmount === null || r.studentHourlyRateCurrency === null) return null;
 
-    return null;
+    const resolution = await this.resolveStudentPrice({
+      userId,
+      studentId: r.studentId,
+      startsAt: r.startsAt,
+      durationMin: r.durationMin,
+      status: r.status,
+      hourlyRateAmount: r.studentHourlyRateAmount,
+      hourlyRateCurrency: r.studentHourlyRateCurrency,
+      ratePeriodMin: r.studentRatePeriodMin ?? 60,
+      pricingMode: r.studentPricingMode ?? 'hourly',
+    });
+
+    return resolution.source === 'package' ? null : resolution.price;
   }
 
   private async invalidateDashboard(userId: string): Promise<void> {
@@ -464,6 +671,7 @@ export class LessonsService {
     await Promise.all([
       this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
       this.cacheService.deleteByPrefix(`user:${userId}:lessons:`),
+      this.cacheService.deleteByPrefix(`user:${userId}:students:`),
       this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
     ]);
   }

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ResponsiveModalContent,
   ResponsiveModalBody,
@@ -19,8 +21,9 @@ import {
 import { Plus } from 'lucide-react';
 import { fmtMajor } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
+import { TabSwitcher } from '@/islands/transactions-island/tab-switcher';
 import { SUPPORTED_CURRENCIES } from '@tutor-finance/shared';
-import type { Student } from '@/lib/types';
+import type { PricingMode, Student } from '@/lib/types';
 
 export function StudentDialog({
   editing,
@@ -30,6 +33,15 @@ export function StudentDialog({
   onSubmit: (form: HTMLFormElement) => void;
 }) {
   const { t } = useI18n();
+  const [pricingMode, setPricingMode] = useState<PricingMode>(editing?.pricingMode ?? 'hourly');
+
+  useEffect(() => {
+    setPricingMode(editing?.pricingMode ?? 'hourly');
+  }, [editing?.id, editing?.pricingMode]);
+
+  const activePackage = editing?.activePackage ?? null;
+  const hourlyCurrency = editing?.hourlyRate.currency ?? editing?.defaultCurrency ?? 'USD';
+  const packageCurrency = activePackage?.price.currency ?? editing?.defaultCurrency ?? 'USD';
 
   return (
     <ResponsiveModalContent className="max-w-md">
@@ -38,7 +50,7 @@ export function StudentDialog({
           {editing ? t('Edit student') : t('New student')}
         </ResponsiveModalTitle>
         <ResponsiveModalDescription>
-          {t('Hourly rate stored in minor units; enter major value (e.g. 30.00).')}
+          {t('Set an hourly rate or a prepaid lesson package.')}
         </ResponsiveModalDescription>
       </ResponsiveModalHeader>
       <form
@@ -48,6 +60,7 @@ export function StudentDialog({
         }}
         className="flex min-h-0 flex-1 flex-col gap-4"
       >
+        <input type="hidden" name="pricingMode" value={pricingMode} />
         <ResponsiveModalBody className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="name">{t('Name')}</Label>
@@ -61,35 +74,162 @@ export function StudentDialog({
             <Label htmlFor="phone">{t('Phone')}</Label>
             <Input id="phone" name="phone" defaultValue={editing?.phone ?? ''} />
           </div>
+
+          <div className="grid gap-2">
+            <Label>{t('Pricing')}</Label>
+            <TabSwitcher<PricingMode>
+              value={pricingMode}
+              onChange={setPricingMode}
+              groupId={editing ? `student-pricing-${editing.id}` : 'student-pricing-new'}
+              tabs={[
+                { key: 'hourly', label: t('Hourly') },
+                { key: 'package', label: t('Package') },
+              ]}
+            />
+          </div>
+
+          <AnimatePresence initial={false} mode="wait">
+            {pricingMode === 'hourly' ? (
+              <motion.div
+                key="hourly"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="grid gap-3"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="rate">{t('Rate')}</Label>
+                    <Input
+                      id="rate"
+                      name="rate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      defaultValue={
+                        editing
+                          ? fmtMajor(editing.hourlyRate.amount, editing.hourlyRate.currency)
+                          : ''
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="currency">{t('Currency')}</Label>
+                    <Select name="currency" defaultValue={hourlyCurrency}>
+                      <SelectTrigger id="currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ratePeriodMin">{t('Rate period (min)')}</Label>
+                  <Input
+                    id="ratePeriodMin"
+                    name="ratePeriodMin"
+                    type="number"
+                    min="1"
+                    required
+                    defaultValue={editing?.ratePeriodMin ?? 60}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="package"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="grid gap-3"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="packageLessonCount">{t('Lessons in package')}</Label>
+                    <Input
+                      id="packageLessonCount"
+                      name="packageLessonCount"
+                      type="number"
+                      min="1"
+                      required
+                      defaultValue={activePackage?.lessonCount ?? ''}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="packagePrice">{t('Package price')}</Label>
+                    <Input
+                      id="packagePrice"
+                      name="packagePrice"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      defaultValue={
+                        activePackage
+                          ? fmtMajor(activePackage.price.amount, activePackage.price.currency)
+                          : ''
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="packageCurrency">{t('Currency')}</Label>
+                  <Select name="packageCurrency" defaultValue={packageCurrency}>
+                    <SelectTrigger id="packageCurrency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_CURRENCIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid gap-2">
+            <Label htmlFor="meetingLink">{t('Default lesson link')}</Label>
+            <Input
+              id="meetingLink"
+              name="meetingLink"
+              type="url"
+              placeholder="https://…"
+              defaultValue={editing?.meetingLink ?? ''}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="rate">{t('Hourly rate')}</Label>
+              <Label htmlFor="telegramLink">{t('Telegram link')}</Label>
               <Input
-                id="rate"
-                name="rate"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                defaultValue={
-                  editing ? fmtMajor(editing.hourlyRate.amount, editing.hourlyRate.currency) : ''
-                }
+                id="telegramLink"
+                name="telegramLink"
+                type="url"
+                placeholder="https://t.me/..."
+                defaultValue={editing?.telegramLink ?? ''}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="currency">{t('Currency')}</Label>
-              <Select name="currency" defaultValue={editing?.hourlyRate.currency ?? 'USD'}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="whatsappLink">{t('WhatsApp link')}</Label>
+              <Input
+                id="whatsappLink"
+                name="whatsappLink"
+                type="url"
+                placeholder="https://wa.me/..."
+                defaultValue={editing?.whatsappLink ?? ''}
+              />
             </div>
           </div>
           <div className="grid gap-2">

@@ -1,5 +1,20 @@
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
-import { SUPPORTED_CURRENCIES, TransactionTypeEnum, type Currency, type TransactionType } from '@tutor-finance/shared';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
+import {
+  SUPPORTED_CURRENCIES,
+  TransactionTypeEnum,
+  type Currency,
+  type TransactionType,
+} from '@tutor-finance/shared';
 
 export class CreateTransactionDto {
   @IsIn(TransactionTypeEnum.options as unknown as string[])
@@ -93,6 +108,7 @@ export interface TransactionResponse {
   category: string;
   studentId: string | null;
   lessonId: string | null;
+  studentLessonPackageId: string | null;
   description: string | null;
   convertedAmount: number | null;
   createdAt: Date;
