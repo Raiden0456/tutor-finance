@@ -26,6 +26,7 @@ function baseResponse(r: Row): Omit<TransactionResponse, 'convertedAmount'> {
     category: r.category,
     studentId: r.studentId,
     lessonId: r.lessonId,
+    studentLessonPackageId: r.studentLessonPackageId,
     description: r.description,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
@@ -217,6 +218,54 @@ export class TransactionsService {
     await this.db
       .delete(transactions)
       .where(and(eq(transactions.userId, userId), eq(transactions.lessonId, lessonId)));
+    await this.invalidateDashboard(userId);
+  }
+
+  async upsertForPackage(args: {
+    userId: string;
+    packageId: string;
+    studentId: string;
+    amount: number;
+    currency: string;
+    occurredAt?: Date;
+    description?: string;
+  }) {
+    const updateSet: Partial<typeof transactions.$inferInsert> = {
+      type: 'income',
+      amount: args.amount,
+      currency: args.currency,
+      category: 'package',
+      studentId: args.studentId,
+      description: args.description ?? null,
+    };
+    if (args.occurredAt) updateSet.occurredAt = args.occurredAt;
+
+    await this.db
+      .insert(transactions)
+      .values({
+        userId: args.userId,
+        studentLessonPackageId: args.packageId,
+        studentId: args.studentId,
+        type: 'income',
+        amount: args.amount,
+        currency: args.currency,
+        occurredAt: args.occurredAt ?? new Date(),
+        category: 'package',
+        description: args.description ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [transactions.userId, transactions.studentLessonPackageId],
+        set: updateSet,
+      });
+    await this.invalidateDashboard(args.userId);
+  }
+
+  async deleteForPackage(userId: string, packageId: string) {
+    await this.db
+      .delete(transactions)
+      .where(
+        and(eq(transactions.userId, userId), eq(transactions.studentLessonPackageId, packageId)),
+      );
     await this.invalidateDashboard(userId);
   }
 

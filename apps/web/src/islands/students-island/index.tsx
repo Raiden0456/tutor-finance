@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { Plus } from 'lucide-react';
 import { fromMinorUnits, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
-import type { Student, IncomeTx } from '@/lib/types';
+import type { PricingMode, Student, IncomeTx } from '@/lib/types';
 import { StudentCard } from './student-card';
 import { StudentDialog, EmptyState } from './student-dialog';
 
@@ -85,12 +85,40 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
     const email = String(data.get('email') ?? '').trim() || undefined;
     const phone = String(data.get('phone') ?? '').trim() || undefined;
     const notes = String(data.get('notes') ?? '').trim() || undefined;
-    const currency = String(data.get('currency') ?? 'USD') as Currency;
-    const hourlyRate = {
-      amount: parseMajorToMinor(String(data.get('rate') ?? ''), currency),
-      currency,
+    const meetingLink = String(data.get('meetingLink') ?? '').trim() || undefined;
+    const telegramLink = String(data.get('telegramLink') ?? '').trim() || undefined;
+    const whatsappLink = String(data.get('whatsappLink') ?? '').trim() || undefined;
+    const pricingMode = String(data.get('pricingMode') ?? 'hourly') as PricingMode;
+    const input: Record<string, unknown> = {
+      name,
+      email,
+      phone,
+      pricingMode,
+      meetingLink,
+      telegramLink,
+      whatsappLink,
+      notes,
     };
-    const input = { name, email, phone, hourlyRate, defaultCurrency: currency, notes };
+
+    if (pricingMode === 'hourly') {
+      const currency = String(data.get('currency') ?? 'USD') as Currency;
+      input.hourlyRate = {
+        amount: parseMajorToMinor(String(data.get('rate') ?? ''), currency),
+        currency,
+      };
+      input.ratePeriodMin = Number(data.get('ratePeriodMin') ?? 60);
+      input.defaultCurrency = currency;
+    } else {
+      const currency = String(data.get('packageCurrency') ?? 'USD') as Currency;
+      input.package = {
+        lessonCount: Number(data.get('packageLessonCount') ?? 0),
+        price: {
+          amount: parseMajorToMinor(String(data.get('packagePrice') ?? ''), currency),
+          currency,
+        },
+      };
+      input.defaultCurrency = currency;
+    }
     if (editing) {
       const updated = await api.patch<Student>(`/students/${editing.id}`, input);
       setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));

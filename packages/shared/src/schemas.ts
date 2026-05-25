@@ -10,12 +10,25 @@ export const MoneyInputSchema = z.object({
 
 const id = z.string().uuid();
 
+export const PricingModeEnum = z.enum(['hourly', 'package']);
+
+export const LessonPackageInputSchema = z.object({
+  lessonCount: z.number().int().positive(),
+  price: MoneyInputSchema,
+});
+
 export const StudentInputSchema = z.object({
   name: z.string().min(1),
   email: z.string().email().optional(),
   phone: z.string().min(1).optional(),
-  hourlyRate: MoneyInputSchema,
+  hourlyRate: MoneyInputSchema.optional(),
+  ratePeriodMin: z.number().int().positive().optional().default(60),
+  pricingMode: PricingModeEnum.optional().default('hourly'),
+  package: LessonPackageInputSchema.optional(),
   defaultCurrency: currencyEnum,
+  meetingLink: z.string().url().optional(),
+  telegramLink: z.string().url().optional(),
+  whatsappLink: z.string().url().optional(),
   notes: z.string().optional(),
 });
 

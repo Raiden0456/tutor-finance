@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { LessonsIsland } from '@/islands/lessons-island';
 import { serverApi } from '@/lib/api';
 import { createTranslator, normalizeLocale } from '@/lib/i18n';
-import type { Lesson, RecurringLesson, Settings, StudentRef } from '@/lib/types';
+import type { Lesson, RecurringLesson, Settings, Student } from '@/lib/types';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const api = serverApi(cookie);
@@ -25,11 +25,11 @@ const [settings, lessons, studentsList, schedulesList] = await Promise.all([
       orderDir: 'asc',
     },
   }),
-  api.get<StudentRef[]>('/students'),
+  api.get<Student[]>('/students'),
   api.get<RecurringLesson[]>('/recurring-lessons'),
 ]);
 
-const students = studentsList.map((s) => ({ id: s.id, name: s.name }));
+const students = studentsList.map((s) => ({ id: s.id, name: s.name, meetingLink: s.meetingLink }));
 ---
 
 <AppLayout

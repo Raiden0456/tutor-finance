@@ -65,6 +65,7 @@ export function CreateLessonModal({
   const [createDurationMin, setCreateDurationMin] = useState(60);
   const [createViewMonth, setCreateViewMonth] = useState(() => startOfMonth(initialDate));
   const [createStudentId, setCreateStudentId] = useState(students[0]?.id ?? '');
+  const [createMeetingLink, setCreateMeetingLink] = useState(students[0]?.meetingLink ?? '');
   const [batchMode, setBatchMode] = useState(false);
   const [slots, setSlots] = useState<SlotDraft[]>([]);
   const [focusedSlotId, setFocusedSlotId] = useState<string | null>(null);
@@ -73,6 +74,10 @@ export function CreateLessonModal({
   );
   const [createErrors, setCreateErrors] = useState<string[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
+
+  function studentMeetingLink(studentId: string) {
+    return students.find((s) => s.id === studentId)?.meetingLink ?? '';
+  }
 
   // Capture initialDate at open time; reset all state when modal opens
   useEffect(() => {
@@ -84,6 +89,7 @@ export function CreateLessonModal({
       setCreateTime('10:00');
       setCreateDurationMin(60);
       setCreateStudentId(students[0]?.id ?? '');
+      setCreateMeetingLink(students[0]?.meetingLink ?? '');
       setBatchMode(false);
       setSlots([]);
       setFocusedSlotId(null);
@@ -187,7 +193,7 @@ export function CreateLessonModal({
       status: String(data.get('status') ?? 'scheduled'),
       notes: String(data.get('notes') ?? '').trim() || undefined,
       homework: String(data.get('homework') ?? '').trim() || undefined,
-      meetingLink: String(data.get('meetingLink') ?? '').trim() || undefined,
+      meetingLink: createMeetingLink.trim() || undefined,
     });
     onOpenChange(false);
     await onCreated([createDate]);
@@ -209,6 +215,7 @@ export function CreateLessonModal({
           startsAt: startsAt.toISOString(),
           durationMin: s.durationMin,
           status: s.status,
+          meetingLink: studentMeetingLink(s.studentId) || undefined,
         });
       } catch {
         errs.push(
@@ -262,7 +269,10 @@ export function CreateLessonModal({
                       <Select
                         name="studentId"
                         value={createStudentId}
-                        onValueChange={setCreateStudentId}
+                        onValueChange={(studentId) => {
+                          setCreateStudentId(studentId);
+                          setCreateMeetingLink(studentMeetingLink(studentId));
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -352,6 +362,8 @@ export function CreateLessonModal({
                       name="meetingLink"
                       type="url"
                       placeholder="https://..."
+                      value={createMeetingLink}
+                      onChange={(e) => setCreateMeetingLink(e.target.value)}
                     />
                   </div>
                 </motion.div>

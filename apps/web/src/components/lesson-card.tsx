@@ -89,10 +89,14 @@ export function LessonCard({
   const timeFmt = createTimeFmt(locale);
   const [lesson, setLesson] = useState(initialLesson);
   const [scheduledVisible, setScheduledVisible] = useState(
-    () => initialLesson.status === 'scheduled',
+    () =>
+      initialLesson.status === 'scheduled' ||
+      (initialLesson.isPackageCovered && initialLesson.status === 'due'),
   );
   const [scheduledCollapsed, setScheduledCollapsed] = useState(false);
-  const [dueVisible, setDueVisible] = useState(() => needsPayment(initialLesson.status));
+  const [dueVisible, setDueVisible] = useState(
+    () => needsPayment(initialLesson.status) && !initialLesson.isPackageCovered,
+  );
   const [dueCollapsed, setDueCollapsed] = useState(false);
   const [editDetailsOpen, setEditDetailsOpen] = useState(false);
 
@@ -119,7 +123,7 @@ export function LessonCard({
     setScheduledCollapsed(true);
     setTimeout(() => {
       setScheduledVisible(false);
-      if (needsPayment(newStatus)) {
+      if (needsPayment(newStatus) && !lesson.isPackageCovered) {
         setDueVisible(true);
         setDueCollapsed(false);
       }
@@ -145,14 +149,17 @@ export function LessonCard({
             <span>
               {lesson.durationMin} {t('min')}
             </span>
-            {lesson.recurringLessonId && (
-              <RefreshCw className="h-3 w-3 text-primary/60" />
-            )}
+            {lesson.recurringLessonId && <RefreshCw className="h-3 w-3 text-primary/60" />}
           </div>
-          {lesson.effectivePrice && lesson.status !== 'partially_paid' && (
-            <div className="mt-1 text-xs text-muted-foreground">
-              {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
-            </div>
+          {lesson.isPackageCovered ? (
+            <div className="mt-1 text-xs text-muted-foreground">{t('Included in package')}</div>
+          ) : (
+            lesson.effectivePrice &&
+            lesson.status !== 'partially_paid' && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {fmtMoney(lesson.effectivePrice.amount, lesson.effectivePrice.currency)}
+              </div>
+            )
           )}
           {lesson.status === 'partially_paid' &&
             lesson.paidAmount !== null &&
@@ -292,7 +299,8 @@ function LessonCardMenu({
     }
   }
 
-  const isPaid = lesson.status === 'paid' || lesson.status === 'partially_paid';
+  const isPaid =
+    (lesson.status === 'paid' || lesson.status === 'partially_paid') && !lesson.isPackageCovered;
 
   return (
     <>

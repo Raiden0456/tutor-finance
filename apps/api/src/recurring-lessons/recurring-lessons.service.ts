@@ -123,7 +123,7 @@ export class RecurringLessonsService implements OnModuleInit {
 
   async create(userId: string, input: CreateRecurringLessonDto): Promise<RecurringLessonResponse> {
     const [student] = await this.db
-      .select({ id: students.id })
+      .select({ id: students.id, meetingLink: students.meetingLink })
       .from(students)
       .where(and(eq(students.id, input.studentId), eq(students.userId, userId)))
       .limit(1);
@@ -149,7 +149,7 @@ export class RecurringLessonsService implements OnModuleInit {
         isActive: true,
         priceOverrideAmount: input.priceOverride?.amount ?? null,
         priceOverrideCurrency: input.priceOverride?.currency ?? null,
-        meetingLink: input.meetingLink ?? null,
+        meetingLink: input.meetingLink ?? student.meetingLink ?? null,
         notes: input.notes ?? null,
       })
       .returning();
