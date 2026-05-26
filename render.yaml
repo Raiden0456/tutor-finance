@@ -11,7 +11,7 @@ services:
     name: tutor-finance-api
     runtime: node
     region: frankfurt
-    plan: free
+    plan: starter
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/api...
     startCommand: cd apps/api && node dist/scripts/migrate.js && node dist/main.js
     healthCheckPath: /health
@@ -55,7 +55,7 @@ services:
     name: tutor-finance-web
     runtime: node
     region: frankfurt
-    plan: free
+    plan: starter
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/web...
     startCommand: node apps/web/dist/server/entry.mjs
     envVars:
