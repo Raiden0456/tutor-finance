@@ -25,6 +25,7 @@ const LOCALE_SQL = sql.raw("'en','ru'");
 const PUSH_PLATFORM_SQL = sql.raw("'ios','android'");
 const NOTIFICATION_TYPE_SQL = sql.raw("'lesson_reminder','daily_due_summary'");
 const NOTIFICATION_STATUS_SQL = sql.raw("'pending','sent','failed'");
+const CALENDAR_SYNC_OPERATION_SQL = sql.raw("'upsert','delete'");
 
 // --- Better Auth tables ---------------------------------------------------
 // Matches the standard Better Auth Drizzle/pg layout. Regenerate with:
@@ -243,6 +244,7 @@ export const lessons = pgTable(
       onDelete: 'set null',
     }),
     archivedAt: timestamp('archived_at'),
+    googleEventId: text('google_event_id'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')
       .notNull()
@@ -253,6 +255,7 @@ export const lessons = pgTable(
     index('lessons_user_id_idx').on(t.userId),
     index('lessons_student_id_idx').on(t.studentId),
     index('lessons_user_starts_idx').on(t.userId, t.startsAt),
+    index('lessons_user_google_event_idx').on(t.userId, t.googleEventId),
     uniqueIndex('lessons_recurring_occurrence_uq').on(t.recurringLessonId, t.startsAt),
     check('lessons_duration_positive_chk', sql`${t.durationMin} > 0`),
     check('lessons_status_chk', sql`${t.status} in (${LESSON_STATUS_SQL})`),
@@ -364,6 +367,10 @@ export const userSettings = pgTable(
     theme: text('theme').notNull().default('system'),
     locale: text('locale').notNull().default('en'),
     weekStartsOn: integer('week_starts_on').notNull().default(1),
+    googleCalendarSyncEnabled: boolean('google_calendar_sync_enabled').notNull().default(false),
+    googleCalendarId: text('google_calendar_id'),
+    googleCalendarConnectedAt: timestamp('google_calendar_connected_at'),
+    googleCalendarLastSyncedAt: timestamp('google_calendar_last_synced_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')
       .notNull()
@@ -433,6 +440,33 @@ export const notificationDeliveries = pgTable(
   ],
 );
 
+export const calendarSyncJobs = pgTable(
+  'calendar_sync_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'set null' }),
+    googleEventId: text('google_event_id'),
+    operation: text('operation').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    nextAttemptAt: timestamp('next_attempt_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('calendar_sync_jobs_user_id_idx').on(t.userId),
+    index('calendar_sync_jobs_dispatch_idx').on(t.nextAttemptAt, t.attempts),
+    check('calendar_sync_jobs_operation_chk', sql`${t.operation} in (${CALENDAR_SYNC_OPERATION_SQL})`),
+    check('calendar_sync_jobs_attempts_chk', sql`${t.attempts} >= 0`),
+  ],
+);
+
 export const schema = {
   ...authSchema,
   students,
@@ -445,4 +479,5 @@ export const schema = {
   userSettings,
   devicePushTokens,
   notificationDeliveries,
+  calendarSyncJobs,
 };

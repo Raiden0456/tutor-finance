@@ -19,7 +19,8 @@ export interface SocialProviderOptions {
     clientId: string;
     clientSecret: string;
     redirectURI?: string;
-    prompt?: 'select_account';
+    prompt?: 'select_account' | 'select_account consent' | 'consent';
+    accessType?: 'offline' | 'online';
   };
 }
 

@@ -13,6 +13,7 @@ import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { recurringLessons, lessons, students } from '../db/schema.js';
+import { GoogleCalendarService } from '../google-calendar/google-calendar.service.js';
 import type {
   CreateRecurringLessonDto,
   RecurringLessonResponse,
@@ -100,6 +101,7 @@ export class RecurringLessonsService implements OnModuleInit {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly cacheService: RedisCacheService,
+    private readonly calendar: GoogleCalendarService,
   ) {}
 
   async onModuleInit() {
@@ -269,6 +271,7 @@ export class RecurringLessonsService implements OnModuleInit {
       if (d < today) d = today;
       if (d < scheduleStart) d = scheduleStart;
 
+      const insertedLessonIds: string[] = [];
       await this.db.transaction(async (tx) => {
         while (d <= horizon) {
           if (schedule.endDate && d > schedule.endDate) break;
@@ -281,7 +284,7 @@ export class RecurringLessonsService implements OnModuleInit {
             if (weeksSinceStart % freqWeeks(schedule.frequency as LessonFrequency) === 0) {
               const startsAt = applyTime(d, schedule.startTime);
               if (startsAt >= now) {
-                await tx
+                const inserted = await tx
                   .insert(lessons)
                   .values({
                     userId: schedule.userId,
@@ -297,7 +300,9 @@ export class RecurringLessonsService implements OnModuleInit {
                   })
                   .onConflictDoNothing({
                     target: [lessons.recurringLessonId, lessons.startsAt],
-                  });
+                  })
+                  .returning({ id: lessons.id });
+                if (inserted[0]) insertedLessonIds.push(inserted[0].id);
               }
             }
           }
@@ -311,12 +316,15 @@ export class RecurringLessonsService implements OnModuleInit {
           .where(eq(recurringLessons.id, schedule.id));
       });
 
+      for (const lessonId of insertedLessonIds) {
+        await this.calendar.enqueueUpsert(schedule.userId, lessonId);
+      }
       await this.invalidateUserCache(schedule.userId);
     }
   }
 
   private async deleteFutureScheduledOccurrences(userId: string, recurringLessonId: string) {
-    await this.db
+    const removed = await this.db
       .delete(lessons)
       .where(
         and(
@@ -326,7 +334,11 @@ export class RecurringLessonsService implements OnModuleInit {
           isNull(lessons.archivedAt),
           gte(lessons.startsAt, new Date()),
         ),
-      );
+      )
+      .returning({ googleEventId: lessons.googleEventId });
+    for (const row of removed) {
+      await this.calendar.enqueueDelete(userId, row.googleEventId);
+    }
   }
 
   private async invalidateUserCache(userId: string): Promise<void> {

@@ -20,6 +20,7 @@ import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { lessons, studentLessonPackages, students } from '../db/schema.js';
+import { GoogleCalendarService } from '../google-calendar/google-calendar.service.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import type {
   CreateLessonDto,
@@ -136,6 +137,7 @@ export class LessonsService {
     @Inject(DB) private readonly db: Database,
     private readonly transactions: TransactionsService,
     private readonly cacheService: RedisCacheService,
+    private readonly calendar: GoogleCalendarService,
   ) {}
 
   async list(userId: string, filter: LessonFilterDto | undefined): Promise<LessonResponse[]> {
@@ -453,6 +455,7 @@ export class LessonsService {
     if (PAYMENT_STATUSES.includes(row.status)) {
       await this.syncTransaction(userId, row, true);
     }
+    await this.calendar.enqueueUpsert(userId, row.id);
     await this.invalidateDashboard(userId);
     return this.findById(userId, row.id);
   }
@@ -505,6 +508,7 @@ export class LessonsService {
     } else if (wasPayment) {
       await this.transactions.deleteForLesson(userId, row.id);
     }
+    await this.calendar.enqueueUpsert(userId, row.id);
     await this.invalidateDashboard(userId);
     return this.findById(userId, row.id);
   }
@@ -515,6 +519,7 @@ export class LessonsService {
       await this.transactions.deleteForLesson(userId, id);
     }
     await this.db.delete(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, userId)));
+    await this.calendar.enqueueDelete(userId, row.googleEventId);
     await this.invalidateDashboard(userId);
     return true;
   }
@@ -523,26 +528,30 @@ export class LessonsService {
     const row = await this.findRowById(userId, id);
     const [updated] = await this.db
       .update(lessons)
-      .set({ archivedAt: new Date() })
+      .set({ archivedAt: new Date(), googleEventId: null })
       .where(and(eq(lessons.id, id), eq(lessons.userId, userId)))
       .returning();
     if (!updated) throw new NotFoundException('Lesson not found');
     if (PAYMENT_STATUSES.includes(row.status)) {
       await this.transactions.deleteForLesson(userId, id);
     }
+    await this.calendar.enqueueDelete(userId, row.googleEventId);
     await this.invalidateDashboard(userId);
     return this.findById(userId, id);
   }
 
   async deleteArchive(userId: string): Promise<number> {
     const archived = await this.db
-      .select({ id: lessons.id, status: lessons.status })
+      .select({ id: lessons.id, status: lessons.status, googleEventId: lessons.googleEventId })
       .from(lessons)
       .where(and(eq(lessons.userId, userId), isNotNull(lessons.archivedAt)));
 
     for (const row of archived) {
       if (PAYMENT_STATUSES.includes(row.status)) {
         await this.transactions.deleteForLesson(userId, row.id);
+      }
+      if (row.googleEventId) {
+        await this.calendar.enqueueDelete(userId, row.googleEventId);
       }
     }
 

@@ -80,6 +80,7 @@ export const env = {
             redirectURI:
               optional('GOOGLE_REDIRECT_URI') || `${publicAppUrl}/api/auth/callback/google`,
             prompt: 'select_account' as const,
+            accessType: 'offline' as const,
           }
         : undefined,
   },

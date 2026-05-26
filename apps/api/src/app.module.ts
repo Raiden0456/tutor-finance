@@ -1,5 +1,6 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, type ExecutionContext } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import type { Request } from 'express';
 import { LoggerMiddleware } from './logger.middleware.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -17,13 +18,20 @@ import { HealthModule } from './health/health.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { RecurringLessonsModule } from './recurring-lessons/recurring-lessons.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module.js';
 
 @Module({
   imports: [
     DbModule,
     RedisCacheModule,
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 200 }]),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 200 }],
+      skipIf: (context: ExecutionContext) => {
+        const req = context.switchToHttp().getRequest<Request>();
+        return req?.path?.startsWith('/api/auth/') ?? false;
+      },
+    }),
     AuthModule.forRoot({
       auth,
       bodyParser: {
@@ -41,6 +49,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
     RecurringModule,
     RecurringLessonsModule,
     NotificationsModule,
+    GoogleCalendarModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -440,6 +440,7 @@ const ru: Record<string, string> = {
   'Tutor finance tracker': 'Финансовый трекер репетитора',
   'Personalise the app': 'Настройте приложение под себя',
   Preferences: 'Предпочтения',
+  Security: 'Безопасность',
   'Primary currency': 'Основная валюта',
   'Week starts on': 'Неделя начинается с',
   Saved: 'Сохранено',
@@ -474,6 +475,37 @@ const ru: Record<string, string> = {
   'More pages': 'Ещё страницы',
   Next: 'Далее',
   Previous: 'Назад',
+
+  // Google Calendar sync
+  'Google Calendar': 'Google Calendar',
+  'Could not load calendar status': 'Не удалось загрузить статус календаря',
+  'Could not enable Google Calendar sync': 'Не удалось включить синхронизацию с Google Calendar',
+  'Could not connect Google Calendar': 'Не удалось подключить Google Calendar',
+  'Could not disconnect Google Calendar': 'Не удалось отключить Google Calendar',
+  'Could not sync Google Calendar': 'Не удалось синхронизировать Google Calendar',
+  'Sync Google Calendar now': 'Синхронизировать Google Calendar сейчас',
+  'Sync lessons to your Google Calendar. First, connect a Google account to this profile.':
+    'Синхронизируйте занятия с Google Calendar. Сначала привяжите Google аккаунт к профилю.',
+  'Connect Google and Calendar': 'Подключить Google и календарь',
+  'Grant access to a dedicated calendar so lessons can be added automatically. We only manage the calendar we create.':
+    'Дайте доступ к выделенному календарю, чтобы занятия добавлялись автоматически. Мы управляем только календарём, который сами создаём.',
+  'Connect Google Calendar': 'Подключить Google Calendar',
+  'Opening Google…': 'Открываем Google…',
+  'Finishing setup…': 'Завершаем настройку…',
+  Connected: 'Подключено',
+  'Last sync: {when}': 'Последняя синхронизация: {when}',
+  'Backfilling future lessons…': 'Загружаем будущие занятия…',
+  '{count} pending updates': 'В очереди обновлений: {count}',
+  'Open in Google Calendar': 'Открыть в Google Calendar',
+  Disconnect: 'Отключить',
+  'Disconnect Google Calendar?': 'Отключить Google Calendar?',
+  'Future lesson changes will stop syncing. Existing events stay in Google unless you remove them.':
+    'Будущие изменения занятий перестанут синхронизироваться. Уже созданные события останутся в Google, если не удалить их.',
+  'Also delete the Uchetka calendar from my Google account':
+    'Также удалить календарь Uchetka из моего Google аккаунта',
+  'Calendar scope granted. Tap Finish to create the calendar.':
+    'Доступ к календарю выдан. Нажмите «Завершить», чтобы создать календарь.',
+  'Finish setup': 'Завершить настройку',
 };
 
 const dictionaries: Record<Locale, Record<string, string>> = {
