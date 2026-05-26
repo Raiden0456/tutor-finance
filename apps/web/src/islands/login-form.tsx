@@ -6,7 +6,7 @@ import { Collapse } from '@/components/ui/collapse';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { GitHubSourceLink } from '@/components/github-source-link';
+import { GoogleAuthSection } from './google-auth-button';
 import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
 type LoginFormProps = {
@@ -114,11 +114,18 @@ export function LoginForm({ locale }: LoginFormProps) {
 
   useEffect(() => {
     const url = new URL(window.location.href);
+    let changed = false;
     if (url.searchParams.get('verified') === '1') {
       setNotice(t('Email verified. You can sign in now.'));
       url.searchParams.delete('verified');
-      window.history.replaceState(null, '', url.toString());
+      changed = true;
     }
+    if (url.searchParams.get('oauth_error') === 'google') {
+      setError(t('Could not sign in with Google'));
+      url.searchParams.delete('oauth_error');
+      changed = true;
+    }
+    if (changed) window.history.replaceState(null, '', url.toString());
   }, [t]);
 
   async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
@@ -163,10 +170,14 @@ export function LoginForm({ locale }: LoginFormProps) {
               onEmail={setEmail}
               onPassword={setPassword}
             />
+            <GoogleAuthSection
+              className="mt-5"
+              locale={locale}
+              callbackURL={loginPath}
+              errorCallbackURL={`${localizePath('/login', locale)}?oauth_error=google`}
+              onError={setError}
+            />
           </form>
-          <div className="mt-6 flex justify-center border-t border-border/60 pt-5">
-            <GitHubSourceLink className="text-muted-foreground hover:text-foreground" />
-          </div>
         </div>
       </div>
 
@@ -192,10 +203,13 @@ export function LoginForm({ locale }: LoginFormProps) {
                   onEmail={setEmail}
                   onPassword={setPassword}
                 />
+                <GoogleAuthSection
+                  locale={locale}
+                  callbackURL={loginPath}
+                  errorCallbackURL={`${localizePath('/login', locale)}?oauth_error=google`}
+                  onError={setError}
+                />
               </FieldGroup>
-              <div className="mt-6 flex justify-center border-t border-border/60 pt-5">
-                <GitHubSourceLink className="text-muted-foreground hover:text-foreground" />
-              </div>
             </form>
 
             {/* Brand panel */}

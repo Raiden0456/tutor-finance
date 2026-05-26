@@ -1,10 +1,11 @@
-import { useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { sendVerificationEmail, signUp } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Collapse } from '@/components/ui/collapse';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { GoogleAuthButton } from './google-auth-button';
 import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
 
 type SignupFormProps = {
@@ -12,8 +13,10 @@ type SignupFormProps = {
 };
 
 export function SignupForm({ locale }: SignupFormProps) {
-  const t = createTranslator(locale);
+  const t = useMemo(() => createTranslator(locale), [locale]);
   const loginPath = localizePath('/login', locale);
+  const dashboardPath = localizePath('/', locale);
+  const signupPath = localizePath('/sign-up', locale);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +25,15 @@ export function SignupForm({ locale }: SignupFormProps) {
   const [done, setDone] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('oauth_error') === 'google') {
+      setError(t('Could not sign in with Google'));
+      url.searchParams.delete('oauth_error');
+      window.history.replaceState(null, '', url.toString());
+    }
+  }, [t]);
 
   async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,6 +102,20 @@ export function SignupForm({ locale }: SignupFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-sm font-medium text-muted-foreground">{t('Login with')}</p>
+        <GoogleAuthButton
+          locale={locale}
+          callbackURL={dashboardPath}
+          errorCallbackURL={`${signupPath}?oauth_error=google`}
+          onError={setError}
+        />
+      </div>
+      <div className="flex w-full items-center gap-4 text-xs font-medium text-muted-foreground">
+        <span className="h-px flex-1 bg-border transition-colors duration-200" />
+        <span className="shrink-0 text-center">{t('OR create new account with email')}</span>
+        <span className="h-px flex-1 bg-border transition-colors duration-200" />
+      </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">{t('Name')}</Label>
         <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />

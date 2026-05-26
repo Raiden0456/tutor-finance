@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 import {
   SUPPORTED_CURRENCIES,
   ThemeEnum,
@@ -29,9 +29,27 @@ export class UpdateSettingsDto {
   weekStartsOn?: WeekStartsOn;
 }
 
+export class SetPasswordDto {
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+}
+
+export interface AccountSecurityResponse {
+  hasPassword: boolean;
+  providers: string[];
+}
+
+export interface AccountProfileResponse {
+  name: string | null;
+  email: string;
+}
+
 export interface SettingsResponse {
   primaryCurrency: Currency;
   theme: Theme;
   locale: Locale;
   weekStartsOn: WeekStartsOn;
+  accountSecurity: AccountSecurityResponse;
+  profile: AccountProfileResponse;
 }

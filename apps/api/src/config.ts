@@ -35,6 +35,14 @@ function oneOf<T extends readonly string[]>(
 
 const nodeEnv = optional('NODE_ENV', 'development');
 const isProd = nodeEnv === 'production';
+const publicAppUrl = optional('PUBLIC_APP_URL', 'http://localhost:4321');
+const googleClientId = optional('GOOGLE_CLIENT_ID');
+const googleClientSecret = optional('GOOGLE_CLIENT_SECRET');
+
+if ((googleClientId && !googleClientSecret) || (!googleClientId && googleClientSecret)) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be provided together');
+}
+
 const emailProvider = oneOf('AUTH_EMAIL_PROVIDER', ['smtp', 'resend'] as const, 'smtp');
 const mailFrom = isProd
   ? required('MAIL_FROM')
@@ -48,7 +56,7 @@ export const env = {
   databaseUrl: required('DATABASE_URL'),
   betterAuthSecret: required('BETTER_AUTH_SECRET'),
   betterAuthUrl: required('BETTER_AUTH_URL'),
-  publicAppUrl: optional('PUBLIC_APP_URL', 'http://localhost:4321'),
+  publicAppUrl,
   trustedOrigins: optional('TRUSTED_ORIGINS', '')
     .split(',')
     .map((s) => s.trim())
@@ -63,9 +71,21 @@ export const env = {
     pass: optional('SMTP_PASS'),
   },
   resendApiKey,
+  authProviders: {
+    google:
+      googleClientId && googleClientSecret
+        ? {
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            redirectURI:
+              optional('GOOGLE_REDIRECT_URI') || `${publicAppUrl}/api/auth/callback/google`,
+            prompt: 'select_account' as const,
+          }
+        : undefined,
+  },
   fxApiUrl: optional('FX_API_URL', 'https://api.exchangerate.host/latest'),
   cache: {
-    enabled: bool('CACHE_ENABLED', true),
+    enabled: bool('CACHE_ENABLED', isProd),
     redisUrl: optional('REDIS_URL', 'redis://localhost:6379'),
     dashboardTtlSeconds: num('CACHE_DASHBOARD_TTL_SECONDS', 60),
     dataTtlSeconds: num('CACHE_DATA_TTL_SECONDS', 60),

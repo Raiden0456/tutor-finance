@@ -4,12 +4,14 @@ export interface CurrentUserData {
   id: string;
   email: string;
   emailVerified: boolean;
+  name?: string | null;
 }
 
 interface SessionUser {
   id: string;
   email: string;
   emailVerified?: boolean | null;
+  name?: string | null;
 }
 
 interface RequestWithSession {
@@ -27,6 +29,7 @@ export const CurrentUser = createParamDecorator(
       id: user.id,
       email: user.email,
       emailVerified: !!user.emailVerified,
+      name: user.name,
     };
   },
 );

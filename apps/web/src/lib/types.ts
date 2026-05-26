@@ -105,11 +105,23 @@ export interface IncomeTx {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+export interface AccountSecurity {
+  hasPassword: boolean;
+  providers: string[];
+}
+
+export interface AccountProfile {
+  name: string | null;
+  email: string;
+}
+
 export interface Settings {
   primaryCurrency: Currency;
   theme: Theme;
   locale: Locale;
   weekStartsOn: WeekStartsOn;
+  accountSecurity: AccountSecurity;
+  profile: AccountProfile;
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────

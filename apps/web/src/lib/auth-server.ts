@@ -4,7 +4,7 @@ export interface SessionUser {
   id: string;
   email: string;
   emailVerified: boolean;
-  name?: string;
+  name?: string | null;
 }
 
 export interface ServerSession {

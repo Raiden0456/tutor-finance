@@ -14,7 +14,12 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const client = createClient({ url: env.cache.redisUrl });
+    const client = createClient({
+      url: env.cache.redisUrl,
+      socket: {
+        reconnectStrategy: false,
+      },
+    });
     client.on('error', (err) => {
       this.ready = false;
       this.logger.warn(`Redis error: ${(err as Error).message}`);

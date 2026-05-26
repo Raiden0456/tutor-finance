@@ -14,6 +14,15 @@ export interface AuthSchema {
   verification: unknown;
 }
 
+export interface SocialProviderOptions {
+  google?: {
+    clientId: string;
+    clientSecret: string;
+    redirectURI?: string;
+    prompt?: 'select_account';
+  };
+}
+
 export interface AuthOptions {
   db: NodePgDatabase<Record<string, unknown>>;
   schema: AuthSchema;
@@ -21,6 +30,7 @@ export interface AuthOptions {
   baseUrl: string;
   trustedOrigins?: string[];
   email: MailerOptions;
+  socialProviders?: SocialProviderOptions;
 }
 
 export type AuthInstance = ReturnType<typeof createAuth>;
@@ -37,6 +47,15 @@ export function createAuth(opts: AuthOptions) {
     baseURL: opts.baseUrl,
     basePath: '/api/auth',
     trustedOrigins: opts.trustedOrigins ?? [opts.baseUrl],
+    socialProviders: opts.socialProviders,
+    account: {
+      encryptOAuthTokens: true,
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ['email-password', 'google'],
+        allowDifferentEmails: false,
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

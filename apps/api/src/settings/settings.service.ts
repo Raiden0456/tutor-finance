@@ -5,17 +5,28 @@ import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { userSettings } from '../db/schema.js';
-import type { SettingsResponse, UpdateSettingsDto } from './settings.dto.js';
+import { account, user, userSettings } from '../db/schema.js';
+import type {
+  AccountProfileResponse,
+  AccountSecurityResponse,
+  SettingsResponse,
+  UpdateSettingsDto,
+} from './settings.dto.js';
 
 type Row = typeof userSettings.$inferSelect;
 
-function toResponse(r: Row): SettingsResponse {
+function toResponse(
+  r: Row,
+  accountSecurity: AccountSecurityResponse,
+  profile: AccountProfileResponse,
+): SettingsResponse {
   return {
     primaryCurrency: r.primaryCurrency as Currency,
     theme: r.theme as Theme,
     locale: r.locale as Locale,
     weekStartsOn: r.weekStartsOn as WeekStartsOn,
+    accountSecurity,
+    profile,
   };
 }
 
@@ -29,7 +40,8 @@ export class SettingsService {
   async getOrCreate(userId: string): Promise<SettingsResponse> {
     const cacheKey = `user:${userId}:settings:me`;
     const cached = await this.cacheService.getJson<SettingsResponse>(cacheKey);
-    if (cached?.weekStartsOn !== undefined) return cached;
+    if (cached?.weekStartsOn !== undefined && cached.accountSecurity && cached.profile)
+      return cached;
 
     await this.db.insert(userSettings).values({ userId }).onConflictDoNothing();
 
@@ -38,9 +50,36 @@ export class SettingsService {
       .from(userSettings)
       .where(eq(userSettings.userId, userId))
       .limit(1);
-    const response = toResponse(settings!);
+    const response = toResponse(
+      settings!,
+      await this.getAccountSecurity(userId),
+      await this.getAccountProfile(userId),
+    );
     await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
     return response;
+  }
+
+  async getAccountProfile(userId: string): Promise<AccountProfileResponse> {
+    const [row] = await this.db
+      .select({ name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!row) throw new BadRequestException('User not found');
+    return { name: row.name || null, email: row.email };
+  }
+
+  async getAccountSecurity(userId: string): Promise<AccountSecurityResponse> {
+    const rows = await this.db
+      .select({ providerId: account.providerId, password: account.password })
+      .from(account)
+      .where(eq(account.userId, userId));
+
+    return {
+      hasPassword: rows.some((row) => !!row.password),
+      providers: [...new Set(rows.map((row) => row.providerId))],
+    };
   }
 
   async update(userId: string, patch: UpdateSettingsDto): Promise<SettingsResponse> {
@@ -64,6 +103,21 @@ export class SettingsService {
       this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
       this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
     ]);
-    return toResponse(upserted[0]!);
+    return toResponse(
+      upserted[0]!,
+      await this.getAccountSecurity(userId),
+      await this.getAccountProfile(userId),
+    );
+  }
+
+  async assertCanSetPassword(userId: string): Promise<void> {
+    const security = await this.getAccountSecurity(userId);
+    if (security.hasPassword) {
+      throw new BadRequestException('Password already exists. Use change password instead.');
+    }
+  }
+
+  async clearSettingsCache(userId: string): Promise<void> {
+    await this.cacheService.del(`user:${userId}:settings:me`);
   }
 }

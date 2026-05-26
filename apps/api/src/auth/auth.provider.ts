@@ -19,6 +19,9 @@ export function getAuth(): AuthInstance {
       smtp: env.smtp,
       resendApiKey: env.resendApiKey,
     },
+    socialProviders: {
+      ...(env.authProviders.google ? { google: env.authProviders.google } : {}),
+    },
   });
   return cached;
 }

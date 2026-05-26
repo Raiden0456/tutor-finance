@@ -26,6 +26,7 @@ const locale = normalizeLocale(Astro.currentLocale);
 const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
 const nativeShell =
   Astro.request.headers.get('user-agent')?.includes('TutorFinanceNativeShell/1.0') ?? false;
+const userDisplayName = session.user?.name || session.user?.email;
 ---
 
 <!doctype html>
@@ -120,8 +121,11 @@ const nativeShell =
           style="padding-top: var(--app-safe-area-top)"
         >
           <div class="flex items-center gap-1">
-            <LanguageSwitcher current={switcherPath} locale={locale} />
-            <span class="text-sm text-muted-foreground">{session.user?.email}</span>
+            <span
+              class="max-w-48 truncate text-sm text-muted-foreground transition-colors duration-200"
+            >
+              {userDisplayName}
+            </span>
             <SignOutButton locale={locale} client:load />
           </div>
         </header>

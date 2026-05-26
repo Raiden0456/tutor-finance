@@ -1,6 +1,7 @@
 import { Home, Users, CalendarClock, Wallet, Settings } from 'lucide-react';
 import { localizePath, stripLocale, type Locale } from '@/lib/i18n';
 import { BrandLogo } from './app-logo';
+import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
 
 const links = [
@@ -58,8 +59,9 @@ export function Sidebar({ current, locale = 'en', initialTheme }: NavProps) {
           </a>
         );
       })}
-      <div className="mt-auto pt-2">
-        <ThemeToggle initialTheme={initialTheme} variant="nav" />
+      <div className="mt-auto grid gap-1 pt-2">
+        <LanguageSwitcher current={current} locale={locale} variant="nav" />
+        <ThemeToggle initialTheme={initialTheme} variant="nav" locale={locale} />
       </div>
     </nav>
   );
