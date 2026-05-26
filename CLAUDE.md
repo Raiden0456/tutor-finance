@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 pnpm setup          # First-time: install deps + build shared packages
-pnpm dev            # Run all apps in parallel (API :3000, web :4321)
+pnpm dev            # Run workspace dev scripts in parallel (currently API :3000, web :4321)
+pnpm --filter @tutor-finance/mobile start   # Expo dev client (mobile)
+pnpm --filter @tutor-finance/mobile android # Open Android via Expo dev client
+pnpm --filter @tutor-finance/mobile ios     # Open iOS via Expo dev client
 
 # Database
 pnpm db:up          # Start PostgreSQL via Docker Compose
@@ -24,7 +27,7 @@ pnpm format         # Prettier (single quotes, 100-char width, trailing commas)
 pnpm build          # Build all packages in dependency order
 ```
 
-**Workspace-targeted commands:** `pnpm --filter @tutor-finance/api <cmd>` or `pnpm --filter @tutor-finance/web <cmd>`
+**Workspace-targeted commands:** `pnpm --filter @tutor-finance/<api|web|mobile> <cmd>`
 
 There are no tests in this codebase.
 
@@ -35,6 +38,7 @@ Turborepo + pnpm monorepo. Build order enforced: `shared` → `auth` → `api` /
 ```
 apps/api/    # NestJS 11 REST API
 apps/web/    # Astro 5 SSR + React 19 islands
+apps/mobile/ # Expo 54 + React Native wrapper over web app (WebView + push bridge)
 packages/auth/    # Shared Better Auth instance (Drizzle + pg adapter)
 packages/shared/  # Zod schemas, currency/money helpers, shared types
 drizzle/          # Generated migrations
@@ -64,6 +68,17 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 - **API client:** `src/lib/api.ts` exports two versions. The browser variant (reads `BROWSER_API_URL`, which resolves to `window.location.origin`) is used inside React islands and goes through the same-origin reverse proxy at `src/pages/api/[...path].ts`. The server variant (reads `SERVER_API_URL`) is used in `.astro` files and calls the API directly. This keeps auth cookies first-party in all browsers (incl. Safari ITP) even when the API is on a different domain.
 - **Styling:** Tailwind v4 (Vite plugin) + shadcn/ui;
 - **i18n:** `en` (default), `ru`
+
+### Mobile (`apps/mobile`)
+
+Expo app using a `WebView` shell around the web app instead of a fully native UI.
+
+- **Entry:** `index.ts` → `registerRootComponent(App)`
+- **Main app:** `App.tsx` renders `react-native-webview` pointing to `EXPO_PUBLIC_WEB_APP_URL` (fallback `http://localhost:4321`)
+- **Navigation:** internal links stay in WebView, external links open via `Linking.openURL`
+- **Push:** `expo-notifications` + `expo-device`; Expo push token is sent into web app via `postMessage` (`tutor-finance:expo-push-token`)
+- **Config:** `app.config.ts` sets `scheme`, iOS/Android package IDs, and `extra.eas.projectId` via `EXPO_PUBLIC_EAS_PROJECT_ID`
+- **Runtime note:** scripts use `--dev-client`; this is intended for custom dev client builds, not Expo Go
 
 ### Shared Packages
 

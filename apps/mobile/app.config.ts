@@ -4,6 +4,7 @@ const config: ExpoConfig = {
   name: 'Uchetka',
   slug: 'uchetka-mobile',
   version: '0.0.1',
+  platforms: ['ios', 'android'],
   orientation: 'portrait',
   scheme: 'uchetka',
   userInterfaceStyle: 'automatic',

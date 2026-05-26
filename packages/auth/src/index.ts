@@ -59,6 +59,12 @@ export function createAuth(opts: AuthOptions) {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
+      // Cache session in a signed cookie so middleware doesn't hit the DB on
+      // every page navigation. Short maxAge keeps it responsive to revocation.
+      cookieCache: {
+        enabled: true,
+        maxAge: 60 * 5,
+      },
     },
   });
 

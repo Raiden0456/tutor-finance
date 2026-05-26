@@ -1,21 +1,19 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
   BackHandler,
   Linking,
   Platform,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
+  useColorScheme,
 } from 'react-native';
-import { WebView, type WebViewNavigation } from 'react-native-webview';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView, type WebViewNavigation, type WebViewMessageEvent } from 'react-native-webview';
 import type { WebView as WebViewType } from 'react-native-webview';
 
 const PUSH_TOKEN_MESSAGE = 'tutor-finance:expo-push-token';
@@ -25,26 +23,33 @@ const WEB_APP_URL = normalizeBaseUrl(
     (Constants.expoConfig?.extra?.webAppUrl as string | undefined) ??
     DEFAULT_WEB_APP_URL,
 );
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+const NATIVE_SHELL_USER_AGENT = 'TutorFinanceNativeShell/1.0';
+const NATIVE_SHELL_INJECTION = `
+  window.__TUTOR_FINANCE_NATIVE_SHELL__ = true;
+  document.documentElement.setAttribute('data-native-shell', 'true');
+  true;
+`;
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <MobileShell />
+    </SafeAreaProvider>
+  );
+}
+
+function MobileShell() {
   const webViewRef = useRef<WebViewType>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(WEB_APP_URL);
   const [currentUrl, setCurrentUrl] = useState(WEB_APP_URL);
   const [pushToken, setPushToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loaderVisible, setLoaderVisible] = useState(true);
   const [failed, setFailed] = useState(false);
-  const fade = useRef(new Animated.Value(1)).current;
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const systemChromeBackground = colorScheme === 'dark' ? '#000000' : '#ffffff';
+  const statusBarStyle = colorScheme === 'dark' ? 'light-content' : 'dark-content';
 
   const source = useMemo(() => ({ uri: sourceUrl }), [sourceUrl]);
 
@@ -77,19 +82,40 @@ export default function App() {
   }, [postPushTokenToWeb]);
 
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const path = response.notification.request.content.data?.path;
-      if (typeof path === 'string') openPath(path);
+    if (IS_EXPO_GO) return;
+
+    let subscription: { remove: () => void } | undefined;
+    let cancelled = false;
+
+    void loadNotifications().then((Notifications) => {
+      if (cancelled) return;
+
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+
+      subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const path = response.notification.request.content.data?.path;
+        if (typeof path === 'string') openPath(path);
+      });
+
+      Notifications.getLastNotificationResponseAsync()
+        .then((response) => {
+          const path = response?.notification.request.content.data?.path;
+          if (typeof path === 'string') openPath(path);
+        })
+        .catch((err) => console.warn('Failed to read initial notification response', err));
     });
 
-    Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
-        const path = response?.notification.request.content.data?.path;
-        if (typeof path === 'string') openPath(path);
-      })
-      .catch((err) => console.warn('Failed to read initial notification response', err));
-
-    return () => subscription.remove();
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
   }, [openPath]);
 
   useEffect(() => {
@@ -102,91 +128,77 @@ export default function App() {
     return () => subscription.remove();
   }, [canGoBack]);
 
-  useEffect(() => {
-    if (loading) {
-      setLoaderVisible(true);
-      fade.setValue(1);
-      return;
-    }
-
-    Animated.timing(fade, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setLoaderVisible(false);
-    });
-  }, [fade, loading]);
-
   function handleNavigation(nav: WebViewNavigation) {
     setCanGoBack(nav.canGoBack);
     setCurrentUrl(nav.url);
   }
 
+  function handleMessage(event: WebViewMessageEvent) {
+    // The web app's in-page skeleton/spinner handles loading UI on its own.
+    // We still need onMessage wired for future bridging (push tokens, etc.).
+    void event;
+  }
+
   return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar barStyle="default" />
-      <WebView
-        ref={webViewRef}
-        source={source}
-        style={styles.webView}
-        originWhitelist={['*']}
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled
-        javaScriptEnabled
-        domStorageEnabled
-        startInLoadingState
-        onLoadStart={() => {
-          setFailed(false);
-          setLoading(true);
-        }}
-        onLoadEnd={() => {
-          setLoading(false);
-          if (pushToken) postPushTokenToWeb(pushToken);
-        }}
-        onNavigationStateChange={handleNavigation}
-        onShouldStartLoadWithRequest={(request) => {
-          if (isInternalUrl(request.url)) return true;
-          void Linking.openURL(request.url);
-          return false;
-        }}
-        onError={() => {
-          setFailed(true);
-          setLoading(false);
-        }}
-        onHttpError={(event) => {
-          if (event.nativeEvent.statusCode >= 500) setFailed(true);
-        }}
-      />
+    <View style={[styles.root, { backgroundColor: systemChromeBackground }]}>
+      <StatusBar barStyle={statusBarStyle} />
+      <View style={[styles.appFrame, { paddingTop: insets.top }]}>
+        <WebView
+          ref={webViewRef}
+          source={source}
+          style={styles.webView}
+          originWhitelist={['*']}
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          javaScriptEnabled
+          domStorageEnabled
+          applicationNameForUserAgent={NATIVE_SHELL_USER_AGENT}
+          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="never"
+          injectedJavaScriptBeforeContentLoaded={NATIVE_SHELL_INJECTION}
+          injectedJavaScript={NATIVE_SHELL_INJECTION}
+          onLoadStart={() => setFailed(false)}
+          onLoadEnd={() => {
+            if (pushToken) postPushTokenToWeb(pushToken);
+          }}
+          onMessage={handleMessage}
+          onNavigationStateChange={handleNavigation}
+          onShouldStartLoadWithRequest={(request) => {
+            if (isInternalUrl(request.url)) return true;
+            void Linking.openURL(request.url);
+            return false;
+          }}
+          onError={() => setFailed(true)}
+          onHttpError={(event) => {
+            if (event.nativeEvent.statusCode >= 500) setFailed(true);
+          }}
+        />
 
-      {loaderVisible && (
-        <Animated.View pointerEvents="none" style={[styles.loadingOverlay, { opacity: fade }]}>
-          <ActivityIndicator size="large" color="#f97316" />
-        </Animated.View>
-      )}
-
-      {failed && (
-        <View style={styles.errorOverlay}>
-          <Text style={styles.errorTitle}>Couldn’t load Uchetka</Text>
-          <Text style={styles.errorText}>Check your connection and try again.</Text>
-          <Pressable
-            style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
-            onPress={() => {
-              setFailed(false);
-              webViewRef.current?.reload();
-            }}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-          <Text style={styles.errorUrl}>{currentUrl}</Text>
-        </View>
-      )}
-    </SafeAreaView>
+        {failed && (
+          <View style={styles.errorOverlay}>
+            <Text style={styles.errorTitle}>Couldn’t load Uchetka</Text>
+            <Text style={styles.errorText}>Check your connection and try again.</Text>
+            <Pressable
+              style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
+              onPress={() => {
+                setFailed(false);
+                webViewRef.current?.reload();
+              }}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+            <Text style={styles.errorUrl}>{currentUrl}</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Device.isDevice) return null;
+  if (!Device.isDevice || IS_EXPO_GO) return null;
+
+  const Notifications = await loadNotifications();
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('reminders', {
@@ -215,6 +227,10 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   return token.data;
 }
 
+async function loadNotifications(): Promise<typeof import('expo-notifications')> {
+  return import('expo-notifications');
+}
+
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, '');
 }
@@ -238,17 +254,13 @@ function buildWebUrl(path: string): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#111113',
+  },
+  appFrame: {
+    flex: 1,
   },
   webView: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#111113',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -256,16 +268,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     padding: 24,
-    backgroundColor: '#111113',
+    backgroundColor: '#fafaf9',
   },
   errorTitle: {
-    color: '#faf4ed',
+    color: '#1a1833',
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   errorText: {
-    color: '#a8a29e',
+    color: '#6868a0',
     fontSize: 15,
     textAlign: 'center',
   },
@@ -287,7 +299,7 @@ const styles = StyleSheet.create({
   },
   errorUrl: {
     marginTop: 8,
-    color: '#78716c',
+    color: '#a1a1aa',
     fontSize: 12,
     textAlign: 'center',
   },

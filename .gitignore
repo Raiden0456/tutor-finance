@@ -6,6 +6,7 @@
 **/.next
 **/.output
 **/.cache
+**/.expo
 
 # Deps
 node_modules
@@ -40,4 +41,3 @@ lerna-debug.log*
 
 # Volumes (local docker)
 docker/data
-
