@@ -16,6 +16,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 import { HealthModule } from './health/health.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { RecurringLessonsModule } from './recurring-lessons/recurring-lessons.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RecurringLessonsModule } from './recurring-lessons/recurring-lessons.mo
     HealthModule,
     RecurringModule,
     RecurringLessonsModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

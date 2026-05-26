@@ -71,4 +71,7 @@ export const env = {
     dataTtlSeconds: num('CACHE_DATA_TTL_SECONDS', 60),
     fxTtlSeconds: num('CACHE_FX_TTL_SECONDS', 60 * 60 * 6),
   },
+  push: {
+    enabled: bool('PUSH_NOTIFICATIONS_ENABLED', true),
+  },
 };

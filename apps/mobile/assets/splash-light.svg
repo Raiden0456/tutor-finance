@@ -1,0 +1,11 @@
+<svg width="560" height="260" viewBox="0 0 560 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="560" height="260" fill="none"/>
+  <g transform="translate(226 28)">
+    <rect width="108" height="108" rx="28" fill="#2d2a5f"/>
+    <path d="M54 24L24 39l30 15 30-15-30-15z" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24 70l30 15 30-15" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24 56l30 15 30-15" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="280" y="185" text-anchor="middle" fill="#1a1833" font-family="DejaVu Sans, Onest, Arial, sans-serif" font-size="58" font-weight="800" letter-spacing="-1.4">Uchetka</text>
+  <text x="280" y="222" text-anchor="middle" fill="#6868a0" font-family="DejaVu Sans, Onest, Arial, sans-serif" font-size="21" font-weight="600">Lessons. Students. Money.</text>
+</svg>
