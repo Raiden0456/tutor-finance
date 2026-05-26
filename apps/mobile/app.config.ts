@@ -8,7 +8,22 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   scheme: 'uchetka',
   userInterfaceStyle: 'automatic',
-  plugins: ['expo-notifications'],
+  plugins: [
+    'expo-notifications',
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#fafaf9',
+        image: './assets/splash-light.png',
+        imageWidth: 280,
+        resizeMode: 'contain',
+        dark: {
+          backgroundColor: '#111113',
+          image: './assets/splash-dark.png',
+        },
+      },
+    ],
+  ],
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.tutorfinance.uchetka',

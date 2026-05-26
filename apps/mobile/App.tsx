@@ -1,7 +1,10 @@
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   BackHandler,
   Linking,
   Platform,
@@ -31,6 +34,11 @@ const NATIVE_SHELL_INJECTION = `
   true;
 `;
 
+if (!IS_EXPO_GO) {
+  SplashScreen.setOptions({ duration: 220, fade: true });
+}
+void SplashScreen.preventAutoHideAsync();
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -46,12 +54,18 @@ function MobileShell() {
   const [currentUrl, setCurrentUrl] = useState(WEB_APP_URL);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [overlayMounted, setOverlayMounted] = useState(false);
+  const [netInfo, setNetInfo] = useState<NetInfoState | null>(null);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const splashHiddenRef = useRef(false);
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const systemChromeBackground = colorScheme === 'dark' ? '#000000' : '#ffffff';
   const statusBarStyle = colorScheme === 'dark' ? 'light-content' : 'dark-content';
 
   const source = useMemo(() => ({ uri: sourceUrl }), [sourceUrl]);
+  const isOffline = netInfo?.isConnected === false || netInfo?.isInternetReachable === false;
+  const overlayVisible = isOffline || failed;
 
   const postPushTokenToWeb = useCallback((token: string) => {
     const message = JSON.stringify({
@@ -62,6 +76,12 @@ function MobileShell() {
     webViewRef.current?.postMessage(message);
   }, []);
 
+  const hideSplash = useCallback(() => {
+    if (splashHiddenRef.current) return;
+    splashHiddenRef.current = true;
+    void SplashScreen.hideAsync();
+  }, []);
+
   const openPath = useCallback((path: string) => {
     const nextUrl = buildWebUrl(path);
     setSourceUrl(nextUrl);
@@ -70,6 +90,37 @@ function MobileShell() {
       `window.location.href = ${JSON.stringify(nextUrl)}; true;`,
     );
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      hideSplash();
+    }, 3500);
+
+    return () => clearTimeout(timeout);
+  }, [hideSplash]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(setNetInfo);
+    void NetInfo.fetch().then(setNetInfo);
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (isOffline) hideSplash();
+  }, [hideSplash, isOffline]);
+
+  useEffect(() => {
+    if (overlayVisible) setOverlayMounted(true);
+
+    Animated.timing(overlayOpacity, {
+      toValue: overlayVisible ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && !overlayVisible) setOverlayMounted(false);
+    });
+  }, [overlayOpacity, overlayVisible]);
 
   useEffect(() => {
     registerForPushNotificationsAsync()
@@ -139,6 +190,15 @@ function MobileShell() {
     void event;
   }
 
+  async function handleRetry() {
+    const state = await NetInfo.refresh();
+    const stillOffline = state.isConnected === false || state.isInternetReachable === false;
+    if (stillOffline) return;
+
+    setFailed(false);
+    webViewRef.current?.reload();
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: systemChromeBackground }]}>
       <StatusBar barStyle={statusBarStyle} />
@@ -159,6 +219,7 @@ function MobileShell() {
           injectedJavaScript={NATIVE_SHELL_INJECTION}
           onLoadStart={() => setFailed(false)}
           onLoadEnd={() => {
+            hideSplash();
             if (pushToken) postPushTokenToWeb(pushToken);
           }}
           onMessage={handleMessage}
@@ -168,27 +229,34 @@ function MobileShell() {
             void Linking.openURL(request.url);
             return false;
           }}
-          onError={() => setFailed(true)}
+          onError={() => {
+            setFailed(true);
+            hideSplash();
+          }}
           onHttpError={(event) => {
-            if (event.nativeEvent.statusCode >= 500) setFailed(true);
+            if (event.nativeEvent.statusCode >= 500) {
+              setFailed(true);
+              hideSplash();
+            }
           }}
         />
 
-        {failed && (
-          <View style={styles.errorOverlay}>
-            <Text style={styles.errorTitle}>Couldn’t load Uchetka</Text>
-            <Text style={styles.errorText}>Check your connection and try again.</Text>
+        {overlayMounted && (
+          <Animated.View style={[styles.errorOverlay, { opacity: overlayOpacity }]}>
+            <Text style={styles.errorTitle}>
+              {isOffline ? 'No internet connection' : 'Couldn’t load Uchetka'}
+            </Text>
+            <Text style={styles.errorText}>
+              {isOffline ? 'Reconnect and try again.' : 'Check your connection and try again.'}
+            </Text>
             <Pressable
               style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
-              onPress={() => {
-                setFailed(false);
-                webViewRef.current?.reload();
-              }}
+              onPress={handleRetry}
             >
               <Text style={styles.retryText}>Retry</Text>
             </Pressable>
-            <Text style={styles.errorUrl}>{currentUrl}</Text>
-          </View>
+            {!isOffline && <Text style={styles.errorUrl}>{currentUrl}</Text>}
+          </Animated.View>
         )}
       </View>
     </View>

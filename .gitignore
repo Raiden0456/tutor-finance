@@ -8,6 +8,10 @@
 **/.cache
 **/.expo
 
+# Expo prebuild output (generated locally unless we intentionally eject)
+apps/mobile/android/
+apps/mobile/ios/
+
 # Deps
 node_modules
 .pnpm-store
