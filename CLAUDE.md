@@ -7,14 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 pnpm setup          # First-time: install deps + build shared packages
-pnpm dev            # Run workspace dev scripts in parallel (currently API :3000, web :4321)
+pnpm dev            # Run workspace dev scripts in parallel
 pnpm --filter @tutor-finance/mobile start   # Expo dev client (mobile)
 pnpm --filter @tutor-finance/mobile android # Open Android via Expo dev client
 pnpm --filter @tutor-finance/mobile ios     # Open iOS via Expo dev client
 
 # Database
-pnpm db:up          # Start PostgreSQL via Docker Compose
-pnpm db:down        # Stop PostgreSQL
+pnpm db:up          # Start PostgreSQL + Redis via Docker Compose
+pnpm db:down        # Stop local DB services
+pnpm db:logs        # Tail DB service logs
 pnpm db:migrate     # Apply migrations
 pnpm db:generate    # Regenerate migrations from schema changes
 pnpm db:seed        # Populate demo data
@@ -27,23 +28,23 @@ pnpm format         # Prettier (single quotes, 100-char width, trailing commas)
 pnpm build          # Build all packages in dependency order
 ```
 
-**Workspace-targeted commands:** `pnpm --filter @tutor-finance/<api|web|mobile> <cmd>`
+**Workspace-targeted commands:** `pnpm --filter @tutor-finance/<api|web|mobile|landing> <cmd>`
 
 There are no tests in this codebase.
 
 ## Architecture
 
-Turborepo + pnpm monorepo. Build order enforced: `shared` → `auth` → `api` / `web`.
+Turborepo + pnpm monorepo. Build order enforced with `dependsOn: ["^build"]` (not a hardcoded app list).
 
 ```
-apps/api/    # NestJS 11 REST API
-apps/web/    # Astro 5 SSR + React 19 islands
-apps/mobile/ # Expo 54 + React Native wrapper over web app (WebView + push bridge)
+apps/api/     # NestJS 11 REST API
+apps/web/     # Astro 5 SSR + React 19 islands
+apps/landing/ # Astro 5 marketing site
+apps/mobile/  # Expo 54 + React Native wrapper over web app (WebView + push bridge)
 packages/auth/    # Shared Better Auth instance (Drizzle + pg adapter)
 packages/shared/  # Zod schemas, currency/money helpers, shared types
 drizzle/          # Generated migrations
-scripts/          # migrate.ts, seed.ts
-docker/           # docker-compose.yml (PostgreSQL 17)
+docker/           # docker-compose.yml (PostgreSQL 17 + Redis 7)
 ```
 
 ### API (`apps/api`)
@@ -52,7 +53,7 @@ NestJS with class-based DI. Module pattern: controller → service → DTOs.
 
 - **Entry:** `src/main.ts` → `AppModule`. `bodyParser: false` is required for Better Auth — do not enable it.
 - **Global:** `DbModule` (pool singleton), `ValidationPipe` with implicit conversion
-- **Feature modules:** `Students`, `Lessons`, `Transactions`, `Settings`, `Dashboard`, `Fx`, `Recurring`, `Health`
+- **Feature modules:** `Students`, `Lessons`, `Transactions`, `Settings`, `Dashboard`, `Fx`, `Recurring`, `RecurringLessons`, `Notifications`, `GoogleCalendar`, `Health`, plus `RedisCache` and global throttling
 - **Config:** `src/config.ts` — `required()`, `optional()`, `num()`, `bool()` helpers; no `.env` loading libraries, Turbo passes env vars
 - **DB:** Drizzle ORM, schema at `src/db/schema.ts`, single `DATABASE_URL`
 - **Auth:** `@thallesp/nestjs-better-auth` — auth instance in `src/auth/auth.provider.ts`; CORS allows `PUBLIC_APP_URL` and `BETTER_AUTH_URL`. Use `@CurrentUser()` decorator on any controller route that requires an authenticated user.
