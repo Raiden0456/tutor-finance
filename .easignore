@@ -1,0 +1,12 @@
+.claude/
+docker/
+render.yaml
+*.md
+**/*.log
+
+# Build outputs / caches that have no business in the upload
+.turbo/
+**/.turbo/
+**/dist/
+**/.astro/
+apps/web/.vercel/
