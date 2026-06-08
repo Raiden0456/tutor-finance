@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {}
+    }
+  }
+}

@@ -1,15 +1,26 @@
 import type { ExpoConfig } from 'expo/config';
 
+const EAS_PROJECT_ID =
+  process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '665d0277-0ce2-4824-8813-3ff706bc41ea';
+
 const config: ExpoConfig = {
   name: 'Uchetka',
   slug: 'uchetka-mobile',
+  owner: 'raiden0456',
   version: '0.0.1',
   platforms: ['ios', 'android'],
   orientation: 'portrait',
   scheme: 'uchetka',
   userInterfaceStyle: 'automatic',
+  icon: './assets/icon-light.png',
   plugins: [
-    'expo-notifications',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/notification-icon.png',
+        color: '#2d2a5f',
+      },
+    ],
     [
       'expo-splash-screen',
       {
@@ -27,14 +38,24 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.tutorfinance.uchetka',
+    icon: {
+      light: './assets/icon-light.png',
+      dark: './assets/icon-dark.png',
+      tinted: './assets/icon-tinted.png',
+    },
   },
   android: {
     package: 'com.tutorfinance.uchetka',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-foreground.png',
+      monochromeImage: './assets/adaptive-monochrome.png',
+      backgroundColor: '#2d2a5f',
+    },
   },
   extra: {
     webAppUrl: process.env.EXPO_PUBLIC_WEB_APP_URL,
     eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+      projectId: EAS_PROJECT_ID,
     },
   },
 };
