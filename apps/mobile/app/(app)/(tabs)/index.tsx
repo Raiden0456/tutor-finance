@@ -1,31 +1,33 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { addDays, endOfDay, endOfWeek, isToday, startOfDay, subDays } from 'date-fns';
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react-native';
 import { Screen } from '~/components/common/screen';
 import { NextLessonHero } from '~/components/dashboard/next-lesson-hero';
 import { TodayOverview } from '~/components/dashboard/today-overview';
 import { FinanceStat } from '~/components/dashboard/finance-stat';
+import { SectionHeader } from '~/components/dashboard/section-header';
+import { ProcessedLessonRow } from '~/components/dashboard/processed-lesson-row';
 import { LessonCard } from '~/components/lessons/lesson-card';
 import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/common/range-tabs';
+import { SelectField } from '~/components/common/select-field';
 import { EmptyState } from '~/components/common/empty-state';
 import { StaggerItem } from '~/components/common/stagger';
-import { LanguageToggle } from '~/components/common/language-toggle';
-import { ThemeToggle } from '~/components/common/theme-toggle';
-import { Card, CardContent } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
 import { useSettings } from '~/lib/settings';
+import { currencyOptions } from '~/lib/catalog';
 import { capitalizeFirst, useI18n } from '~/lib/i18n';
 import { intlLocale, money } from '~/lib/format';
-import type { Lesson, Student, Summary } from '~/lib/types';
+import type { Currency, Lesson, Student, Summary } from '~/lib/types';
 
 export default function DashboardScreen() {
   const { t, locale } = useI18n();
   const { primaryCurrency, weekStartsOn } = useSettings();
   const [range, setRange] = React.useState<RangeKey>('30d');
+  const [currency, setCurrency] = React.useState<Currency | null>(null);
+  const targetCurrency = currency ?? primaryCurrency;
 
   const now = React.useMemo(() => new Date(), []);
   const from = React.useMemo(
@@ -35,8 +37,8 @@ export default function DashboardScreen() {
   const to = React.useMemo(() => endOfDay(now).toISOString(), [now]);
 
   const summary = useApiQuery(
-    () => api.get<Summary>('dashboard/summary', { query: { from, to, target: primaryCurrency } }),
-    [from, to, primaryCurrency],
+    () => api.get<Summary>('dashboard/summary', { query: { from, to, target: targetCurrency } }),
+    [from, to, targetCurrency],
   );
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
@@ -83,7 +85,19 @@ export default function DashboardScreen() {
         new Date(l.startsAt).getTime() >= now.getTime() &&
         new Date(l.startsAt).getTime() <= weekEnd.getTime(),
     ) ?? null;
-  const outstanding = all.filter((l) => l.status === 'due' || l.status === 'partially_paid');
+
+  // Same three buckets as the web dashboard.
+  const pendingLessons = todayLessons.filter((l) => l.status === 'scheduled');
+  const dueLessons = todayLessons.filter(
+    (l) => l.status === 'due' || l.status === 'partially_paid' || l.status === 'completed',
+  );
+  const processedLessons = todayLessons.filter(
+    (l) =>
+      l.status !== 'scheduled' &&
+      l.status !== 'due' &&
+      l.status !== 'partially_paid' &&
+      l.status !== 'completed',
+  );
 
   const refresh = () => {
     void summary.refetch();
@@ -91,23 +105,13 @@ export default function DashboardScreen() {
     void lessons.refetch();
   };
 
+  const net = summary.data?.netInTargetCurrency ?? 0;
+
   return (
-    <Screen
-      title={t('Dashboard')}
-      right={
-        <View className="flex-row items-center gap-2">
-          <LanguageToggle />
-          <ThemeToggle />
-        </View>
-      }
-      refreshing={loading}
-      onRefresh={refresh}
-    >
+    <Screen title={t('Dashboard')} refreshing={loading} onRefresh={refresh}>
       <View className="gap-4">
         <View>
-          <Text className="text-3xl font-bold" style={{ fontFamily: 'Onest_700Bold' }}>
-            {t('Today')}
-          </Text>
+          <Text className="text-3xl font-bold">{t('Today')}</Text>
           <Text className="mt-0.5 text-sm text-muted-foreground">{todayLabel}</Text>
         </View>
 
@@ -123,89 +127,105 @@ export default function DashboardScreen() {
         {/* Today's overview (4 cards) */}
         <TodayOverview lessons={todayLessons} />
 
-        {/* Today's lessons */}
-        {todayLessons.length > 0 ? (
-          <View className="gap-2">
-            <Text className="text-base font-semibold">{t('Today')}</Text>
-            <View className="gap-2">
-              {todayLessons.map((l, i) => (
-                <StaggerItem key={l.id} index={i}>
-                  <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={refresh} />
-                </StaggerItem>
-              ))}
-            </View>
+        {/* Upcoming */}
+        {pendingLessons.length > 0 ? (
+          <View className="gap-2.5">
+            <SectionHeader dot="bg-tf-indigo" label={t('Upcoming')} count={pendingLessons.length} />
+            {pendingLessons.map((l, i) => (
+              <StaggerItem key={l.id} index={i}>
+                <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={refresh} />
+              </StaggerItem>
+            ))}
           </View>
-        ) : (
-          <Card>
-            <CardContent className="py-5">
-              <Text className="text-center text-sm text-muted-foreground">
-                {t('No lessons today. Enjoy your day off!')}
-              </Text>
-            </CardContent>
-          </Card>
-        )}
+        ) : null}
 
-        {/* Outstanding */}
-        {outstanding.length > 0 ? (
+        {/* Due payment */}
+        {dueLessons.length > 0 ? (
+          <View className="gap-2.5">
+            <SectionHeader dot="bg-tf-pollen" label={t('Due Payment')} count={dueLessons.length} />
+            {dueLessons.map((l, i) => (
+              <StaggerItem key={l.id} index={i}>
+                <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={refresh} />
+              </StaggerItem>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Processed */}
+        {processedLessons.length > 0 ? (
           <View className="gap-2">
-            <Text className="text-base font-semibold">{t('Outstanding')}</Text>
-            <View className="gap-2">
-              {outstanding.map((l, i) => (
-                <StaggerItem key={l.id} index={i}>
-                  <LessonCard
-                    lesson={l}
-                    studentName={nameOf(l.studentId)}
-                    showDate
-                    onChanged={refresh}
-                  />
-                </StaggerItem>
-              ))}
-            </View>
+            <SectionHeader
+              dot="bg-muted-foreground"
+              label={t('Processed')}
+              count={processedLessons.length}
+            />
+            {processedLessons.map((l, i) => (
+              <StaggerItem key={l.id} index={i}>
+                <ProcessedLessonRow lesson={l} studentName={nameOf(l.studentId)} />
+              </StaggerItem>
+            ))}
+          </View>
+        ) : null}
+
+        {todayLessons.length === 0 && !nextLesson ? (
+          <View className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10">
+            <Text className="text-center text-sm text-muted-foreground">
+              {t('No lessons today. Enjoy your day off!')}
+            </Text>
           </View>
         ) : null}
 
         {/* Financial summary */}
-        <RangeTabs value={range} onValueChange={setRange} />
-        <View className="flex-row gap-3">
-          <FinanceStat
-            label={t('Income')}
-            tone="income"
-            icon={TrendingUp}
-            value={
-              summary.data
-                ? money(summary.data.incomeInTargetCurrency, primaryCurrency, locale)
-                : '—'
-            }
-          />
-          <FinanceStat
-            label={t('Expense')}
-            tone="expense"
-            icon={TrendingDown}
-            value={
-              summary.data
-                ? money(summary.data.expenseInTargetCurrency, primaryCurrency, locale)
-                : '—'
-            }
-          />
-        </View>
-        <View className="flex-row gap-3">
-          <FinanceStat
-            label={t('Net')}
-            tone="net"
-            icon={Wallet}
-            value={
-              summary.data ? money(summary.data.netInTargetCurrency, primaryCurrency, locale) : '—'
-            }
-          />
-          <FinanceStat
-            label={t('Planned')}
-            tone="neutral"
-            value={
-              summary.data
-                ? money(summary.data.plannedIncomeInTargetCurrency, primaryCurrency, locale)
-                : '—'
-            }
-          />
+        <View className="gap-3 border-t border-border pt-5">
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1">
+              <RangeTabs value={range} onValueChange={setRange} />
+            </View>
+            <View className="w-28">
+              <SelectField
+                value={targetCurrency}
+                onValueChange={(v) => setCurrency(v as Currency)}
+                options={currencyOptions()}
+              />
+            </View>
+          </View>
+
+          <View className="flex-row gap-3">
+            <FinanceStat
+              label={t('Planned')}
+              tone="planned"
+              value={
+                summary.data
+                  ? money(summary.data.plannedIncomeInTargetCurrency, targetCurrency, locale)
+                  : '—'
+              }
+            />
+            <FinanceStat
+              label={t('Income')}
+              tone="income"
+              value={
+                summary.data
+                  ? money(summary.data.incomeInTargetCurrency, targetCurrency, locale)
+                  : '—'
+              }
+            />
+          </View>
+          <View className="flex-row gap-3">
+            <FinanceStat
+              label={t('Expenses')}
+              tone="expense"
+              value={
+                summary.data
+                  ? money(summary.data.expenseInTargetCurrency, targetCurrency, locale)
+                  : '—'
+              }
+            />
+            <FinanceStat
+              label={t('Net')}
+              tone={net >= 0 ? 'income' : 'expense'}
+              value={summary.data ? money(net, targetCurrency, locale) : '—'}
+            />
+          </View>
         </View>
 
         {summary.error && !summary.data ? (

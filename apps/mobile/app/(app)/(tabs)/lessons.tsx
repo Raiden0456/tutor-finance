@@ -26,6 +26,7 @@ import { LessonCard } from '~/components/lessons/lesson-card';
 import { LessonForm } from '~/components/forms/lesson-form';
 import { RecurringLessonForm } from '~/components/forms/recurring-lesson-form';
 import { EmptyState } from '~/components/common/empty-state';
+import { Fab } from '~/components/common/fab';
 import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
 import { StaggerItem } from '~/components/common/stagger';
@@ -58,6 +59,7 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 export default function LessonsScreen() {
   const { t } = useI18n();
   const [tab, setTab] = React.useState<'calendar' | 'schedules'>('calendar');
+  const [logOpen, setLogOpen] = React.useState(false);
 
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
@@ -78,18 +80,34 @@ export default function LessonsScreen() {
           />
           <TabFade tabKey={tab}>
             {tab === 'calendar' ? (
-              <CalendarTab students={students.data ?? []} />
+              <CalendarTab
+                students={students.data ?? []}
+                formOpen={logOpen}
+                onFormOpenChange={setLogOpen}
+              />
             ) : (
               <SchedulesTab students={students.data ?? []} />
             )}
           </TabFade>
         </View>
       </Screen>
+
+      {tab === 'calendar' && (students.data ?? []).length > 0 ? (
+        <Fab onPress={() => setLogOpen(true)} />
+      ) : null}
     </View>
   );
 }
 
-function CalendarTab({ students }: { students: Student[] }) {
+function CalendarTab({
+  students,
+  formOpen,
+  onFormOpenChange,
+}: {
+  students: Student[];
+  formOpen: boolean;
+  onFormOpenChange: (open: boolean) => void;
+}) {
   const { t, locale } = useI18n();
   const { colors, colorScheme } = useColorScheme();
   const { weekStartsOn } = useSettings();
@@ -99,7 +117,6 @@ function CalendarTab({ students }: { students: Student[] }) {
   const [rangeMode, setRangeMode] = React.useState(false);
   const [monthExpanded, setMonthExpanded] = React.useState(false);
   const [showArchive, setShowArchive] = React.useState(false);
-  const [formOpen, setFormOpen] = React.useState(false);
 
   // Fetch a ±1 month window so the strip + month grid have their dots.
   const from = React.useMemo(() => startOfMonth(addMonths(selected, -1)).toISOString(), [selected]);
@@ -190,10 +207,6 @@ function CalendarTab({ students }: { students: Student[] }) {
             }}
           />
           <HeaderToggle active={showArchive} icon={Archive} onPress={() => setShowArchive((v) => !v)} />
-          <Button size="sm" disabled={students.length === 0 || showArchive} onPress={() => setFormOpen(true)}>
-            <Icon as={Plus} size={16} />
-            <Text>{t('Log')}</Text>
-          </Button>
         </View>
       </View>
 
@@ -268,7 +281,7 @@ function CalendarTab({ students }: { students: Student[] }) {
                     : t('No lessons on this day.')}
               </Text>
               {students.length > 0 ? (
-                <Button variant="outline" size="sm" onPress={() => setFormOpen(true)}>
+                <Button variant="outline" size="sm" onPress={() => onFormOpenChange(true)}>
                   <Icon as={Plus} size={15} />
                   <Text>{t('Add lesson')}</Text>
                 </Button>
@@ -288,7 +301,7 @@ function CalendarTab({ students }: { students: Student[] }) {
 
       <LessonForm
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={onFormOpenChange}
         students={students}
         defaultDate={selected}
         onSaved={() => lessons.refetch()}

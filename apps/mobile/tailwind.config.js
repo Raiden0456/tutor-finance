@@ -6,6 +6,11 @@ module.exports = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
+    // Static font files: `font-medium|semibold|bold` must swap the fontFamily
+    // (see fontFamily below) WITHOUT also emitting font-weight — on Android a
+    // custom fontFamily combined with fontWeight falls back to the system font.
+    // Emptying fontWeight removes the colliding weight utilities entirely.
+    fontWeight: {},
     extend: {
       colors: {
         // CSS vars hold HSL channels (e.g. `142 71% 45%`); the `/ <alpha-value>`
@@ -76,6 +81,8 @@ module.exports = {
         medium: ['Onest_500Medium'],
         semibold: ['Onest_600SemiBold'],
         bold: ['Onest_700Bold'],
+        extrabold: ['Onest_700Bold'],
+        mono: ['monospace'],
       },
     },
   },

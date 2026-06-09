@@ -234,9 +234,12 @@ export function CategoryPieChart({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
+        {/* shadcn "Pie Chart - Label": value labels with connector lines. The
+            explicit outerRadius + overflow-visible keep labels from clipping
+            at the container edges. */}
         <ChartContainer
           config={pieCfg}
-          className="mx-auto aspect-square max-h-[220px] [&_.recharts-pie-label-text]:fill-foreground"
+          className="mx-auto aspect-square max-h-[250px] pb-0 [&_.recharts-pie-label-text]:fill-foreground [&_svg]:overflow-visible"
         >
           <PieChart>
             <ChartTooltip
@@ -252,10 +255,8 @@ export function CategoryPieChart({
               data={data}
               dataKey="amount"
               nameKey="name"
-              label={({ percent }) =>
-                (percent ?? 0) > 0.05 ? `${((percent ?? 0) * 100).toFixed(0)}%` : ''
-              }
-              labelLine={false}
+              outerRadius={80}
+              label={({ value }) => String(Math.round(Number(value)))}
             />
           </PieChart>
         </ChartContainer>

@@ -25,7 +25,7 @@ export default function AppTabsLayout() {
           // Drop Android elevation so the tab bar never paints over modal sheets.
           elevation: 0,
         },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: { fontSize: 11, fontFamily: 'Onest_500Medium' },
       }}
     >
       <Tabs.Screen

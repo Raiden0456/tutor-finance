@@ -11,7 +11,7 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
       <View className={cn('items-center justify-center rounded-2xl bg-primary', box)}>
         <Icon as={GraduationCap} size={size === 'lg' ? 30 : 24} className="text-primary-foreground" />
       </View>
-      <Text className={cn('font-bold', size === 'lg' ? 'text-3xl' : 'text-2xl')} style={{ fontFamily: 'Onest_700Bold' }}>
+      <Text className={cn('font-bold', size === 'lg' ? 'text-3xl' : 'text-2xl')}>
         Uchetka
       </Text>
     </View>

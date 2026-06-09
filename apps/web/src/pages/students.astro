@@ -12,7 +12,7 @@ const locale = normalizeLocale(Astro.currentLocale);
 const t = createTranslator(locale);
 
 const settingsPromise = api.get<{ primaryCurrency: Currency }>('/settings/me');
-const studentsPromise = api.get<Student[]>('/students');
+const studentsPromise = api.get<Student[]>('/students', { query: { includeArchived: true } });
 
 const now = new Date();
 const from = new Date(now.getFullYear(), now.getMonth(), 1);

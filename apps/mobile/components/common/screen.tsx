@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { Icon } from '~/components/ui/icon';
 import { Text } from '~/components/ui/text';
+import { LanguageToggle } from '~/components/common/language-toggle';
+import { ThemeToggle } from '~/components/common/theme-toggle';
 import { useColorScheme } from '~/lib/use-color-scheme';
 import { cn } from '~/lib/utils';
 
@@ -50,7 +52,7 @@ export function Screen({
           ) : null}
           <View className="flex-1">
             {title ? (
-              <Text className="text-2xl font-bold" style={{ fontFamily: 'Onest_700Bold' }} numberOfLines={1}>
+              <Text className="text-2xl font-bold" numberOfLines={1}>
                 {title}
               </Text>
             ) : null}
@@ -59,7 +61,18 @@ export function Screen({
             ) : null}
           </View>
         </View>
-        {right ? <View className="pl-1">{right}</View> : null}
+        <View className="flex-row items-center gap-2 pl-1">
+          {right}
+          {/* Global header controls on top-level screens — mirrors the web app's
+              shared mobile header. Detail screens (with a back button) keep
+              their own actions uncluttered. */}
+          {!onBack ? (
+            <>
+              <LanguageToggle />
+              <ThemeToggle />
+            </>
+          ) : null}
+        </View>
       </View>
     ) : null;
 

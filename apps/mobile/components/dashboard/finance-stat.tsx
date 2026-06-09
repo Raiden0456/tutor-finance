@@ -46,7 +46,7 @@ export function FinanceStat({
           </View>
         ) : null}
       </View>
-      <Text className={cn('text-xl font-bold', toneText[tone])} style={{ fontFamily: 'Onest_700Bold' }}>
+      <Text className={cn('text-xl font-bold', toneText[tone])}>
         {value}
       </Text>
     </View>

@@ -4,6 +4,7 @@ import { Pencil, Pause, Play, Repeat, Trash2 } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import type { Recurring } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
+import { categoryLabel } from '../constants';
 
 export function RecurringCard({
   item,
@@ -46,7 +47,7 @@ export function RecurringCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <span className="truncate text-sm font-medium capitalize">
-              {t(`category.${item.category}`)}
+              {categoryLabel(item.category, t)}
             </span>
             <span className="text-base text-nowrap font-semibold tabular-nums text-expense">
               -{fmtMoney(item.amount, item.currency)}

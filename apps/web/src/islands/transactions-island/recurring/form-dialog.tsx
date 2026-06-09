@@ -19,7 +19,7 @@ import {
 import { fromMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
-import { EXPENSE_CATEGORIES, FREQUENCIES } from '../constants';
+import { EXPENSE_CATEGORIES, FREQUENCIES, categoryLabel } from '../constants';
 
 export function RecurringFormDialog({
   title,
@@ -101,7 +101,7 @@ export function RecurringFormDialog({
               <SelectContent>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c} className="capitalize">
-                    {t(`category.${c}`)}
+                    {categoryLabel(c, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
