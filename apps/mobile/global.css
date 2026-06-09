@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+   Uchetka palette (ported from apps/web/src/styles/globals.css)
+   light = Daybreak · warm neutrals + Space Indigo primary
+   dark  = Midnight  · deep neutral base + Ocean Mist (teal) primary
+   Values stored as HSL channels so NativeWind opacity modifiers work
+   (e.g. bg-primary/90).
+   ----------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    /* brand accents (constant across themes, except indigo in dark) */
+    --tf-coral: 12 100% 67%;
+    --tf-pollen: 43 100% 67%;
+    --tf-jade: 142 71% 45%;
+    --tf-teal: 173 80% 40%;
+    --tf-indigo: 243 39% 27%;
+
+    --background: 60 9% 98%;
+    --foreground: 244 36% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 244 36% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 244 36% 15%;
+    --primary: 243 39% 27%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 247 39% 95%;
+    --secondary-foreground: 243 39% 27%;
+    --muted: 240 33% 97%;
+    --muted-foreground: 240 23% 52%;
+    --accent: 245 30% 93%;
+    --accent-foreground: 244 36% 15%;
+    --destructive: 12 100% 67%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 245 30% 93%;
+    --input: 245 30% 93%;
+    --ring: 173 80% 40%;
+    --radius: 0.875rem;
+
+    --income: 142 71% 45%;
+    --expense: 12 100% 67%;
+    --net: 173 80% 40%;
+
+    --chart-1: 243 39% 27%;
+    --chart-2: 173 80% 40%;
+    --chart-3: 12 100% 67%;
+    --chart-4: 43 100% 67%;
+    --chart-5: 142 71% 45%;
+  }
+
+  .dark:root {
+    --tf-coral: 12 100% 67%;
+    --tf-pollen: 43 100% 67%;
+    --tf-jade: 142 71% 45%;
+    --tf-teal: 173 80% 40%;
+    --tf-indigo: 242 100% 77%;
+
+    --background: 240 6% 7%;
+    --foreground: 240 5% 96%;
+    --card: 240 5% 11%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 5% 11%;
+    --popover-foreground: 240 5% 96%;
+    --primary: 173 80% 40%;
+    --primary-foreground: 170 46% 5%;
+    --secondary: 240 5% 15%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 6% 10%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 6% 17%;
+    --accent-foreground: 240 5% 96%;
+    --destructive: 12 100% 67%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 17%;
+    --input: 240 6% 17%;
+    --ring: 173 80% 40%;
+
+    --income: 142 71% 45%;
+    --expense: 12 100% 67%;
+    --net: 173 80% 40%;
+
+    --chart-1: 242 100% 77%;
+    --chart-2: 173 80% 40%;
+    --chart-3: 12 100% 67%;
+    --chart-4: 43 100% 67%;
+    --chart-5: 142 71% 45%;
+  }
+}

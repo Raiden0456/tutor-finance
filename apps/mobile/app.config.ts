@@ -13,7 +13,10 @@ const config: ExpoConfig = {
   scheme: 'uchetka',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon-light.png',
+  newArchEnabled: true,
   plugins: [
+    'expo-router',
+    'expo-secure-store',
     [
       'expo-notifications',
       {
@@ -53,7 +56,7 @@ const config: ExpoConfig = {
     },
   },
   extra: {
-    webAppUrl: process.env.EXPO_PUBLIC_WEB_APP_URL,
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
     eas: {
       projectId: EAS_PROJECT_ID,
     },

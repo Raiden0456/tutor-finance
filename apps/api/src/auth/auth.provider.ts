@@ -13,6 +13,8 @@ export function getAuth(): AuthInstance {
     secret: env.betterAuthSecret,
     baseUrl: env.betterAuthUrl,
     trustedOrigins: [env.betterAuthUrl, env.publicAppUrl, ...env.trustedOrigins],
+    // Native (Expo) app deep-link scheme — see apps/mobile/app.config.ts.
+    mobileSchemes: ['uchetka://'],
     email: {
       provider: env.emailProvider,
       from: env.mailFrom,

@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
       },
       "android": {
@@ -18,7 +18,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
       },
       "android": {
@@ -28,7 +28,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_WEB_APP_URL": "https://app.myuchetka.com",
+        "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
       }
     }
