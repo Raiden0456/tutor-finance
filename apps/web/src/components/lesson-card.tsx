@@ -3,7 +3,14 @@ import { api } from '@/lib/api';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { fmtMajor, fmtMoney } from '@/lib/format';
 import { localizePath, useI18n } from '@/lib/i18n';
-import { SUPPORTED_CURRENCIES, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
+import {
+  SUPPORTED_CURRENCIES,
+  parseMajorToMinor,
+  detectMeetingProvider,
+  needsPayment,
+  isNotPastDay,
+  type Currency,
+} from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import {
   ResponsiveModal,
@@ -46,24 +53,10 @@ import {
   UserX,
   Video,
 } from 'lucide-react';
-import { detectMeetingProvider } from '@/lib/meeting';
 import type { Lesson } from '@/lib/types';
 
 function createTimeFmt(locale: string) {
   return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
-}
-
-export function needsPayment(status: Lesson['status']) {
-  return status === 'due' || status === 'partially_paid' || status === 'completed';
-}
-
-/** Returns true if the lesson is today or in the future (not a past calendar day). */
-export function isNotPastDay(startsAt: string): boolean {
-  const d = new Date(startsAt);
-  const today = new Date();
-  if (d.getFullYear() !== today.getFullYear()) return d.getFullYear() > today.getFullYear();
-  if (d.getMonth() !== today.getMonth()) return d.getMonth() > today.getMonth();
-  return d.getDate() >= today.getDate();
 }
 
 export interface LessonCardProps {

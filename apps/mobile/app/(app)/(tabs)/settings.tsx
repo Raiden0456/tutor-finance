@@ -1,20 +1,20 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { LogOut } from 'lucide-react-native';
-import { Screen } from '~/components/screen';
-import { Field } from '~/components/field';
-import { Notice } from '~/components/notice';
-import { PasswordInput } from '~/components/password-input';
-import { SelectField } from '~/components/select-field';
-import { Segmented } from '~/components/segmented';
-import { GoogleCalendarCard } from '~/components/google-calendar-card';
+import { Screen } from '~/components/common/screen';
+import { Field } from '~/components/common/field';
+import { Notice } from '~/components/common/notice';
+import { PasswordInput } from '~/components/common/password-input';
+import { SelectField } from '~/components/common/select-field';
+import { Segmented } from '~/components/common/segmented';
+import { GoogleCalendarCard } from '~/components/settings/google-calendar-card';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { Input } from '~/components/ui/input';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Spinner } from '~/components/ui/spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { TabFade } from '~/components/common/tab-fade';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { authClient } from '~/lib/auth-client';
@@ -29,7 +29,7 @@ const WEEK_DAY_KEYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 export default function SettingsScreen() {
   const { t } = useI18n();
   const { settings, loading } = useSettings();
-  const [tab, setTab] = React.useState('account');
+  const [tab, setTab] = React.useState<'account' | 'preferences' | 'security'>('account');
 
   return (
     <Screen title={t('Settings')} subtitle={t('Personalise the app')}>
@@ -39,32 +39,29 @@ export default function SettingsScreen() {
           <Skeleton className="h-48 w-full" />
         </View>
       ) : settings ? (
-        <Tabs value={tab} onValueChange={setTab} className="gap-4">
-          <TabsList className="w-full">
-            <TabsTrigger value="account" className="flex-1">
-              <Text>{t('Account')}</Text>
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex-1">
-              <Text>{t('Preferences')}</Text>
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex-1">
-              <Text>{t('Security')}</Text>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="account">
-            <AccountTab settings={settings} t={t} />
-          </TabsContent>
-          <TabsContent value="preferences">
-            <PreferencesTab settings={settings} t={t} />
-          </TabsContent>
-          <TabsContent value="security">
-            <View className="gap-4">
-              <SecurityTab settings={settings} t={t} />
-              <GoogleCalendarCard />
-            </View>
-          </TabsContent>
-        </Tabs>
+        <View className="gap-4">
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'account', label: t('Account') },
+              { value: 'preferences', label: t('Preferences') },
+              { value: 'security', label: t('Security') },
+            ]}
+          />
+          <TabFade tabKey={tab}>
+            {tab === 'account' ? (
+              <AccountTab settings={settings} t={t} />
+            ) : tab === 'preferences' ? (
+              <PreferencesTab settings={settings} t={t} />
+            ) : (
+              <View className="gap-4">
+                <SecurityTab settings={settings} t={t} />
+                <GoogleCalendarCard />
+              </View>
+            )}
+          </TabFade>
+        </View>
       ) : null}
     </Screen>
   );

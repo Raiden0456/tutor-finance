@@ -5,6 +5,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -30,19 +32,16 @@ type FormSheetProps = {
 };
 
 /**
- * Bottom-sheet container for forms (the mobile counterpart of the web app's
- * responsive dialog/drawer). Animated backdrop + slide, keyboard avoidance and
- * safe-area padding. RNR form controls (Input/Select/Button) live inside.
+ * Bottom-sheet container for forms / action menus, hosted in a native RN Modal.
+ * The Modal owns its own native window, so the sheet always paints above the
+ * tab bar and system chrome (no z-index/elevation wars — the old portal-based
+ * sheet was painted over by the Android tab bar). The sheet wraps its content
+ * height (capped at 88% of the window), and the safe-area inset is padding
+ * INSIDE the card so it reaches the screen edge with no floating gap.
  */
-export function FormSheet({
-  open,
-  onOpenChange,
-  title,
-  description,
-  children,
-  footer,
-}: FormSheetProps) {
+export function FormSheet({ open, onOpenChange, title, description, children, footer }: FormSheetProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [mounted, setMounted] = React.useState(open);
   const progress = useSharedValue(0);
   const unmount = React.useCallback(() => setMounted(false), []);
@@ -66,22 +65,29 @@ export function FormSheet({
   if (!mounted) return null;
 
   return (
-    <Modal transparent visible animationType="none" onRequestClose={() => onOpenChange(false)}>
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={() => onOpenChange(false)}
+    >
       <View className="flex-1 justify-end">
-        <Animated.View style={backdropStyle} className="absolute inset-0 bg-black/50">
+        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]} className="bg-black/50">
           <Pressable className="flex-1" onPress={() => onOpenChange(false)} />
         </Animated.View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Animated.View
-            style={sheetStyle}
-            className="max-h-[88%] rounded-t-3xl border border-border bg-card"
+            style={[sheetStyle, { maxHeight: windowHeight * 0.88 }]}
+            className="rounded-t-3xl border border-border bg-card"
           >
             <View className="items-center pt-3">
               <View className="h-1.5 w-10 rounded-full bg-border" />
             </View>
 
-            {(title || description) && (
+            {title || description ? (
               <View className="flex-row items-start justify-between px-5 pb-1 pt-3">
                 <View className="flex-1 pr-3">
                   {title ? <Text className="text-lg font-semibold">{title}</Text> : null}
@@ -97,22 +103,22 @@ export function FormSheet({
                   <Icon as={X} size={18} className="text-muted-foreground" />
                 </Pressable>
               </View>
-            )}
+            ) : null}
 
             <ScrollView
               className="px-5"
+              style={{ flexShrink: 1 }}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingVertical: 12 }}
             >
               {children}
             </ScrollView>
 
-            <View
-              className="gap-2 border-t border-border px-5 pt-3"
-              style={{ paddingBottom: insets.bottom + 12 }}
-            >
-              {footer}
-            </View>
+            {footer ? (
+              <View className="gap-2 border-t border-border px-5 pt-3">{footer}</View>
+            ) : null}
+
+            <View style={{ height: insets.bottom + 8 }} />
           </Animated.View>
         </KeyboardAvoidingView>
       </View>

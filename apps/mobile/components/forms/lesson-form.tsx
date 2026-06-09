@@ -3,14 +3,15 @@ import { View } from 'react-native';
 import {
   toMinorUnits,
   fromMinorUnits,
+  combineDateTime,
   type Currency,
   type LessonStatus,
 } from '@tutor-finance/shared';
-import { FormSheet } from '~/components/form-sheet';
-import { Field } from '~/components/field';
-import { SelectField } from '~/components/select-field';
-import { DateTimeField } from '~/components/date-time-field';
-import { Notice } from '~/components/notice';
+import { FormSheet } from '~/components/common/form-sheet';
+import { Field } from '~/components/common/field';
+import { SelectField } from '~/components/common/select-field';
+import { DateTimeField } from '~/components/common/date-time-field';
+import { Notice } from '~/components/common/notice';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
@@ -22,18 +23,6 @@ import { LESSON_STATUS_OPTIONS } from '~/lib/lesson-status';
 import { useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import type { Lesson, Student } from '~/lib/types';
-
-function combine(date: Date, time: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    time.getHours(),
-    time.getMinutes(),
-    0,
-    0,
-  );
-}
 
 export function LessonForm({
   open,
@@ -101,7 +90,7 @@ export function LessonForm({
     try {
       const payload: Record<string, unknown> = {
         studentId,
-        startsAt: combine(date, time).toISOString(),
+        startsAt: combineDateTime(date, time).toISOString(),
         durationMin: Number(duration) || 60,
         status,
         notes: notes.trim() || undefined,

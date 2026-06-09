@@ -1,6 +1,6 @@
 import { SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { TFunction } from '~/lib/i18n';
-import type { FieldOption } from '~/components/select-field';
+import type { FieldOption } from '~/components/common/select-field';
 
 export const EXPENSE_CATEGORIES = [
   'rent',

@@ -2,7 +2,7 @@ import { Pressable, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Icon } from '~/components/ui/icon';
 import { Text } from '~/components/ui/text';
-import { StudentAvatar } from '~/components/student-avatar';
+import { StudentAvatar } from '~/components/students/student-avatar';
 import { money } from '~/lib/format';
 import { useI18n } from '~/lib/i18n';
 import type { Student } from '~/lib/types';

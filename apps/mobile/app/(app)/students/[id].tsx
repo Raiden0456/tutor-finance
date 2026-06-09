@@ -3,12 +3,12 @@ import { Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { toMinorUnits } from '@tutor-finance/shared';
 import { Mail, Phone, Send, MessageCircle, Video, Pencil, Archive, ArchiveRestore } from 'lucide-react-native';
-import { Screen } from '~/components/screen';
-import { StudentAvatar } from '~/components/student-avatar';
+import { Screen } from '~/components/common/screen';
+import { StudentAvatar } from '~/components/students/student-avatar';
 import { StudentForm } from '~/components/forms/student-form';
-import { LessonCard } from '~/components/lesson-card';
-import { FormSheet } from '~/components/form-sheet';
-import { Field } from '~/components/field';
+import { LessonCard } from '~/components/lessons/lesson-card';
+import { FormSheet } from '~/components/common/form-sheet';
+import { Field } from '~/components/common/field';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -233,13 +233,7 @@ export default function StudentDetailScreen() {
             ) : (
               <View className="gap-2">
                 {(lessons.data ?? []).map((l) => (
-                  <LessonCard
-                    key={l.id}
-                    lesson={l}
-                    studentName={s.name}
-                    showDate
-                    onPress={() => router.push(`/(app)/lessons/${l.id}`)}
-                  />
+                  <LessonCard key={l.id} lesson={l} studentName={s.name} showDate onChanged={refresh} />
                 ))}
               </View>
             )}

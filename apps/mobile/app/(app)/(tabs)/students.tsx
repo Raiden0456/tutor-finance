@@ -3,15 +3,17 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { startOfMonth } from 'date-fns';
 import { Users } from 'lucide-react-native';
-import { Screen } from '~/components/screen';
-import { StudentCard } from '~/components/student-card';
+import { Screen } from '~/components/common/screen';
+import { StudentCard } from '~/components/students/student-card';
 import { StudentForm } from '~/components/forms/student-form';
-import { Fab } from '~/components/fab';
-import { EmptyState } from '~/components/empty-state';
+import { Fab } from '~/components/common/fab';
+import { Segmented } from '~/components/common/segmented';
+import { TabFade } from '~/components/common/tab-fade';
+import { StaggerItem } from '~/components/common/stagger';
+import { EmptyState } from '~/components/common/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Progress } from '~/components/ui/progress';
 import { Skeleton } from '~/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
@@ -24,7 +26,7 @@ export default function StudentsScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
   const { primaryCurrency } = useSettings();
-  const [tab, setTab] = React.useState('active');
+  const [tab, setTab] = React.useState<'active' | 'archived'>('active');
   const [formOpen, setFormOpen] = React.useState(false);
 
   const students = useApiQuery(
@@ -106,17 +108,16 @@ export default function StudentsScreen() {
             </Card>
           ) : null}
 
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="active" className="flex-1">
-                <Text>{t('Active')}</Text>
-              </TabsTrigger>
-              <TabsTrigger value="archived" className="flex-1">
-                <Text>{t('Archived')}</Text>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value={tab} className="pt-3">
+          <View className="gap-3">
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'active', label: t('Active') },
+                { value: 'archived', label: t('Archived') },
+              ]}
+            />
+            <TabFade tabKey={tab}>
               {students.loading && all.length === 0 ? (
                 <View className="gap-2">
                   <Skeleton className="h-16 w-full" />
@@ -131,18 +132,19 @@ export default function StudentsScreen() {
                 />
               ) : (
                 <View className="gap-2">
-                  {list.map((s) => (
-                    <StudentCard
-                      key={s.id}
-                      student={s}
-                      earnedMinor={earnedByStudent.get(s.id)}
-                      onPress={() => router.push(`/(app)/students/${s.id}`)}
-                    />
+                  {list.map((s, i) => (
+                    <StaggerItem key={s.id} index={i}>
+                      <StudentCard
+                        student={s}
+                        earnedMinor={earnedByStudent.get(s.id)}
+                        onPress={() => router.push(`/(app)/students/${s.id}`)}
+                      />
+                    </StaggerItem>
                   ))}
                 </View>
               )}
-            </TabsContent>
-          </Tabs>
+            </TabFade>
+          </View>
         </View>
       </Screen>
 

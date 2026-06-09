@@ -3,8 +3,6 @@ import type { Currency, WeekStartsOn } from '@tutor-finance/shared';
 import { api } from '~/lib/api';
 import { authClient } from '~/lib/auth-client';
 import type { Settings } from '~/lib/types';
-import { useI18n, normalizeLocale } from '~/lib/i18n';
-import { useThemePref } from '~/lib/theme-pref';
 
 type SettingsContextValue = {
   settings: Settings | null;
@@ -26,47 +24,36 @@ export function useSettings() {
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = authClient.useSession();
-  const { setLocale } = useI18n();
-  const { setTheme } = useThemePref();
+  const userId = session?.user?.id;
   const [settings, setSettings] = React.useState<Settings | null>(null);
   const [loading, setLoading] = React.useState(false);
 
-  const applyServerPrefs = React.useCallback(
-    (next: Settings) => {
-      setLocale(normalizeLocale(next.locale));
-      if (next.theme === 'light' || next.theme === 'dark' || next.theme === 'system') {
-        setTheme(next.theme);
-      }
-    },
-    [setLocale, setTheme],
-  );
-
+  // NOTE: theme & locale are device-local prefs owned by ThemePrefProvider /
+  // I18nProvider (persisted in SecureStore) and only pushed to the server on
+  // save. We intentionally do NOT re-apply the server's theme/locale here —
+  // useSession emits a fresh object frequently, and re-applying on every emit
+  // would clobber the user's just-made local toggle (the "snaps back" bug).
   const refresh = React.useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.get<Settings>('settings/me');
       setSettings(data);
-      applyServerPrefs(data);
     } catch {
       // leave previous settings in place
     } finally {
       setLoading(false);
     }
-  }, [applyServerPrefs]);
+  }, []);
 
   React.useEffect(() => {
-    if (session?.user) void refresh();
+    if (userId) void refresh();
     else setSettings(null);
-  }, [session?.user, refresh]);
+  }, [userId, refresh]);
 
-  const update = React.useCallback<SettingsContextValue['update']>(
-    async (patch) => {
-      const data = await api.patch<Settings>('settings/me', patch);
-      setSettings(data);
-      applyServerPrefs(data);
-    },
-    [applyServerPrefs],
-  );
+  const update = React.useCallback<SettingsContextValue['update']>(async (patch) => {
+    const data = await api.patch<Settings>('settings/me', patch);
+    setSettings(data);
+  }, []);
 
   const value = React.useMemo<SettingsContextValue>(
     () => ({

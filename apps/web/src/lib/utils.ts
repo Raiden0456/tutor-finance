@@ -1,20 +1,19 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { LESSON_STATUS_COLORS } from '@tutor-finance/shared';
 import type { Lesson } from './types';
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export const statusStyles: Record<Lesson['status'], string> = {
-  scheduled: 'bg-tf-indigo/15 text-tf-indigo',
-  completed: 'bg-tf-teal/15 text-tf-teal',
-  cancelled: 'bg-muted text-muted-foreground',
-  no_show: 'bg-destructive/15 text-destructive',
-  due: 'bg-tf-pollen/15 text-tf-pollen',
-  paid: 'bg-tf-jade/15 text-tf-jade',
-  partially_paid: 'bg-tf-coral/15 text-tf-coral',
-};
+// Status badge classes, derived from the shared color tokens (single source of truth).
+export const statusStyles = Object.fromEntries(
+  (Object.keys(LESSON_STATUS_COLORS) as Lesson['status'][]).map((s) => [
+    s,
+    `${LESSON_STATUS_COLORS[s].bg} ${LESSON_STATUS_COLORS[s].text}`,
+  ]),
+) as Record<Lesson['status'], string>;
 
 export const statusLabel: Record<Lesson['status'], string> = {
   scheduled: 'Scheduled',

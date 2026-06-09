@@ -2,9 +2,9 @@ import * as React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandMark } from '~/components/brand';
-import { ThemeToggle } from '~/components/theme-toggle';
-import { LanguageToggle } from '~/components/language-toggle';
+import { BrandMark } from '~/components/common/brand';
+import { ThemeToggle } from '~/components/common/theme-toggle';
+import { LanguageToggle } from '~/components/common/language-toggle';
 import { Text } from '~/components/ui/text';
 
 export function AuthScaffold({

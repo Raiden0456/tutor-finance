@@ -5,12 +5,13 @@ import { Icon } from '~/components/ui/icon';
 import { Text } from '~/components/ui/text';
 import { cn } from '~/lib/utils';
 
-type Tone = 'income' | 'expense' | 'net' | 'neutral';
+type Tone = 'income' | 'expense' | 'net' | 'planned' | 'neutral';
 
 const toneText: Record<Tone, string> = {
   income: 'text-income',
   expense: 'text-expense',
   net: 'text-net',
+  planned: 'text-tf-indigo',
   neutral: 'text-foreground',
 };
 
@@ -18,6 +19,7 @@ const toneBg: Record<Tone, string> = {
   income: 'bg-income/15',
   expense: 'bg-expense/15',
   net: 'bg-net/15',
+  planned: 'bg-tf-indigo/15',
   neutral: 'bg-muted',
 };
 

@@ -2,8 +2,8 @@ import * as React from 'react';
 import { Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle2, CircleDollarSign, Pencil, Trash2, Video } from 'lucide-react-native';
-import { Screen } from '~/components/screen';
-import { StatusBadge } from '~/components/status-badge';
+import { Screen } from '~/components/common/screen';
+import { StatusBadge } from '~/components/lessons/status-badge';
 import { LessonForm } from '~/components/forms/lesson-form';
 import {
   AlertDialog,

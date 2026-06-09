@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AuthScaffold } from '~/components/auth-scaffold';
-import { Field } from '~/components/field';
-import { Notice } from '~/components/notice';
-import { PasswordInput } from '~/components/password-input';
+import { AuthScaffold } from '~/components/common/auth-scaffold';
+import { Field } from '~/components/common/field';
+import { Notice } from '~/components/common/notice';
+import { PasswordInput } from '~/components/common/password-input';
 import { Button } from '~/components/ui/button';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';

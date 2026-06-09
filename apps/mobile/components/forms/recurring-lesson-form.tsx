@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { type LessonFrequency } from '@tutor-finance/shared';
-import { FormSheet } from '~/components/form-sheet';
-import { Field } from '~/components/field';
-import { SelectField } from '~/components/select-field';
-import { Segmented } from '~/components/segmented';
-import { DateTimeField } from '~/components/date-time-field';
-import { Notice } from '~/components/notice';
+import { FormSheet } from '~/components/common/form-sheet';
+import { Field } from '~/components/common/field';
+import { SelectField } from '~/components/common/select-field';
+import { Segmented } from '~/components/common/segmented';
+import { DateTimeField } from '~/components/common/date-time-field';
+import { Notice } from '~/components/common/notice';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Spinner } from '~/components/ui/spinner';

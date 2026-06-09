@@ -3,10 +3,15 @@ import { api } from '@/lib/api';
 import { fmtMajor, fmtMoney } from '@/lib/format';
 import { I18nProvider, localizePath, type Locale, useI18n } from '@/lib/i18n';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
-import { detectMeetingProvider } from '@/lib/meeting';
 import { AnimatePresence, motion } from 'motion/react';
 import { Ban, Banknote, CheckCircle2, ChevronLeft, MoreHorizontal, UserX } from 'lucide-react';
-import { SUPPORTED_CURRENCIES, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
+import {
+  SUPPORTED_CURRENCIES,
+  parseMajorToMinor,
+  detectMeetingProvider,
+  needsPayment,
+  type Currency,
+} from '@tutor-finance/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,10 +37,6 @@ import {
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal';
 import type { Lesson, Student } from '@/lib/types';
-
-function needsPayment(s: Lesson['status']) {
-  return s === 'due' || s === 'partially_paid' || s === 'completed';
-}
 
 function toLocalDateTimeValue(iso: string) {
   const d = new Date(iso);

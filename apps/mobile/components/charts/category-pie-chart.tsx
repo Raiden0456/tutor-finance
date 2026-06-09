@@ -4,7 +4,13 @@ import { Text } from '~/components/ui/text';
 
 export type PieDatum = { label: string; value: number; color: string };
 
-export function CategoryPieChart({ data }: { data: PieDatum[] }) {
+export function CategoryPieChart({
+  data,
+  formatValue = (n) => String(Math.round(n)),
+}: {
+  data: PieDatum[];
+  formatValue?: (n: number) => string;
+}) {
   if (data.length === 0) return null;
 
   return (
@@ -14,11 +20,14 @@ export function CategoryPieChart({ data }: { data: PieDatum[] }) {
           <Pie.Chart innerRadius="62%" />
         </PolarChart>
       </View>
-      <View className="flex-row flex-wrap justify-center gap-x-4 gap-y-1.5">
+      <View className="gap-1.5">
         {data.map((d) => (
-          <View key={d.label} className="flex-row items-center gap-1.5">
+          <View key={d.label} className="flex-row items-center gap-2">
             <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: d.color }} />
-            <Text className="text-xs text-muted-foreground">{d.label}</Text>
+            <Text className="flex-1 text-xs text-muted-foreground" numberOfLines={1}>
+              {d.label}
+            </Text>
+            <Text className="text-xs font-semibold text-foreground">{formatValue(d.value)}</Text>
           </View>
         ))}
       </View>

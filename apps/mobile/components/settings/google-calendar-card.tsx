@@ -17,7 +17,7 @@ import { Checkbox } from '~/components/ui/checkbox';
 import { Icon } from '~/components/ui/icon';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
-import { Notice } from '~/components/notice';
+import { Notice } from '~/components/common/notice';
 import { api } from '~/lib/api';
 import { authClient } from '~/lib/auth-client';
 import { useApiQuery } from '~/lib/use-query';

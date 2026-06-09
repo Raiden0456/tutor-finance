@@ -1,5 +1,5 @@
 import { format as dateFnsFormat } from 'date-fns';
-import { formatMoney, fromMinorUnits, type Currency } from '@tutor-finance/shared';
+import { formatMoney, fromMinorUnits, toMinorUnits, type Currency } from '@tutor-finance/shared';
 import { getDateFnsLocale, type Locale } from '~/lib/i18n';
 
 export function intlLocale(locale: Locale): string {
@@ -9,6 +9,11 @@ export function intlLocale(locale: Locale): string {
 /** Format a minor-unit integer amount as currency. */
 export function money(amountMinor: number, currency: Currency, locale: Locale): string {
   return formatMoney({ amount: amountMinor, currency }, intlLocale(locale));
+}
+
+/** Format a major (decimal) amount as currency — used by charts whose data is in major units. */
+export function moneyMajor(amountMajor: number, currency: Currency, locale: Locale): string {
+  return formatMoney({ amount: toMinorUnits(amountMajor, currency), currency }, intlLocale(locale));
 }
 
 export { fromMinorUnits };

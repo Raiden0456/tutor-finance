@@ -3,15 +3,18 @@ import { Pressable, View } from 'react-native';
 import { endOfDay, startOfDay, subDays } from 'date-fns';
 import { Plus, Pencil, Trash2, Pause, Play, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 import { fromMinorUnits } from '@tutor-finance/shared';
-import { Screen } from '~/components/screen';
-import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/range-tabs';
-import { FinanceStat } from '~/components/finance-stat';
-import { IncomeExpenseChart, type IncomeExpensePoint } from '~/components/charts/income-expense-chart';
+import { Screen } from '~/components/common/screen';
+import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/common/range-tabs';
+import { FinanceStat } from '~/components/dashboard/finance-stat';
+import { IncomeExpenseChart } from '~/components/charts/income-expense-chart';
 import { CategoryPieChart, type PieDatum } from '~/components/charts/category-pie-chart';
 import { TransactionForm } from '~/components/forms/transaction-form';
 import { RecurringForm } from '~/components/forms/recurring-form';
-import { EmptyState } from '~/components/empty-state';
-import { Fab } from '~/components/fab';
+import { EmptyState } from '~/components/common/empty-state';
+import { Fab } from '~/components/common/fab';
+import { Segmented } from '~/components/common/segmented';
+import { TabFade } from '~/components/common/tab-fade';
+import { StaggerItem } from '~/components/common/stagger';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,20 +28,19 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { Skeleton } from '~/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
 import { useI18n, type TFunction } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import { categoryLabel } from '~/lib/catalog';
-import { formatDate, money } from '~/lib/format';
+import { formatDate, money, moneyMajor } from '~/lib/format';
 import { useColorScheme } from '~/lib/use-color-scheme';
-import type { Currency, DailyFinanceStats, Recurring, Student, Summary, Tx } from '~/lib/types';
+import type { DailyFinanceStats, Recurring, Student, Summary, Tx } from '~/lib/types';
 
 export default function TransactionsScreen() {
   const { t } = useI18n();
-  const [tab, setTab] = React.useState('overview');
+  const [tab, setTab] = React.useState<'overview' | 'recurring' | 'comparison'>('overview');
   const [range, setRange] = React.useState<RangeKey>('30d');
   const [txFormOpen, setTxFormOpen] = React.useState(false);
   const [editingTx, setEditingTx] = React.useState<Tx | null>(null);
@@ -56,37 +58,34 @@ export default function TransactionsScreen() {
   return (
     <View className="flex-1">
       <Screen title={t('Transactions')}>
-        <Tabs value={tab} onValueChange={setTab} className="gap-4">
-          <TabsList className="w-full">
-            <TabsTrigger value="overview" className="flex-1">
-              <Text>{t('Overview')}</Text>
-            </TabsTrigger>
-            <TabsTrigger value="recurring" className="flex-1">
-              <Text>{t('Recurring')}</Text>
-            </TabsTrigger>
-            <TabsTrigger value="comparison" className="flex-1">
-              <Text>{t('Comparison')}</Text>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <OverviewTab
-              range={range}
-              setRange={setRange}
-              students={students.data ?? []}
-              onEdit={(tx) => {
-                setEditingTx(tx);
-                setTxFormOpen(true);
-              }}
-            />
-          </TabsContent>
-          <TabsContent value="recurring">
-            <RecurringTab />
-          </TabsContent>
-          <TabsContent value="comparison">
-            <ComparisonTab />
-          </TabsContent>
-        </Tabs>
+        <View className="gap-4">
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'overview', label: t('Overview') },
+              { value: 'recurring', label: t('Recurring') },
+              { value: 'comparison', label: t('Comparison') },
+            ]}
+          />
+          <TabFade tabKey={tab}>
+            {tab === 'overview' ? (
+              <OverviewTab
+                range={range}
+                setRange={setRange}
+                students={students.data ?? []}
+                onEdit={(tx) => {
+                  setEditingTx(tx);
+                  setTxFormOpen(true);
+                }}
+              />
+            ) : tab === 'recurring' ? (
+              <RecurringTab />
+            ) : (
+              <ComparisonTab />
+            )}
+          </TabFade>
+        </View>
       </Screen>
 
       {tab === 'overview' ? <Fab onPress={openNew} /> : null}
@@ -110,24 +109,6 @@ const PIE_COLORS = (c: ReturnType<typeof useColorScheme>['colors']) => [
   c.mutedForeground,
 ];
 
-function bucketDailyStats(stats: DailyFinanceStats[], currency: Currency, locale: 'en' | 'ru'): IncomeExpensePoint[] {
-  if (stats.length === 0) return [];
-  const buckets = Math.min(7, stats.length);
-  const size = Math.ceil(stats.length / buckets);
-  const points: IncomeExpensePoint[] = [];
-  for (let i = 0; i < stats.length; i += size) {
-    const chunk = stats.slice(i, i + size);
-    const income = chunk.reduce((a, s) => a + s.income, 0);
-    const expense = chunk.reduce((a, s) => a + s.expense, 0);
-    points.push({
-      label: formatDate(chunk[0]!.date, 'd MMM', locale),
-      income: fromMinorUnits(income, currency),
-      expense: fromMinorUnits(expense, currency),
-    });
-  }
-  return points;
-}
-
 function OverviewTab({
   range,
   setRange,
@@ -140,7 +121,7 @@ function OverviewTab({
   onEdit: (tx: Tx) => void;
 }) {
   const { t, locale } = useI18n();
-  const { primaryCurrency } = useSettings();
+  const { primaryCurrency, weekStartsOn } = useSettings();
   const { colors } = useColorScheme();
 
   const now = React.useMemo(() => new Date(), []);
@@ -166,10 +147,9 @@ function OverviewTab({
   const nameOf = (id?: string | null) =>
     id ? (students.find((s) => s.id === id)?.name ?? '') : '';
 
-  const chartData = React.useMemo(
-    () => bucketDailyStats(daily.data ?? [], primaryCurrency, locale),
-    [daily.data, primaryCurrency, locale],
-  );
+  const incomeT = summary.data?.incomeInTargetCurrency ?? 0;
+  const expenseT = summary.data?.expenseInTargetCurrency ?? 0;
+  const netT = incomeT - expenseT;
 
   const pieData = React.useMemo<PieDatum[]>(() => {
     const palette = PIE_COLORS(colors);
@@ -195,24 +175,37 @@ function OverviewTab({
       <RangeTabs value={range} onValueChange={setRange} />
       <View className="flex-row gap-3">
         <FinanceStat
-          label={t('Income')}
-          tone="income"
-          value={summary.data ? money(summary.data.incomeInTargetCurrency, primaryCurrency, locale) : '—'}
+          label={t('Planned')}
+          tone="planned"
+          value={summary.data ? money(summary.data.plannedIncomeInTargetCurrency, primaryCurrency, locale) : '—'}
         />
         <FinanceStat
-          label={t('Expense')}
+          label={t('Income')}
+          tone="income"
+          value={summary.data ? money(incomeT, primaryCurrency, locale) : '—'}
+        />
+      </View>
+      <View className="flex-row gap-3">
+        <FinanceStat
+          label={t('Expenses')}
           tone="expense"
-          value={summary.data ? money(summary.data.expenseInTargetCurrency, primaryCurrency, locale) : '—'}
+          value={summary.data ? money(expenseT, primaryCurrency, locale) : '—'}
+        />
+        <FinanceStat
+          label={t('Net')}
+          tone={netT >= 0 ? 'income' : 'expense'}
+          value={summary.data ? money(netT, primaryCurrency, locale) : '—'}
         />
       </View>
 
-      {chartData.length > 0 ? (
+      {(daily.data ?? []).length > 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t('Income vs Expenses')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <IncomeExpenseChart data={chartData} />
+          <CardContent className="pt-4">
+            <IncomeExpenseChart
+              dailyStats={daily.data ?? []}
+              currency={primaryCurrency}
+              weekStartsOn={weekStartsOn}
+            />
           </CardContent>
         </Card>
       ) : null}
@@ -223,7 +216,10 @@ function OverviewTab({
             <CardTitle className="text-base">{t('Expenses by category')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryPieChart data={pieData} />
+            <CategoryPieChart
+              data={pieData}
+              formatValue={(n) => moneyMajor(n, primaryCurrency, locale)}
+            />
           </CardContent>
         </Card>
       ) : null}
@@ -234,15 +230,16 @@ function OverviewTab({
         ) : (txs.data ?? []).length === 0 ? (
           <EmptyState title={t('No transactions in this period.')} />
         ) : (
-          (txs.data ?? []).map((tx) => (
-            <TransactionRow
-              key={tx.id}
-              tx={tx}
-              studentName={nameOf(tx.studentId)}
-              onPress={() => onEdit(tx)}
-              t={t}
-              locale={locale}
-            />
+          (txs.data ?? []).map((tx, i) => (
+            <StaggerItem key={tx.id} index={i}>
+              <TransactionRow
+                tx={tx}
+                studentName={nameOf(tx.studentId)}
+                onPress={() => onEdit(tx)}
+                t={t}
+                locale={locale}
+              />
+            </StaggerItem>
           ))
         )}
       </View>

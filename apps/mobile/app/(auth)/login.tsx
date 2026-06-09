@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { Link } from 'expo-router';
-import { AuthScaffold } from '~/components/auth-scaffold';
-import { Field } from '~/components/field';
-import { GoogleButton } from '~/components/google-button';
-import { Notice } from '~/components/notice';
-import { PasswordInput } from '~/components/password-input';
+import { AuthScaffold } from '~/components/common/auth-scaffold';
+import { Field } from '~/components/common/field';
+import { GoogleButton } from '~/components/settings/google-button';
+import { Notice } from '~/components/common/notice';
+import { PasswordInput } from '~/components/common/password-input';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Separator } from '~/components/ui/separator';

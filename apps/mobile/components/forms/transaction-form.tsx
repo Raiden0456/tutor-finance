@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { toMinorUnits, fromMinorUnits, type Currency, type TransactionType } from '@tutor-finance/shared';
-import { FormSheet } from '~/components/form-sheet';
-import { Field } from '~/components/field';
-import { Segmented } from '~/components/segmented';
-import { SelectField } from '~/components/select-field';
-import { DateTimeField } from '~/components/date-time-field';
-import { Notice } from '~/components/notice';
+import { FormSheet } from '~/components/common/form-sheet';
+import { Field } from '~/components/common/field';
+import { Segmented } from '~/components/common/segmented';
+import { SelectField } from '~/components/common/select-field';
+import { DateTimeField } from '~/components/common/date-time-field';
+import { Notice } from '~/components/common/notice';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';

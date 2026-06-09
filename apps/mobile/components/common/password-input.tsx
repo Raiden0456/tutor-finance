@@ -10,7 +10,16 @@ export function PasswordInput(props: Props) {
   const [hidden, setHidden] = React.useState(true);
   return (
     <View className="relative justify-center">
-      <Input {...props} secureTextEntry={hidden} className="pr-11" />
+      <Input
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="password"
+        textContentType="password"
+        keyboardType="default"
+        {...props}
+        secureTextEntry={hidden}
+        className="pr-11"
+      />
       <Pressable
         hitSlop={8}
         onPress={() => setHidden((h) => !h)}
