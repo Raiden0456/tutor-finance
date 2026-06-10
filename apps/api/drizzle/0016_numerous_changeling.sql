@@ -1,0 +1,2 @@
+ALTER TABLE "user_settings" ADD COLUMN "lesson_reminder_minutes" integer DEFAULT 30 NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_lesson_reminder_minutes_chk" CHECK ("user_settings"."lesson_reminder_minutes" between 1 and 1440);

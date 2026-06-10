@@ -80,8 +80,16 @@ export function StudentCard({
             {initials(student.name)}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium group-hover:underline">
-              {student.name}
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-medium group-hover:underline">
+                {student.name}
+              </span>
+              {student.dueLessonsCount ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-tf-pollen/15 px-1.5 py-0.5 text-[10px] font-medium text-tf-pollen">
+                  <span className="h-1.5 w-1.5 rounded-full bg-tf-pollen" />
+                  {t('{count} unpaid', { count: student.dueLessonsCount })}
+                </span>
+              ) : null}
             </span>
             <span className="block truncate text-xs text-muted-foreground">{pricing}</span>
           </span>

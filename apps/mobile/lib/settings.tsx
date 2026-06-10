@@ -8,7 +8,14 @@ type SettingsContextValue = {
   settings: Settings | null;
   loading: boolean;
   refresh: () => Promise<void>;
-  update: (patch: Partial<Pick<Settings, 'primaryCurrency' | 'theme' | 'locale' | 'weekStartsOn'>>) => Promise<void>;
+  update: (
+    patch: Partial<
+      Pick<
+        Settings,
+        'primaryCurrency' | 'theme' | 'locale' | 'weekStartsOn' | 'lessonReminderMinutes'
+      >
+    >,
+  ) => Promise<void>;
   /** Convenience accessors with sensible fallbacks. */
   primaryCurrency: Currency;
   weekStartsOn: WeekStartsOn;

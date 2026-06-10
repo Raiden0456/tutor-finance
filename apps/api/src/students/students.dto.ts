@@ -173,4 +173,6 @@ export interface StudentResponse {
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Lessons awaiting payment (due / partially paid); merged fresh on list responses. */
+  dueLessonsCount?: number;
 }

@@ -83,4 +83,6 @@ export const UserSettingsInputSchema = z.object({
   theme: ThemeEnum,
   locale: LocaleEnum,
   weekStartsOn: WeekStartsOnEnum,
+  /** Minutes before a lesson starts to send the push reminder. */
+  lessonReminderMinutes: z.number().int().min(1).max(1440),
 });

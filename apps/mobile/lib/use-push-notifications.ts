@@ -18,7 +18,10 @@ Notifications.setNotificationHandler({
 });
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Device.isDevice || IS_EXPO_GO) return null;
+  if (!Device.isDevice || IS_EXPO_GO) {
+    console.warn('[push] skipped: not a physical device or running in Expo Go');
+    return null;
+  }
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('reminders', {
@@ -34,12 +37,20 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (status !== 'granted') {
     status = (await Notifications.requestPermissionsAsync()).status;
   }
-  if (status !== 'granted') return null;
+  if (status !== 'granted') {
+    console.warn('[push] skipped: notification permission not granted');
+    return null;
+  }
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
-  if (!projectId) return null;
+  if (!projectId) {
+    console.warn('[push] skipped: no EAS projectId (set EXPO_PUBLIC_EAS_PROJECT_ID)');
+    return null;
+  }
 
+  // NOTE: on Android this requires FCM in the BUILD (google-services.json via
+  // android.googleServicesFile) — without it the native call throws.
   const token = await Notifications.getExpoPushTokenAsync({ projectId });
   return token.data;
 }
@@ -60,9 +71,12 @@ export function usePushNotifications(authenticated: boolean) {
       .then((token) => {
         if (cancelled || !token) return;
         const platform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined;
-        void api.post('device-tokens', { token, platform }).catch(() => {});
+        void api
+          .post('device-tokens', { token, platform })
+          .then(() => console.log('[push] token registered with API'))
+          .catch((e) => console.warn('[push] token registration with API failed:', e));
       })
-      .catch(() => {});
+      .catch((e) => console.warn('[push] getting push token failed (missing FCM setup?):', e));
     return () => {
       cancelled = true;
     };

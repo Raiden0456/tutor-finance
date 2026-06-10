@@ -25,6 +25,7 @@ function toResponse(
     theme: r.theme as Theme,
     locale: r.locale as Locale,
     weekStartsOn: r.weekStartsOn as WeekStartsOn,
+    lessonReminderMinutes: r.lessonReminderMinutes,
     accountSecurity,
     profile,
   };
@@ -40,7 +41,12 @@ export class SettingsService {
   async getOrCreate(userId: string): Promise<SettingsResponse> {
     const cacheKey = `user:${userId}:settings:me`;
     const cached = await this.cacheService.getJson<SettingsResponse>(cacheKey);
-    if (cached?.weekStartsOn !== undefined && cached.accountSecurity && cached.profile)
+    if (
+      cached?.weekStartsOn !== undefined &&
+      cached.lessonReminderMinutes !== undefined &&
+      cached.accountSecurity &&
+      cached.profile
+    )
       return cached;
 
     await this.db.insert(userSettings).values({ userId }).onConflictDoNothing();
@@ -92,6 +98,8 @@ export class SettingsService {
     if (patch.theme !== undefined) set.theme = patch.theme;
     if (patch.locale !== undefined) set.locale = patch.locale;
     if (patch.weekStartsOn !== undefined) set.weekStartsOn = patch.weekStartsOn;
+    if (patch.lessonReminderMinutes !== undefined)
+      set.lessonReminderMinutes = patch.lessonReminderMinutes;
 
     const upserted = await this.db
       .insert(userSettings)

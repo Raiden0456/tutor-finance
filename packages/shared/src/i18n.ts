@@ -4,6 +4,11 @@
 export const RU_DICT: Record<string, string> = {
   // Mobile-only
   Theme: 'Тема',
+  'Lesson reminder': 'Напоминание об уроке',
+  'Minutes before lesson': 'Минут до начала урока',
+  '{count} min': '{count} мин',
+  '1 hour': '1 час',
+  '{count} unpaid': '{count} не оплачено',
   // Navigation / common
   Dashboard: 'Панель',
   Students: 'Ученики',

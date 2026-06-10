@@ -27,6 +27,13 @@ export class UpdateSettingsDto {
   @Min(0)
   @Max(6)
   weekStartsOn?: WeekStartsOn;
+
+  /** Minutes before a lesson starts to send the push reminder. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  lessonReminderMinutes?: number;
 }
 
 export class SetPasswordDto {
@@ -50,6 +57,7 @@ export interface SettingsResponse {
   theme: Theme;
   locale: Locale;
   weekStartsOn: WeekStartsOn;
+  lessonReminderMinutes: number;
   accountSecurity: AccountSecurityResponse;
   profile: AccountProfileResponse;
 }

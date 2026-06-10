@@ -75,6 +75,8 @@ export interface Student {
   whatsappLink?: string | null;
   notes?: string | null;
   archivedAt?: string | null;
+  /** Lessons awaiting payment (due / partially paid); present on list responses. */
+  dueLessonsCount?: number;
 }
 
 export interface AccountSecurity {
@@ -92,6 +94,7 @@ export interface Settings {
   theme: Theme;
   locale: Locale;
   weekStartsOn: WeekStartsOn;
+  lessonReminderMinutes: number;
   accountSecurity: AccountSecurity;
   profile: AccountProfile;
 }

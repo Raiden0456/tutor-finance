@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -11,6 +13,8 @@ import {
 import { GoogleCalendarCard } from '@/islands/google-calendar-card';
 import { SUPPORTED_CURRENCIES, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { Check } from 'lucide-react';
+
+const REMINDER_PRESETS = ['10', '30', '60'];
 
 const weekStartOptions: Array<{ value: WeekStartsOn; label: string }> = [
   { value: 1, label: 'Monday' },
@@ -26,11 +30,13 @@ type Props = {
   appLocale: 'en' | 'ru';
   primaryCurrency: Currency;
   weekStartsOn: WeekStartsOn;
+  lessonReminderMinutes: number;
   saving: boolean;
   saved: boolean;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   onPrimaryCurrencyChange: (value: Currency) => void;
   onWeekStartsOnChange: (value: WeekStartsOn) => void;
+  onLessonReminderChange: (value: number) => void;
   onSave: () => void;
 };
 
@@ -38,13 +44,20 @@ export function PreferencesTab({
   appLocale,
   primaryCurrency,
   weekStartsOn,
+  lessonReminderMinutes,
   saving,
   saved,
   t,
   onPrimaryCurrencyChange,
   onWeekStartsOnChange,
+  onLessonReminderChange,
   onSave,
 }: Props) {
+  const [reminderChoice, setReminderChoice] = useState<string>(
+    REMINDER_PRESETS.includes(String(lessonReminderMinutes))
+      ? String(lessonReminderMinutes)
+      : 'custom',
+  );
   return (
     <div className="space-y-5">
       <Card>
@@ -85,6 +98,43 @@ export function PreferencesTab({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>{t('Lesson reminder')}</Label>
+            <div className="flex gap-2">
+              <Select
+                value={reminderChoice}
+                onValueChange={(v) => {
+                  setReminderChoice(v);
+                  if (v !== 'custom') onLessonReminderChange(Number(v));
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">{t('{count} min', { count: 10 })}</SelectItem>
+                  <SelectItem value="30">{t('{count} min', { count: 30 })}</SelectItem>
+                  <SelectItem value="60">{t('1 hour')}</SelectItem>
+                  <SelectItem value="custom">{t('Custom')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {reminderChoice === 'custom' ? (
+                <Input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={lessonReminderMinutes}
+                  onChange={(e) => {
+                    const v = Math.min(1440, Math.max(1, Number(e.target.value) || 30));
+                    onLessonReminderChange(v);
+                  }}
+                  className="w-24"
+                />
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">{t('Minutes before lesson')}</p>
           </div>
 
           <div className="pt-2">

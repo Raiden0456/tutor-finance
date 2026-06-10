@@ -30,9 +30,19 @@ export function StudentCard({
     >
       <StudentAvatar name={student.name} />
       <View className="flex-1 gap-0.5">
-        <Text className="font-medium" numberOfLines={1}>
-          {student.name}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="shrink font-medium" numberOfLines={1}>
+            {student.name}
+          </Text>
+          {student.dueLessonsCount ? (
+            <View className="shrink-0 flex-row items-center gap-1 rounded-full bg-tf-pollen/15 px-1.5 py-0.5">
+              <View className="h-1.5 w-1.5 rounded-full bg-tf-pollen" />
+              <Text className="text-[10px] font-medium text-tf-pollen">
+                {t('{count} unpaid', { count: student.dueLessonsCount })}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         <Text className="text-xs text-muted-foreground" numberOfLines={1}>
           {pricing}
         </Text>

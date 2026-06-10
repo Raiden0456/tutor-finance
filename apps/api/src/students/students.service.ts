@@ -56,16 +56,40 @@ export class StudentsService {
 
   async list(userId: string, includeArchived = false): Promise<StudentResponse[]> {
     const cacheKey = `user:${userId}:students:list:${includeArchived ? 'all' : 'active'}`;
-    const cached = await this.cacheService.getJson<StudentResponse[]>(cacheKey);
-    if (cached) return cached;
+    let base = await this.cacheService.getJson<StudentResponse[]>(cacheKey);
 
-    const where = includeArchived
-      ? eq(students.userId, userId)
-      : and(eq(students.userId, userId), isNull(students.archivedAt));
-    const rows = await this.db.select().from(students).where(where).orderBy(asc(students.name));
-    const response = await Promise.all(rows.map((row) => this.toResponse(userId, row)));
-    await this.cacheService.setJson(cacheKey, response, env.cache.dataTtlSeconds);
-    return response;
+    if (!base) {
+      const where = includeArchived
+        ? eq(students.userId, userId)
+        : and(eq(students.userId, userId), isNull(students.archivedAt));
+      const rows = await this.db.select().from(students).where(where).orderBy(asc(students.name));
+      base = await Promise.all(rows.map((row) => this.toResponse(userId, row)));
+      await this.cacheService.setJson(cacheKey, base, env.cache.dataTtlSeconds);
+    }
+
+    // Due counts change with lesson status, so merge them fresh on top of the
+    // cached base list instead of baking them into the cache.
+    const dueByStudent = await this.dueLessonCounts(userId);
+    return base.map((s) => ({ ...s, dueLessonsCount: dueByStudent.get(s.id) ?? 0 }));
+  }
+
+  /** Lessons awaiting payment (due / partially paid) per student. */
+  private async dueLessonCounts(userId: string): Promise<Map<string, number>> {
+    const rows = await this.db
+      .select({
+        studentId: lessons.studentId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(lessons)
+      .where(
+        and(
+          eq(lessons.userId, userId),
+          inArray(lessons.status, ['due', 'partially_paid']),
+          isNull(lessons.archivedAt),
+        ),
+      )
+      .groupBy(lessons.studentId);
+    return new Map(rows.map((r) => [r.studentId, Number(r.count)]));
   }
 
   async findById(userId: string, id: string): Promise<StudentResponse> {

@@ -114,16 +114,38 @@ function PreferencesTab({ settings, t }: { settings: Settings; t: TFunction }) {
   const { update } = useSettings();
   const [currency, setCurrency] = React.useState<Currency>(settings.primaryCurrency);
   const [weekStart, setWeekStart] = React.useState<WeekStartsOn>(settings.weekStartsOn);
+  const initialReminder = settings.lessonReminderMinutes ?? 30;
+  const [reminderChoice, setReminderChoice] = React.useState<string>(
+    ['10', '30', '60'].includes(String(initialReminder)) ? String(initialReminder) : 'custom',
+  );
+  const [customMinutes, setCustomMinutes] = React.useState(String(initialReminder));
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
 
   const weekOptions = WEEK_DAY_KEYS.map((key, i) => ({ value: String(i), label: t(key) }));
+  const reminderOptions = [
+    { value: '10', label: t('{count} min', { count: 10 }) },
+    { value: '30', label: t('{count} min', { count: 30 }) },
+    { value: '60', label: t('1 hour') },
+    { value: 'custom', label: t('Custom') },
+  ];
+
+  const reminderMinutes =
+    reminderChoice === 'custom'
+      ? Math.min(1440, Math.max(1, Number(customMinutes) || 30))
+      : Number(reminderChoice);
 
   const save = async () => {
     setSaving(true);
     setSaved(false);
     try {
-      await update({ primaryCurrency: currency, weekStartsOn: weekStart, theme, locale });
+      await update({
+        primaryCurrency: currency,
+        weekStartsOn: weekStart,
+        theme,
+        locale,
+        lessonReminderMinutes: reminderMinutes,
+      });
       setSaved(true);
     } finally {
       setSaving(false);
@@ -149,6 +171,27 @@ function PreferencesTab({ settings, t }: { settings: Settings; t: TFunction }) {
             onValueChange={(v) => setWeekStart(Number(v) as WeekStartsOn)}
             options={weekOptions}
           />
+        </Field>
+        <Field label={t('Lesson reminder')} hint={t('Minutes before lesson')}>
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <SelectField
+                value={reminderChoice}
+                onValueChange={setReminderChoice}
+                options={reminderOptions}
+              />
+            </View>
+            {reminderChoice === 'custom' ? (
+              <View className="w-24">
+                <Input
+                  value={customMinutes}
+                  onChangeText={setCustomMinutes}
+                  keyboardType="number-pad"
+                  placeholder="30"
+                />
+              </View>
+            ) : null}
+          </View>
         </Field>
         <Field label={t('Theme')}>
           <Segmented<Theme>

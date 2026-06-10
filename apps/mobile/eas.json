@@ -13,7 +13,8 @@
       },
       "android": {
         "buildType": "apk"
-      }
+      },
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -23,14 +24,16 @@
       },
       "android": {
         "buildType": "apk"
-      }
+      },
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
