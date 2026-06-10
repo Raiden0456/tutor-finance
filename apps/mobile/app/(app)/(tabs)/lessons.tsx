@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
-import { Calendar, type DateData } from 'react-native-calendars';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
   addMonths,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '~/components/common/screen';
 import { WeekStrip } from '~/components/lessons/week-strip';
+import { MonthGrid } from '~/components/lessons/month-grid';
 import { LessonCard } from '~/components/lessons/lesson-card';
 import { LessonForm } from '~/components/forms/lesson-form';
 import { RecurringLessonForm } from '~/components/forms/recurring-lesson-form';
@@ -41,7 +41,6 @@ import {
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
@@ -50,7 +49,6 @@ import { useApiQuery } from '~/lib/use-query';
 import { capitalizeFirst, getDateFnsLocale, useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import { formatDate } from '~/lib/format';
-import { useColorScheme } from '~/lib/use-color-scheme';
 import { cn } from '~/lib/utils';
 import type { Lesson, RecurringLesson, Student } from '~/lib/types';
 
@@ -109,7 +107,6 @@ function CalendarTab({
   onFormOpenChange: (open: boolean) => void;
 }) {
   const { t, locale } = useI18n();
-  const { colors, colorScheme } = useColorScheme();
   const { weekStartsOn } = useSettings();
 
   const [selected, setSelected] = React.useState(() => startOfDay(new Date()));
@@ -117,10 +114,16 @@ function CalendarTab({
   const [rangeMode, setRangeMode] = React.useState(false);
   const [monthExpanded, setMonthExpanded] = React.useState(false);
   const [showArchive, setShowArchive] = React.useState(false);
+  // Anchor for the fetch window: follows the selected day AND month-grid
+  // browsing, so dots show up while paging months without selecting a day.
+  const [viewAnchor, setViewAnchor] = React.useState(() => startOfDay(new Date()));
 
   // Fetch a ±1 month window so the strip + month grid have their dots.
-  const from = React.useMemo(() => startOfMonth(addMonths(selected, -1)).toISOString(), [selected]);
-  const to = React.useMemo(() => endOfMonth(addMonths(selected, 1)).toISOString(), [selected]);
+  const from = React.useMemo(
+    () => startOfMonth(addMonths(viewAnchor, -1)).toISOString(),
+    [viewAnchor],
+  );
+  const to = React.useMemo(() => endOfMonth(addMonths(viewAnchor, 1)).toISOString(), [viewAnchor]);
   const lessons = useApiQuery(
     () => api.get<Lesson[]>('lessons', { query: { from, to, orderDir: 'asc', limit: 500 } }),
     [from, to],
@@ -143,6 +146,7 @@ function CalendarTab({
 
   const selectDay = (day: Date) => {
     const d = startOfDay(day);
+    setViewAnchor(d);
     if (!rangeMode) {
       setSelected(d);
       setRangeEnd(null);
@@ -161,18 +165,6 @@ function CalendarTab({
       setRangeEnd(null);
     }
   };
-
-  const marked = React.useMemo(() => {
-    const m: Record<string, { marked?: boolean; dotColor?: string; selected?: boolean; selectedColor?: string }> = {};
-    for (const key of daysWithLessons) m[key] = { marked: true, dotColor: colors.primary };
-    const selKey = format(selected, 'yyyy-MM-dd');
-    m[selKey] = { ...(m[selKey] ?? {}), selected: true, selectedColor: colors.primary };
-    if (rangeEnd) {
-      const endKey = format(rangeEnd, 'yyyy-MM-dd');
-      m[endKey] = { ...(m[endKey] ?? {}), selected: true, selectedColor: colors.primary };
-    }
-    return m;
-  }, [daysWithLessons, selected, rangeEnd, colors.primary]);
 
   const detailLabel = rangeEnd
     ? `${formatDate(selected, 'd MMM', locale)} – ${formatDate(rangeEnd, 'd MMM', locale)}`
@@ -206,7 +198,11 @@ function CalendarTab({
               setRangeEnd(null);
             }}
           />
-          <HeaderToggle active={showArchive} icon={Archive} onPress={() => setShowArchive((v) => !v)} />
+          <HeaderToggle
+            active={showArchive}
+            icon={Archive}
+            onPress={() => setShowArchive((v) => !v)}
+          />
         </View>
       </View>
 
@@ -216,42 +212,31 @@ function CalendarTab({
         selected={selected}
         rangeEnd={rangeEnd}
         daysWithLessons={daysWithLessons}
+        monthExpanded={monthExpanded}
+        onToggleMonth={() => setMonthExpanded((v) => !v)}
         onSelect={selectDay}
-        onSwipe={(dir) =>
-          setSelected((d) => startOfDay(new Date(d.getTime() + (dir === 'next' ? 7 : -7) * 86400000)))
-        }
+        onSwipe={(dir) => {
+          const next = startOfDay(new Date(selected.getTime() + (dir === 'next' ? 7 : -7) * 86400000));
+          setSelected(next);
+          setViewAnchor(next);
+        }}
       />
 
-      {/* Expandable month grid */}
+      {/* Expandable month grid (custom, mirrors the web calendar) */}
       {monthExpanded ? (
         <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(150)}>
-          <Card>
-            <CardContent className="p-2">
-              <Calendar
-                key={colorScheme}
-                current={format(selected, 'yyyy-MM-dd')}
-                onDayPress={(d: DateData) => {
-                  selectDay(new Date(d.timestamp));
-                  if (!rangeMode) setMonthExpanded(false);
-                }}
-                markedDates={marked}
-                firstDay={weekStartsOn}
-                theme={{
-                  calendarBackground: 'transparent',
-                  monthTextColor: colors.foreground,
-                  arrowColor: colors.primary,
-                  textSectionTitleColor: colors.mutedForeground,
-                  dayTextColor: colors.foreground,
-                  textDisabledColor: colors.mutedForeground,
-                  todayTextColor: colors.primary,
-                  selectedDayTextColor: colors.primaryForeground,
-                  selectedDayBackgroundColor: colors.primary,
-                  dotColor: colors.primary,
-                  selectedDotColor: colors.primaryForeground,
-                }}
-              />
-            </CardContent>
-          </Card>
+          <MonthGrid
+            selected={selected}
+            rangeEnd={rangeEnd}
+            rangeMode={rangeMode}
+            daysWithLessons={daysWithLessons}
+            weekStartsOn={weekStartsOn}
+            onSelect={(d) => {
+              selectDay(d);
+              if (!rangeMode) setMonthExpanded(false);
+            }}
+            onMonthChange={(m) => setViewAnchor(startOfDay(m))}
+          />
         </Animated.View>
       ) : null}
 
@@ -291,7 +276,11 @@ function CalendarTab({
             <View className="gap-2">
               {dayLessons.map((l, i) => (
                 <StaggerItem key={l.id} index={i}>
-                  <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={() => lessons.refetch()} />
+                  <LessonCard
+                    lesson={l}
+                    studentName={nameOf(l.studentId)}
+                    onChanged={() => lessons.refetch()}
+                  />
                 </StaggerItem>
               ))}
             </View>
@@ -327,7 +316,11 @@ function HeaderToggle({
         active ? 'bg-primary' : 'bg-transparent',
       )}
     >
-      <Icon as={icon} size={16} className={active ? 'text-primary-foreground' : 'text-muted-foreground'} />
+      <Icon
+        as={icon}
+        size={16}
+        className={active ? 'text-primary-foreground' : 'text-muted-foreground'}
+      />
     </Pressable>
   );
 }
@@ -335,7 +328,8 @@ function HeaderToggle({
 function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
   const { t } = useI18n();
   const archived = useApiQuery(
-    () => api.get<Lesson[]>('lessons', { query: { showArchived: true, orderDir: 'desc', limit: 500 } }),
+    () =>
+      api.get<Lesson[]>('lessons', { query: { showArchived: true, orderDir: 'desc', limit: 500 } }),
     [],
   );
   const [confirmAll, setConfirmAll] = React.useState(false);
@@ -352,7 +346,10 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
       <View className="flex-row items-center justify-between">
         <Text className="text-sm font-semibold">{t('Archived')}</Text>
         {list.length > 0 ? (
-          <Pressable onPress={() => setConfirmAll(true)} className="flex-row items-center gap-1.5 active:opacity-70">
+          <Pressable
+            onPress={() => setConfirmAll(true)}
+            className="flex-row items-center gap-1.5 active:opacity-70"
+          >
             <Icon as={Trash2} size={14} className="text-destructive" />
             <Text className="text-xs text-destructive">{t('Delete all')}</Text>
           </Pressable>
@@ -384,9 +381,12 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('Delete all archived?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('This permanently deletes all {count} archived lessons. This action cannot be undone.', {
-                count: list.length,
-              })}
+              {t(
+                'This permanently deletes all {count} archived lessons. This action cannot be undone.',
+                {
+                  count: list.length,
+                },
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -422,7 +422,9 @@ function SchedulesTab({ students }: { students: Student[] }) {
   return (
     <View className="gap-3">
       <Text className="text-xs text-muted-foreground">
-        {t('Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.')}
+        {t(
+          'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.',
+        )}
       </Text>
       <Button
         variant="outline"
@@ -441,7 +443,10 @@ function SchedulesTab({ students }: { students: Student[] }) {
         <EmptyState icon={CalendarDays} title={t('No recurring schedules yet.')} />
       ) : (
         (schedules.data ?? []).map((sch) => (
-          <View key={sch.id} className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <View
+            key={sch.id}
+            className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-3"
+          >
             <View className="flex-1">
               <Text className="font-medium">{nameOf(sch.studentId)}</Text>
               <Text className="text-xs text-muted-foreground">

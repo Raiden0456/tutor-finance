@@ -83,6 +83,12 @@ export function LessonForm({
 
   const showPaid = status === 'paid' || status === 'partially_paid';
 
+  const paidCurrency: Currency = overrideAmount.trim()
+    ? overrideCurrency
+    : (lesson?.effectivePrice?.currency ??
+      students.find((s) => s.id === studentId)?.hourlyRate.currency ??
+      overrideCurrency);
+
   const submit = async () => {
     setError(null);
     if (!studentId) return setError(t('Select student'));
@@ -104,7 +110,7 @@ export function LessonForm({
         };
       }
       if (showPaid && paidAmount.trim()) {
-        payload.paidAmount = toMinorUnits(Number(paidAmount) || 0, overrideCurrency);
+        payload.paidAmount = toMinorUnits(Number(paidAmount) || 0, paidCurrency);
       }
       if (lesson) await api.patch(`lessons/${lesson.id}`, payload);
       else await api.post('lessons', payload);
@@ -186,8 +192,13 @@ export function LessonForm({
           </View>
         </Field>
         {showPaid ? (
-          <Field label={t('Amount received ({currency})', { currency: overrideCurrency })}>
-            <Input value={paidAmount} onChangeText={setPaidAmount} keyboardType="decimal-pad" placeholder="0.00" />
+          <Field label={t('Amount received ({currency})', { currency: paidCurrency })}>
+            <Input
+              value={paidAmount}
+              onChangeText={setPaidAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+            />
           </Field>
         ) : null}
         <Field label={t('Meeting link')}>

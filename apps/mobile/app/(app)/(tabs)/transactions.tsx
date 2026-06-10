@@ -1,10 +1,19 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { endOfDay, startOfDay, subDays } from 'date-fns';
-import { Plus, Pencil, Trash2, Pause, Play, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Pause,
+  Play,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react-native';
 import { fromMinorUnits } from '@tutor-finance/shared';
 import { Screen } from '~/components/common/screen';
 import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/common/range-tabs';
+import { SelectField } from '~/components/common/select-field';
 import { FinanceStat } from '~/components/dashboard/finance-stat';
 import { IncomeExpenseChart } from '~/components/charts/income-expense-chart';
 import { CategoryPieChart, type PieDatum } from '~/components/charts/category-pie-chart';
@@ -33,10 +42,10 @@ import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
 import { useI18n, type TFunction } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
-import { categoryLabel } from '~/lib/catalog';
+import { categoryLabel, currencyOptions } from '~/lib/catalog';
 import { formatDate, money, moneyMajor } from '~/lib/format';
 import { useColorScheme } from '~/lib/use-color-scheme';
-import type { DailyFinanceStats, Recurring, Student, Summary, Tx } from '~/lib/types';
+import type { Currency, DailyFinanceStats, Recurring, Student, Summary, Tx } from '~/lib/types';
 
 export default function TransactionsScreen() {
   const { t } = useI18n();
@@ -123,25 +132,28 @@ function OverviewTab({
   const { t, locale } = useI18n();
   const { primaryCurrency, weekStartsOn } = useSettings();
   const { colors } = useColorScheme();
+  const [currency, setCurrency] = React.useState<Currency | null>(null);
+  const targetCurrency = currency ?? primaryCurrency;
 
-  const now = React.useMemo(() => new Date(), []);
-  const from = React.useMemo(
-    () => subDays(startOfDay(now), RANGE_DAYS[range] - 1).toISOString(),
-    [now, range],
-  );
-  const to = React.useMemo(() => endOfDay(now).toISOString(), [now]);
+  const now = new Date();
+  const from = subDays(startOfDay(now), RANGE_DAYS[range] - 1).toISOString();
+  const to = endOfDay(now).toISOString();
 
   const summary = useApiQuery(
-    () => api.get<Summary>('dashboard/summary', { query: { from, to, target: primaryCurrency } }),
-    [from, to, primaryCurrency],
+    () => api.get<Summary>('dashboard/summary', { query: { from, to, target: targetCurrency } }),
+    [from, to, targetCurrency],
   );
   const daily = useApiQuery(
-    () => api.get<DailyFinanceStats[]>('dashboard/daily-stats', { query: { from, to, target: primaryCurrency } }),
-    [from, to, primaryCurrency],
+    () =>
+      api.get<DailyFinanceStats[]>('dashboard/daily-stats', {
+        query: { from, to, target: targetCurrency },
+      }),
+    [from, to, targetCurrency],
   );
   const txs = useApiQuery(
-    () => api.get<Tx[]>('transactions', { query: { from, to, target: primaryCurrency, limit: 200 } }),
-    [from, to, primaryCurrency],
+    () =>
+      api.get<Tx[]>('transactions', { query: { from, to, target: targetCurrency, limit: 200 } }),
+    [from, to, targetCurrency],
   );
 
   const nameOf = (id?: string | null) =>
@@ -163,38 +175,53 @@ function OverviewTab({
       .slice(0, 6)
       .map(([cat, value], i) => ({
         label: categoryLabel(cat, t),
-        value: fromMinorUnits(value, primaryCurrency),
+        value: fromMinorUnits(value, targetCurrency),
         color: palette[i % palette.length]!,
       }));
-  }, [txs.data, colors, t, primaryCurrency]);
+  }, [txs.data, colors, t, targetCurrency]);
 
   const loading = summary.loading || daily.loading || txs.loading;
 
   return (
     <View className="gap-4">
-      <RangeTabs value={range} onValueChange={setRange} />
+      <View className="flex-row items-center gap-2">
+        <View className="flex-1">
+          <RangeTabs value={range} onValueChange={setRange} />
+        </View>
+        <View className="w-28">
+          <SelectField
+            value={targetCurrency}
+            onValueChange={(v) => setCurrency(v as Currency)}
+            options={currencyOptions()}
+          />
+        </View>
+      </View>
       <View className="flex-row gap-3">
         <FinanceStat
           label={t('Planned')}
           tone="planned"
-          value={summary.data ? money(summary.data.plannedIncomeInTargetCurrency, primaryCurrency, locale) : '—'}
+          value={
+            summary.data
+              ? money(summary.data.plannedIncomeInTargetCurrency, targetCurrency, locale)
+              : '—'
+          }
         />
         <FinanceStat
           label={t('Income')}
           tone="income"
-          value={summary.data ? money(incomeT, primaryCurrency, locale) : '—'}
+          value={summary.data ? money(incomeT, targetCurrency, locale) : '—'}
         />
       </View>
       <View className="flex-row gap-3">
         <FinanceStat
           label={t('Expenses')}
           tone="expense"
-          value={summary.data ? money(expenseT, primaryCurrency, locale) : '—'}
+          value={summary.data ? money(expenseT, targetCurrency, locale) : '—'}
         />
         <FinanceStat
           label={t('Net')}
           tone={netT >= 0 ? 'income' : 'expense'}
-          value={summary.data ? money(netT, primaryCurrency, locale) : '—'}
+          value={summary.data ? money(netT, targetCurrency, locale) : '—'}
         />
       </View>
 
@@ -203,7 +230,7 @@ function OverviewTab({
           <CardContent className="pt-4">
             <IncomeExpenseChart
               dailyStats={daily.data ?? []}
-              currency={primaryCurrency}
+              currency={targetCurrency}
               weekStartsOn={weekStartsOn}
             />
           </CardContent>
@@ -218,7 +245,7 @@ function OverviewTab({
           <CardContent>
             <CategoryPieChart
               data={pieData}
-              formatValue={(n) => moneyMajor(n, primaryCurrency, locale)}
+              formatValue={(n) => moneyMajor(n, targetCurrency, locale)}
             />
           </CardContent>
         </Card>
@@ -280,7 +307,9 @@ function TransactionRow({
           {categoryLabel(tx.category, t)}
           {studentName ? ` · ${studentName}` : ''}
         </Text>
-        <Text className="text-xs text-muted-foreground">{formatDate(tx.occurredAt, 'd MMM yyyy', locale)}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {formatDate(tx.occurredAt, 'd MMM yyyy', locale)}
+        </Text>
       </View>
       <Text className={`font-semibold ${income ? 'text-income' : 'text-expense'}`}>
         {income ? '+' : '−'}
@@ -330,7 +359,10 @@ function RecurringTab() {
         />
       ) : (
         (recurring.data ?? []).map((r) => (
-          <View key={r.id} className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <View
+            key={r.id}
+            className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-3"
+          >
             <View className="flex-1">
               <Text className="font-medium">{categoryLabel(r.category, t)}</Text>
               <Text className="text-xs text-muted-foreground">
@@ -389,7 +421,7 @@ function ComparisonTab() {
   const { primaryCurrency } = useSettings();
   const [range, setRange] = React.useState<RangeKey>('30d');
 
-  const now = React.useMemo(() => new Date(), []);
+  const now = new Date();
   const days = RANGE_DAYS[range];
   const curFrom = subDays(startOfDay(now), days - 1).toISOString();
   const curTo = endOfDay(now).toISOString();
@@ -397,11 +429,17 @@ function ComparisonTab() {
   const prevTo = subDays(endOfDay(now), days).toISOString();
 
   const current = useApiQuery(
-    () => api.get<Summary>('dashboard/summary', { query: { from: curFrom, to: curTo, target: primaryCurrency } }),
+    () =>
+      api.get<Summary>('dashboard/summary', {
+        query: { from: curFrom, to: curTo, target: primaryCurrency },
+      }),
     [curFrom, curTo, primaryCurrency],
   );
   const previous = useApiQuery(
-    () => api.get<Summary>('dashboard/summary', { query: { from: prevFrom, to: prevTo, target: primaryCurrency } }),
+    () =>
+      api.get<Summary>('dashboard/summary', {
+        query: { from: prevFrom, to: prevTo, target: primaryCurrency },
+      }),
     [prevFrom, prevTo, primaryCurrency],
   );
 
@@ -410,13 +448,26 @@ function ComparisonTab() {
     return Math.round(((cur - prev) / Math.abs(prev)) * 100);
   };
 
-  const rows: { label: string; cur: number; prev: number }[] = current.data && previous.data
-    ? [
-        { label: t('Income'), cur: current.data.incomeInTargetCurrency, prev: previous.data.incomeInTargetCurrency },
-        { label: t('Expense'), cur: current.data.expenseInTargetCurrency, prev: previous.data.expenseInTargetCurrency },
-        { label: t('Net'), cur: current.data.netInTargetCurrency, prev: previous.data.netInTargetCurrency },
-      ]
-    : [];
+  const rows: { label: string; cur: number; prev: number }[] =
+    current.data && previous.data
+      ? [
+          {
+            label: t('Income'),
+            cur: current.data.incomeInTargetCurrency,
+            prev: previous.data.incomeInTargetCurrency,
+          },
+          {
+            label: t('Expense'),
+            cur: current.data.expenseInTargetCurrency,
+            prev: previous.data.expenseInTargetCurrency,
+          },
+          {
+            label: t('Net'),
+            cur: current.data.netInTargetCurrency,
+            prev: previous.data.netInTargetCurrency,
+          },
+        ]
+      : [];
 
   return (
     <View className="gap-4">
@@ -435,14 +486,20 @@ function ComparisonTab() {
                 <View key={r.label} className="gap-1">
                   <View className="flex-row items-center justify-between">
                     <Text className="text-sm text-muted-foreground">{r.label}</Text>
-                    <Text className={`text-xs font-medium ${d >= 0 ? 'text-income' : 'text-expense'}`}>
+                    <Text
+                      className={`text-xs font-medium ${d >= 0 ? 'text-income' : 'text-expense'}`}
+                    >
                       {d >= 0 ? '+' : ''}
                       {d}% {t('vs')} {t('Previous')}
                     </Text>
                   </View>
                   <View className="flex-row items-baseline justify-between">
-                    <Text className="text-lg font-bold">{money(r.cur, primaryCurrency, locale)}</Text>
-                    <Text className="text-sm text-muted-foreground">{money(r.prev, primaryCurrency, locale)}</Text>
+                    <Text className="text-lg font-bold">
+                      {money(r.cur, primaryCurrency, locale)}
+                    </Text>
+                    <Text className="text-sm text-muted-foreground">
+                      {money(r.prev, primaryCurrency, locale)}
+                    </Text>
                   </View>
                 </View>
               );

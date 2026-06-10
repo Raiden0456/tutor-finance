@@ -13,6 +13,7 @@ export function useApiQuery<T>(fn: () => Promise<T>, deps: React.DependencyList 
   fnRef.current = fn;
 
   const run = React.useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
       const result = await fnRef.current();
@@ -25,7 +26,6 @@ export function useApiQuery<T>(fn: () => Promise<T>, deps: React.DependencyList 
   }, deps);
 
   React.useEffect(() => {
-    setLoading(true);
     void run();
   }, [run]);
 

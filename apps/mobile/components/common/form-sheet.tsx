@@ -12,11 +12,11 @@ import {
 import Animated, {
   Easing,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { Icon } from '~/components/ui/icon';
@@ -39,7 +39,14 @@ type FormSheetProps = {
  * height (capped at 88% of the window), and the safe-area inset is padding
  * INSIDE the card so it reaches the screen edge with no floating gap.
  */
-export function FormSheet({ open, onOpenChange, title, description, children, footer }: FormSheetProps) {
+export function FormSheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+}: FormSheetProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const [mounted, setMounted] = React.useState(open);
@@ -52,7 +59,7 @@ export function FormSheet({ open, onOpenChange, title, description, children, fo
       progress.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
     } else if (mounted) {
       progress.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) }, (done) => {
-        if (done) runOnJS(unmount)();
+        if (done) scheduleOnRN(unmount);
       });
     }
   }, [open, mounted, progress, unmount]);

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
-import Animated, { FadeIn, runOnJS, useAnimatedReaction } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useFont } from '@shopify/react-native-skia';
 import { Onest_500Medium } from '@expo-google-fonts/onest';
 import { CartesianChart, BarGroup, useChartPressState } from 'victory-native';
@@ -98,7 +99,7 @@ export function IncomeExpenseChart({
       net: press.y.net.value.value,
     }),
     (v) => {
-      runOnJS(setTip)({
+      scheduleOnRN(setTip, {
         label: v.label,
         xPos: v.xPos,
         values: { planned: v.planned, income: v.income, expense: v.expense, net: v.net },
@@ -178,10 +179,7 @@ export function IncomeExpenseChart({
         ]}
       />
 
-      <View
-        style={{ height: 224 }}
-        onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}
-      >
+      <View style={{ height: 224 }} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
         {data.length > 0 && visibleMetrics.length > 0 ? (
           // Remount + fade on any structural change (aggregation / metric set):
           // a consistent 200ms fade beats the path-morph, which only sometimes
@@ -283,8 +281,15 @@ export function IncomeExpenseChart({
                 on ? 'border-transparent bg-secondary' : 'border-border bg-transparent',
               )}
             >
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: metricColor[m] }} />
-              <Text className={cn('text-xs font-medium', on ? 'text-secondary-foreground' : 'text-muted-foreground')}>
+              <View
+                style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: metricColor[m] }}
+              />
+              <Text
+                className={cn(
+                  'text-xs font-medium',
+                  on ? 'text-secondary-foreground' : 'text-muted-foreground',
+                )}
+              >
                 {metricLabel[m]}
               </Text>
             </Pressable>

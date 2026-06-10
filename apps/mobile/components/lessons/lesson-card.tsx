@@ -300,7 +300,7 @@ export function LessonCard({
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onPress={remove}>
+            <AlertDialogAction variant="destructive" onPress={remove}>
               <Text>{t('Delete')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>

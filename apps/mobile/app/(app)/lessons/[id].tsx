@@ -97,7 +97,10 @@ export default function LessonDetailScreen() {
                 <Text className="text-lg font-semibold">{student.data?.name ?? t('Student')}</Text>
                 <StatusBadge status={l.status} />
               </View>
-              <Row label={t('Date & time')} value={formatDate(l.startsAt, 'EEE, d MMM yyyy · HH:mm', locale)} />
+              <Row
+                label={t('Date & time')}
+                value={formatDate(l.startsAt, 'EEE, d MMM yyyy · HH:mm', locale)}
+              />
               <Row label={t('Duration')} value={`${l.durationMin} ${t('min')}`} />
               {price ? (
                 <Row
@@ -120,7 +123,11 @@ export default function LessonDetailScreen() {
           {/* Quick actions */}
           <View className="flex-row flex-wrap gap-2">
             {l.status === 'scheduled' ? (
-              <Button size="sm" variant="secondary" onPress={() => patchStatus({ status: 'completed' })}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => patchStatus({ status: 'completed' })}
+              >
                 <Icon as={CheckCircle2} size={15} />
                 <Text>{t('Mark as Completed')}</Text>
               </Button>

@@ -29,12 +29,9 @@ export default function DashboardScreen() {
   const [currency, setCurrency] = React.useState<Currency | null>(null);
   const targetCurrency = currency ?? primaryCurrency;
 
-  const now = React.useMemo(() => new Date(), []);
-  const from = React.useMemo(
-    () => subDays(startOfDay(now), RANGE_DAYS[range] - 1).toISOString(),
-    [now, range],
-  );
-  const to = React.useMemo(() => endOfDay(now).toISOString(), [now]);
+  const now = new Date();
+  const from = subDays(startOfDay(now), RANGE_DAYS[range] - 1).toISOString();
+  const to = endOfDay(now).toISOString();
 
   const summary = useApiQuery(
     () => api.get<Summary>('dashboard/summary', { query: { from, to, target: targetCurrency } }),
@@ -77,7 +74,7 @@ export default function DashboardScreen() {
   const all = lessons.data ?? [];
   const todayLessons = all.filter((l) => isToday(new Date(l.startsAt)));
   // Next scheduled lesson within THIS week only (matches web hero).
-  const weekEnd = React.useMemo(() => endOfWeek(now, { weekStartsOn }), [now, weekStartsOn]);
+  const weekEnd = endOfWeek(now, { weekStartsOn });
   const nextLesson =
     all.find(
       (l) =>
