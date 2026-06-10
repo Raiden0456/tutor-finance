@@ -10,7 +10,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea",
-        "APP_VARIANT": "development"
+        "APP_VARIANT": "development",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
       },
       "android": {
         "buildType": "apk"
@@ -22,7 +23,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.myuchetka.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea",
-        "APP_VARIANT": "preview"
+        "APP_VARIANT": "preview",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
       },
       "android": {
         "buildType": "apk"

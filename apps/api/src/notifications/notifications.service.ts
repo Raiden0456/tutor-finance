@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import type { Database } from '../db/client.js';
@@ -107,13 +107,9 @@ export class NotificationsService {
   async dispatchLessonReminders(): Promise<void> {
     if (!env.push.enabled) return;
 
-    const now = new Date();
-    const from = new Date(now.getTime() - LESSON_REMINDER_WINDOW_BEFORE_MS);
-    const to = new Date(now.getTime() + LESSON_REMINDER_WINDOW_AFTER_MS);
-
-    // Per-user reminder offset: a lesson is "due for a reminder" when
-    // startsAt - offset lands inside the current tick's window.
     const reminderAt = sql`${lessons.startsAt} - (coalesce(${userSettings.lessonReminderMinutes}, ${DEFAULT_REMINDER_MINUTES}) * interval '1 minute')`;
+    const windowFrom = sql`(now() at time zone 'utc') - make_interval(secs => ${LESSON_REMINDER_WINDOW_BEFORE_MS / 1000})`;
+    const windowTo = sql`(now() at time zone 'utc') + make_interval(secs => ${LESSON_REMINDER_WINDOW_AFTER_MS / 1000})`;
 
     const upcoming = await this.db
       .select({
@@ -134,8 +130,8 @@ export class NotificationsService {
         and(
           eq(lessons.status, 'scheduled'),
           isNull(lessons.archivedAt),
-          gte(reminderAt, from),
-          lt(reminderAt, to),
+          sql`${reminderAt} >= ${windowFrom}`,
+          sql`${reminderAt} < ${windowTo}`,
         ),
       );
 
