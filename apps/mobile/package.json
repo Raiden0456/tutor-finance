@@ -9,7 +9,8 @@
     "android": "expo start --android --dev-client",
     "ios": "expo start --ios --dev-client",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "eas-build-post-install": "pnpm --filter @tutor-finance/shared build"
   },
   "dependencies": {
     "@better-auth/expo": "1.6.9",
