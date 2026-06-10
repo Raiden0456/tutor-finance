@@ -7,9 +7,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Archive, Pencil, MoreVertical } from 'lucide-react';
+import { Archive, ArchiveRestore, MoreVertical, Pencil } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
+import type { Currency } from '@tutor-finance/shared';
 import type { Student } from '@/lib/types';
 
 function initials(name: string): string {
@@ -35,20 +36,31 @@ function avatarTint(id: string): string {
   return AVATAR_TINTS[Math.abs(hash) % AVATAR_TINTS.length]!;
 }
 
+/** Compact student row — mirrors the mobile app's student card. */
 export function StudentCard({
   student,
+  earnedMinor,
+  primaryCurrency,
   onEdit,
   onArchive,
+  onRestore,
 }: {
   student: Student;
+  earnedMinor?: number;
+  primaryCurrency: Currency;
   onEdit: () => void;
   onArchive: () => void;
+  onRestore: () => void;
 }) {
   const { t } = useI18n();
   const tint = useMemo(() => avatarTint(student.id), [student.id]);
-  const activePackage = student.activePackage;
-  const showPackage =
-    !!activePackage && (student.pricingMode === 'package' || activePackage.remainingLessons > 0);
+  const archived = !!student.archivedAt;
+
+  const pricing =
+    student.pricingMode === 'package' && student.activePackage
+      ? `${t('Package')} · ${student.activePackage.remainingLessons} ${t('Remaining').toLowerCase()}`
+      : `${fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)} / ${student.ratePeriodMin} ${t('min')}`;
+
   return (
     <motion.li
       layout
@@ -56,26 +68,42 @@ export function StudentCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: -12 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-sm transition-shadow hover:shadow-md"
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="flex items-center gap-3">
-        <a
-          href={`/students/${student.id}`}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-primary-foreground transition-opacity hover:opacity-80"
-          style={{ backgroundColor: tint }}
-          aria-hidden
-        >
-          {initials(student.name)}
+      <div className="flex items-center gap-3 p-3">
+        <a href={`/students/${student.id}`} className="flex min-w-0 flex-1 items-center gap-3 group">
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+            style={{ backgroundColor: tint }}
+            aria-hidden
+          >
+            {initials(student.name)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-medium group-hover:underline">
+                {student.name}
+              </span>
+              {student.dueLessonsCount ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-tf-pollen/15 px-1.5 py-0.5 text-[10px] font-medium text-tf-pollen">
+                  <span className="h-1.5 w-1.5 rounded-full bg-tf-pollen" />
+                  {t('{count} unpaid', { count: student.dueLessonsCount })}
+                </span>
+              ) : null}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">{pricing}</span>
+          </span>
         </a>
-        <a href={`/students/${student.id}`} className="min-w-0 flex-1 group">
-          <div className="truncate text-base font-medium group-hover:underline">{student.name}</div>
-          <div className="truncate text-xs text-muted-foreground">
-            {student.email || student.phone || student.telegramLink || student.whatsappLink || '—'}
+
+        {typeof earnedMinor === 'number' ? (
+          <div className="shrink-0 text-right">
+            <div className="text-[11px] text-muted-foreground">{t('Earned')}</div>
+            <div className="text-sm font-semibold tabular-nums text-income">
+              {fmtMoney(earnedMinor, primaryCurrency)}
+            </div>
           </div>
-          {student.notes ? (
-            <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{student.notes}</div>
-          ) : null}
-        </a>
+        ) : null}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label={t('Open menu')}>
@@ -83,43 +111,26 @@ export function StudentCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="mr-2 h-4 w-4" /> {t('Edit')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={onArchive}
-              className="text-destructive focus:text-destructive"
-            >
-              <Archive className="mr-2 h-4 w-4" /> {t('Archive')}
-            </DropdownMenuItem>
+            {archived ? (
+              <DropdownMenuItem onClick={onRestore}>
+                <ArchiveRestore className="mr-2 h-4 w-4" /> {t('Restore')}
+              </DropdownMenuItem>
+            ) : (
+              <>
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="mr-2 h-4 w-4" /> {t('Edit')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onArchive}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Archive className="mr-2 h-4 w-4" /> {t('Archive')}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">
-          {showPackage ? t('Package') : t('Rate')}
-        </span>
-        {showPackage && activePackage ? (
-          <span className="text-right text-sm font-semibold tabular-nums">
-            {fmtMoney(activePackage.price.amount, activePackage.price.currency)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              · {activePackage.coveredLessons}/{activePackage.lessonCount} {t('lessons')}
-            </span>
-          </span>
-        ) : (
-          <span className="text-lg font-semibold tabular-nums">
-            {fmtMoney(student.hourlyRate.amount, student.hourlyRate.currency)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              / {student.ratePeriodMin} {t('min')}
-            </span>
-          </span>
-        )}
-      </div>
-      {activePackage?.overageLessons ? (
-        <div className="mt-2 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 transition-colors dark:text-amber-400">
-          {t('Package overrun: {count} extra lessons', { count: activePackage.overageLessons })}
-        </div>
-      ) : null}
     </motion.li>
   );
 }

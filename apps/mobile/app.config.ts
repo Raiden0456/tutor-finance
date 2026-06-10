@@ -3,6 +3,13 @@ import type { ExpoConfig } from 'expo/config';
 const EAS_PROJECT_ID =
   process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? '665d0277-0ce2-4824-8813-3ff706bc41ea';
 
+// Android push (FCM) config: required for getExpoPushTokenAsync on Android.
+// Locally: download google-services.json from the Firebase console into this
+// directory (gitignored) and set GOOGLE_SERVICES_JSON=./google-services.json
+// in apps/mobile/.env. On EAS: create a "file" environment variable with the
+// same name (Expo's documented pattern).
+const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON;
+
 const config: ExpoConfig = {
   name: 'Uchetka',
   slug: 'uchetka-mobile',
@@ -13,7 +20,10 @@ const config: ExpoConfig = {
   scheme: 'uchetka',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon-light.png',
+  newArchEnabled: true,
   plugins: [
+    'expo-router',
+    'expo-secure-store',
     [
       'expo-notifications',
       {
@@ -46,6 +56,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.tutorfinance.uchetka',
+    ...(GOOGLE_SERVICES_FILE ? { googleServicesFile: GOOGLE_SERVICES_FILE } : {}),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-foreground.png',
       monochromeImage: './assets/adaptive-monochrome.png',
@@ -53,7 +64,7 @@ const config: ExpoConfig = {
     },
   },
   extra: {
-    webAppUrl: process.env.EXPO_PUBLIC_WEB_APP_URL,
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
     eas: {
       projectId: EAS_PROJECT_ID,
     },

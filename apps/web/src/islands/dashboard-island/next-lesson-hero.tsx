@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useI18n, type TFunction } from '@/lib/i18n';
-import { detectMeetingProvider } from '@/lib/meeting';
+import { detectMeetingProvider } from '@tutor-finance/shared';
 import { PartyPopper, Video } from 'lucide-react';
 import type { RecentLesson } from '@/lib/types';
 

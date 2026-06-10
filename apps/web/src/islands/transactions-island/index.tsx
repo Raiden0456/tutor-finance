@@ -40,7 +40,7 @@ import {
   type WeekStartsOn,
 } from '@tutor-finance/shared';
 import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE } from './constants';
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE, categoryLabel } from './constants';
 import { TabSwitcher } from './tab-switcher';
 import { TxCard } from './tx-card';
 import { IncomeExpenseBarChart, CategoryPieChart } from './charts';
@@ -178,7 +178,7 @@ function TransactionsIslandContent({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([cat, amt], i) => ({
-        name: t(`category.${cat}`),
+        name: categoryLabel(cat, t),
         amount: Math.round(fromMinorUnits(amt, currency) * 100) / 100,
         fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]!,
       }));
@@ -348,7 +348,7 @@ function TransactionsIslandContent({
                             {(txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(
                               (c) => (
                                 <SelectItem key={c} value={c} className="capitalize">
-                                  {t(`category.${c}`)}
+                                  {categoryLabel(c, t)}
                                 </SelectItem>
                               ),
                             )}

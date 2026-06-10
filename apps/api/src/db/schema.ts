@@ -367,6 +367,7 @@ export const userSettings = pgTable(
     theme: text('theme').notNull().default('system'),
     locale: text('locale').notNull().default('en'),
     weekStartsOn: integer('week_starts_on').notNull().default(1),
+    lessonReminderMinutes: integer('lesson_reminder_minutes').notNull().default(30),
     googleCalendarSyncEnabled: boolean('google_calendar_sync_enabled').notNull().default(false),
     googleCalendarId: text('google_calendar_id'),
     googleCalendarConnectedAt: timestamp('google_calendar_connected_at'),
@@ -382,6 +383,10 @@ export const userSettings = pgTable(
     check('user_settings_theme_chk', sql`${t.theme} in (${THEME_SQL})`),
     check('user_settings_locale_chk', sql`${t.locale} in (${LOCALE_SQL})`),
     check('user_settings_week_starts_on_chk', sql`${t.weekStartsOn} between 0 and 6`),
+    check(
+      'user_settings_lesson_reminder_minutes_chk',
+      sql`${t.lessonReminderMinutes} between 1 and 1440`,
+    ),
   ],
 );
 

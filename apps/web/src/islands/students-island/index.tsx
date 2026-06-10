@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
+import { fmtMoney } from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart';
 import {
   ResponsiveModal,
   ResponsiveModalBody,
@@ -22,8 +16,9 @@ import {
   ResponsiveModalTrigger,
 } from '@/components/ui/responsive-modal';
 import { Plus } from 'lucide-react';
-import { fromMinorUnits, parseMajorToMinor, type Currency } from '@tutor-finance/shared';
+import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import type { PricingMode, Student, IncomeTx } from '@/lib/types';
+import { TabSwitcher } from '../transactions-island/tab-switcher';
 import { StudentCard } from './student-card';
 import { StudentDialog, EmptyState } from './student-dialog';
 
@@ -33,6 +28,8 @@ interface Props {
   primaryCurrency: Currency;
   locale?: Locale;
 }
+
+type StudentsTab = 'active' | 'archived';
 
 export function StudentsIsland({ locale, ...props }: Props) {
   return (
@@ -45,30 +42,33 @@ export function StudentsIsland({ locale, ...props }: Props) {
 function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props, 'locale'>) {
   const { t } = useI18n();
   const [students, setStudents] = useState(initial);
+  const [tab, setTab] = useState<StudentsTab>('active');
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
   const [archiveId, setArchiveId] = useState<string | null>(null);
 
-  const empty = students.length === 0;
+  const active = students.filter((s) => !s.archivedAt);
+  const archived = students.filter((s) => s.archivedAt);
+  const list = tab === 'active' ? active : archived;
+
+  // Income this month per student (minor units, already converted to primary).
+  const earnedByStudent = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of transactions) {
+      if (tx.type !== 'income' || !tx.studentId) continue;
+      map.set(tx.studentId, (map.get(tx.studentId) ?? 0) + (tx.convertedAmount ?? 0));
+    }
+    return map;
+  }, [transactions]);
 
   const topEarners = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const t of transactions) {
-      if (t.type !== 'income' || !t.studentId) continue;
-      const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
-      totals.set(t.studentId, (totals.get(t.studentId) ?? 0) + v);
-    }
-    const nameById = new Map(students.map((s) => [s.id, s.name]));
-    return Array.from(totals.entries())
-      .map(([id, total]) => ({
-        id,
-        name: nameById.get(id) ?? '—',
-        total: Math.round(fromMinorUnits(total, primaryCurrency) * 100) / 100,
-      }))
-      .filter((r) => r.total > 0)
-      .sort((a, b) => b.total - a.total)
+    return active
+      .map((s) => ({ id: s.id, name: s.name, earned: earnedByStudent.get(s.id) ?? 0 }))
+      .filter((e) => e.earned > 0)
+      .sort((a, b) => b.earned - a.earned)
       .slice(0, 5);
-  }, [transactions, students, primaryCurrency]);
+  }, [active, earnedByStudent]);
+  const maxEarned = topEarners[0]?.earned ?? 0;
 
   function startCreate() {
     setEditing(null);
@@ -132,8 +132,15 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
 
   async function archive(id: string) {
     await api.post(`/students/${id}/archive`);
-    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setStudents((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, archivedAt: new Date().toISOString() } : s)),
+    );
     setArchiveId(null);
+  }
+
+  async function restore(id: string) {
+    await api.delete(`/students/${id}/archive`);
+    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, archivedAt: null } : s)));
   }
 
   return (
@@ -142,7 +149,9 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
         <div>
           <h1 className="hidden text-xl font-semibold tracking-tight md:block">{t('Students')}</h1>
           <p className="text-xs text-muted-foreground">
-            {empty ? t('No students yet') : t('{count} active', { count: students.length })}
+            {active.length === 0
+              ? t('No students yet')
+              : t('{count} active', { count: active.length })}
           </p>
         </div>
         <ResponsiveModal open={open} onOpenChange={setOpen}>
@@ -156,83 +165,64 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
         </ResponsiveModal>
       </header>
 
+      {/* Top earners — name + amount rows with progress bars, mirrors mobile. */}
       <Collapse open={topEarners.length > 0} className="p-1">
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle className="text-sm font-medium">{t('Top earners · this month')}</CardTitle>
-            <CardDescription className="text-xs">
-              {t('Lesson income totals ({currency})', { currency: primaryCurrency })}
-            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={
-                {
-                  total: { label: t('Earned'), color: 'var(--tf-indigo)' },
-                  label: { color: 'var(--background)' },
-                } satisfies ChartConfig
-              }
-              className="aspect-auto w-full"
-              style={{ height: 56 + topEarners.length * 36 }}
-            >
-              <BarChart
-                data={topEarners}
-                layout="vertical"
-                margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis
-                  type="number"
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, (dataMax: number) => Math.max(dataMax * 1.12, dataMax + 1)]}
-                  hide
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  width={96}
-                  tick={{ fontSize: 12 }}
-                  hide
-                />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                <Bar dataKey="total" radius={6} fill="var(--color-total)">
-                  <LabelList
-                    dataKey="name"
-                    position="insideLeft"
-                    offset={10}
-                    className="fill-(--color-label)"
-                    fontSize={12}
+          <CardContent className="space-y-3">
+            {topEarners.map(({ id, name, earned }) => (
+              <div key={id} className="space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate text-sm">{name}</span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-income">
+                    {fmtMoney(earned, primaryCurrency)}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-income transition-all duration-500 ease-in-out"
+                    style={{ width: `${maxEarned > 0 ? (earned / maxEarned) * 100 : 0}%` }}
                   />
-                  <LabelList
-                    dataKey="total"
-                    position="right"
-                    offset={8}
-                    className="fill-foreground"
-                    fontSize={12}
-                    formatter={(v) => Number(v).toFixed(2)}
-                  />
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </Collapse>
 
-      <FadeSwap motionKey={empty ? 'empty' : 'list'}>
-        {empty ? (
-          <EmptyState onAdd={startCreate} />
+      <TabSwitcher<StudentsTab>
+        value={tab}
+        onChange={setTab}
+        groupId="students"
+        tabs={[
+          { key: 'active', label: t('Active') },
+          { key: 'archived', label: t('Archived') },
+        ]}
+      />
+
+      <FadeSwap motionKey={`${tab}-${list.length === 0 ? 'empty' : 'list'}`}>
+        {list.length === 0 ? (
+          tab === 'active' ? (
+            <EmptyState onAdd={startCreate} />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+              {t('No data')}
+            </div>
+          )
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-2">
             <AnimatePresence initial={false}>
-              {students.map((s) => (
+              {list.map((s) => (
                 <StudentCard
                   key={s.id}
                   student={s}
+                  earnedMinor={earnedByStudent.get(s.id)}
+                  primaryCurrency={primaryCurrency}
                   onEdit={() => startEdit(s)}
                   onArchive={() => setArchiveId(s.id)}
+                  onRestore={() => restore(s.id)}
                 />
               ))}
             </AnimatePresence>

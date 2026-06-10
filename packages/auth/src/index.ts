@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { expo } from '@better-auth/expo';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createMailer, type MailerOptions } from './mailer.js';
 import { resetPasswordTemplate, verifyEmailTemplate } from './templates.js';
@@ -30,13 +31,18 @@ export interface AuthOptions {
   secret: string;
   baseUrl: string;
   trustedOrigins?: string[];
+  /** Custom URL schemes for native apps, e.g. ['uchetka://']. */
+  mobileSchemes?: string[];
   email: MailerOptions;
   socialProviders?: SocialProviderOptions;
 }
 
-export type AuthInstance = ReturnType<typeof createAuth>;
+// Use Better Auth's default instance type for the public surface. Annotating
+// the return type explicitly keeps the emitted .d.ts portable — otherwise the
+// expo() plugin leaks a non-nameable zod type into the inferred type.
+export type AuthInstance = ReturnType<typeof betterAuth>;
 
-export function createAuth(opts: AuthOptions) {
+export function createAuth(opts: AuthOptions): AuthInstance {
   const sendMail = createMailer(opts.email);
 
   const auth = betterAuth({
@@ -47,7 +53,10 @@ export function createAuth(opts: AuthOptions) {
     secret: opts.secret,
     baseURL: opts.baseUrl,
     basePath: '/api/auth',
-    trustedOrigins: opts.trustedOrigins ?? [opts.baseUrl],
+    trustedOrigins: [...(opts.trustedOrigins ?? [opts.baseUrl]), ...(opts.mobileSchemes ?? [])],
+    // Expo plugin enables native session/cookie handling and the OAuth proxy
+    // deep-link flow for the React Native client.
+    plugins: [expo()],
     socialProviders: opts.socialProviders,
     account: {
       encryptOAuthTokens: true,
@@ -88,7 +97,9 @@ export function createAuth(opts: AuthOptions) {
     },
   });
 
-  return auth;
+  // The instance carries plugin-specific generics; expose it as the default
+  // Better Auth surface so the package's emitted types stay portable.
+  return auth as unknown as AuthInstance;
 }
 
 export type { MailerOptions, SmtpConfig } from './mailer.js';

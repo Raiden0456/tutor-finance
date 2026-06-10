@@ -1,20 +1,27 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { and, eq, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import type { Database } from '../db/client.js';
 import { DB } from '../db/db.module.js';
-import { devicePushTokens, lessons, notificationDeliveries, students } from '../db/schema.js';
+import {
+  devicePushTokens,
+  lessons,
+  notificationDeliveries,
+  students,
+  userSettings,
+} from '../db/schema.js';
 import type { RegisterDeviceTokenDto, RegisterDeviceTokenResponse } from './notifications.dto.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_PUSH_TIMEOUT_MS = 10_000;
 const EXPO_PUSH_CHUNK_SIZE = 100;
 const EXPO_PUSH_CHANNEL_ID = 'reminders';
-const LESSON_REMINDER_MS = 10 * 60 * 1000;
+const DEFAULT_REMINDER_MINUTES = 30;
 const LESSON_REMINDER_WINDOW_BEFORE_MS = 30 * 1000;
 const LESSON_REMINDER_WINDOW_AFTER_MS = 90 * 1000;
+const DUE_STATUSES = ['due', 'partially_paid'] as const;
 
 const NOTIFICATION_TYPES = {
   lessonReminder: 'lesson_reminder',
@@ -101,8 +108,12 @@ export class NotificationsService {
     if (!env.push.enabled) return;
 
     const now = new Date();
-    const from = new Date(now.getTime() + LESSON_REMINDER_MS - LESSON_REMINDER_WINDOW_BEFORE_MS);
-    const to = new Date(now.getTime() + LESSON_REMINDER_MS + LESSON_REMINDER_WINDOW_AFTER_MS);
+    const from = new Date(now.getTime() - LESSON_REMINDER_WINDOW_BEFORE_MS);
+    const to = new Date(now.getTime() + LESSON_REMINDER_WINDOW_AFTER_MS);
+
+    // Per-user reminder offset: a lesson is "due for a reminder" when
+    // startsAt - offset lands inside the current tick's window.
+    const reminderAt = sql`${lessons.startsAt} - (coalesce(${userSettings.lessonReminderMinutes}, ${DEFAULT_REMINDER_MINUTES}) * interval '1 minute')`;
 
     const upcoming = await this.db
       .select({
@@ -110,29 +121,33 @@ export class NotificationsService {
         userId: lessons.userId,
         startsAt: lessons.startsAt,
         studentName: students.name,
+        reminderMinutes: sql<number>`coalesce(${userSettings.lessonReminderMinutes}, ${DEFAULT_REMINDER_MINUTES})`,
+        locale: sql<string>`coalesce(${userSettings.locale}, 'en')`,
       })
       .from(lessons)
       .leftJoin(
         students,
         and(eq(students.id, lessons.studentId), eq(students.userId, lessons.userId)),
       )
+      .leftJoin(userSettings, eq(userSettings.userId, lessons.userId))
       .where(
         and(
           eq(lessons.status, 'scheduled'),
           isNull(lessons.archivedAt),
-          gte(lessons.startsAt, from),
-          lt(lessons.startsAt, to),
+          gte(reminderAt, from),
+          lt(reminderAt, to),
         ),
       );
 
     for (const lesson of upcoming) {
       const studentName = lesson.studentName ?? 'Lesson';
+      const minutes = Number(lesson.reminderMinutes) || DEFAULT_REMINDER_MINUTES;
       await this.queueAndSend({
         userId: lesson.userId,
         type: NOTIFICATION_TYPES.lessonReminder,
         entityId: lesson.id,
         scheduledFor: lesson.startsAt,
-        title: 'Lesson in 10 minutes',
+        title: lessonReminderTitle(lesson.locale, minutes),
         body: `${studentName} · ${formatTime(lesson.startsAt)}`,
         path: `/lessons/${lesson.id}`,
       });
@@ -152,9 +167,12 @@ export class NotificationsService {
       .select({
         userId: lessons.userId,
         dueCount: sql<number>`cast(count(${lessons.id}) as integer)`,
+        studentCount: sql<number>`cast(count(distinct ${lessons.studentId}) as integer)`,
+        locale: sql<string>`coalesce(min(${userSettings.locale}), 'en')`,
       })
       .from(lessons)
-      .where(and(eq(lessons.status, 'due'), isNull(lessons.archivedAt)))
+      .leftJoin(userSettings, eq(userSettings.userId, lessons.userId))
+      .where(and(inArray(lessons.status, [...DUE_STATUSES]), isNull(lessons.archivedAt)))
       .groupBy(lessons.userId);
 
     for (const row of rows) {
@@ -166,8 +184,8 @@ export class NotificationsService {
         type: NOTIFICATION_TYPES.dailyDueSummary,
         entityId: row.userId,
         scheduledFor,
-        title: 'Payments due',
-        body: `You have ${dueCount} unpaid ${dueCount === 1 ? 'lesson' : 'lessons'}`,
+        title: row.locale === 'ru' ? 'Ожидается оплата' : 'Payments due',
+        body: dailyDueBody(row.locale, dueCount, Number(row.studentCount)),
         path: '/transactions',
       });
     }
@@ -323,6 +341,28 @@ export class NotificationsService {
 
 function isExpoPushToken(token: string): boolean {
   return /^Expo(nent)?PushToken\[[^\]]+\]$/.test(token);
+}
+
+function lessonReminderTitle(locale: string, minutes: number): string {
+  if (locale === 'ru') {
+    if (minutes % 60 === 0) {
+      const hours = minutes / 60;
+      return `Урок через ${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'}`;
+    }
+    return `Урок через ${minutes} мин`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `Lesson in ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  return `Lesson in ${minutes} min`;
+}
+
+function dailyDueBody(locale: string, dueCount: number, studentCount: number): string {
+  if (locale === 'ru') {
+    return `Неоплаченных уроков: ${dueCount} · учеников: ${studentCount}`;
+  }
+  return `Unpaid lessons: ${dueCount} · students: ${studentCount}`;
 }
 
 function formatTime(date: Date): string {

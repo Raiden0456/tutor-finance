@@ -26,6 +26,9 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [primaryCurrency, setPrimary] = useState<Currency>(initial.primaryCurrency);
   const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(initial.weekStartsOn);
+  const [lessonReminderMinutes, setLessonReminderMinutes] = useState<number>(
+    initial.lessonReminderMinutes ?? 30,
+  );
   const [theme] = useState(initial.theme);
   const [hasPassword, setHasPassword] = useState(initial.accountSecurity.hasPassword);
   const profileName = initial.profile.name?.trim();
@@ -52,7 +55,12 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
       (typeof window !== 'undefined'
         ? (localStorage.getItem('theme') as Settings['theme'] | null)
         : null) ?? theme;
-    await api.patch('/settings/me', { primaryCurrency, theme: currentTheme, weekStartsOn });
+    await api.patch('/settings/me', {
+      primaryCurrency,
+      theme: currentTheme,
+      weekStartsOn,
+      lessonReminderMinutes,
+    });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -166,11 +174,13 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
                   appLocale={appLocale}
                   primaryCurrency={primaryCurrency}
                   weekStartsOn={weekStartsOn}
+                  lessonReminderMinutes={lessonReminderMinutes}
                   saving={saving}
                   saved={saved}
                   t={t}
                   onPrimaryCurrencyChange={setPrimary}
                   onWeekStartsOnChange={setWeekStartsOn}
+                  onLessonReminderChange={setLessonReminderMinutes}
                   onSave={() => void save()}
                 />
               ) : null}

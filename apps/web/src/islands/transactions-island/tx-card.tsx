@@ -3,6 +3,7 @@ import { fmtMoney } from '@/lib/format';
 import type { Tx } from '@/lib/types';
 import type { Currency } from '@tutor-finance/shared';
 import { useI18n } from '@/lib/i18n';
+import { categoryLabel } from './constants';
 
 export function TxCard({
   tx,
@@ -37,7 +38,7 @@ export function TxCard({
           <div className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-medium capitalize">
-                {t(`category.${tx.category}`)}
+                {categoryLabel(tx.category, t)}
               </div>
               {studentName && (
                 <div className="truncate text-xs text-muted-foreground">{studentName}</div>
