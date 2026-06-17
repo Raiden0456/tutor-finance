@@ -89,6 +89,6 @@ services:
 databases:
   - name: tutor-finance-db
     region: frankfurt
-    plan: free
+    plan: basic-256mb
     databaseName: tutor_finance
     user: tutor
