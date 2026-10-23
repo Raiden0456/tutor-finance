@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { expo } from '@better-auth/expo';
+import { APIError } from 'better-auth/api';
+import { SIGNUP_CLOSED, type SignupMode } from '@tutor-finance/shared';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createMailer, type MailerOptions } from './mailer.js';
 import { resetPasswordTemplate, verifyEmailTemplate } from './templates.js';
@@ -35,6 +37,7 @@ export interface AuthOptions {
   mobileSchemes?: string[];
   email: MailerOptions;
   socialProviders?: SocialProviderOptions;
+  signup?: { mode: SignupMode; allowedEmails: string[] };
 }
 
 // Use Better Auth's default instance type for the public surface. Annotating
@@ -44,6 +47,8 @@ export type AuthInstance = ReturnType<typeof betterAuth>;
 
 export function createAuth(opts: AuthOptions): AuthInstance {
   const sendMail = createMailer(opts.email);
+  const signupMode = opts.signup?.mode ?? 'open';
+  const allowedEmails = new Set(opts.signup?.allowedEmails.map((e) => e.trim().toLowerCase()));
 
   const auth = betterAuth({
     database: drizzleAdapter(opts.db, {
@@ -58,6 +63,17 @@ export function createAuth(opts: AuthOptions): AuthInstance {
     // deep-link flow for the React Native client.
     plugins: [expo()],
     socialProviders: opts.socialProviders,
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (signupMode === 'invite' && !allowedEmails.has(user.email.toLowerCase())) {
+              throw new APIError('FORBIDDEN', { message: SIGNUP_CLOSED, code: SIGNUP_CLOSED });
+            }
+          },
+        },
+      },
+    },
     account: {
       encryptOAuthTokens: true,
       accountLinking: {

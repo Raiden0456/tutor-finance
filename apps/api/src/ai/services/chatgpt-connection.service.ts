@@ -20,7 +20,6 @@ const PENDING_TTL_MS = 10 * 60_000;
 const REFRESH_MARGIN_MS = 2 * 60_000;
 const HOST_ID_PATTERN =
   /^(urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|urn:ietf:params:oauth:jwk-thumbprint:\S+|did:key:\S+)$/;
-const MOBILE_SCHEMES = ['uchetka://', 'uchetka-dev://'];
 
 interface PendingAuthorization {
   userId: string;
@@ -64,7 +63,11 @@ export class ChatgptConnectionService {
   ) {}
 
   get available(): boolean {
-    return HOST_ID_PATTERN.test(env.ai.chatgpt.hostId) && !!env.ai.tokenEncryptionKey;
+    return (
+      env.ai.chatgpt.enabled &&
+      HOST_ID_PATTERN.test(env.ai.chatgpt.hostId) &&
+      !!env.ai.tokenEncryptionKey
+    );
   }
 
   async findRow(userId: string): Promise<Row | undefined> {
@@ -280,7 +283,7 @@ export class ChatgptConnectionService {
   private resolveReturnTo(returnTo: string | undefined): string {
     const fallback = new URL('/settings', env.publicAppUrl).toString();
     if (!returnTo) return fallback;
-    if (MOBILE_SCHEMES.some((scheme) => returnTo.startsWith(scheme))) return returnTo;
+    if (env.mobileSchemes.some((scheme) => returnTo.startsWith(scheme))) return returnTo;
 
     let parsed: URL;
     try {

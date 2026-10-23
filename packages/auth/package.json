@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@better-auth/expo": "1.6.9",
+    "@tutor-finance/shared": "workspace:*",
     "better-auth": "^1.6.9",
     "drizzle-orm": "^0.45.2",
     "nodemailer": "^6.9.16",

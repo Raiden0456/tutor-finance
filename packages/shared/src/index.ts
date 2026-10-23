@@ -7,4 +7,5 @@ export * from './meeting.js';
 export * from './lesson.js';
 export * from './timezone.js';
 export * from './ai.js';
+export * from './auth.js';
 export { RU_DICT } from './i18n.js';

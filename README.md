@@ -65,6 +65,63 @@ Optional settings: `AI_MODEL` (default `gpt-6.1-sol`), `AI_CHAT_EFFORT` (`medium
 
 Student names, lessons, notes, payments and voice recordings are sent to OpenAI only after you accept the notice in the app.
 
+## Self-host (family) on a home server
+
+Private instance for a few people with Sign in with ChatGPT enabled. Runs on any Docker host (x86 or ARM, e.g. CasaOS) and is exposed through a Cloudflare Tunnel, so no ports are opened on the router.
+
+Prerequisites: Docker with Compose v2.24+, git, a Cloudflare account with the `myuchetka.com` zone.
+
+1. Clone and configure:
+
+   ```bash
+   git clone <repo-url> uchetka && cd uchetka
+   cp .env.family.example .env.family
+   openssl rand -base64 32                       # BETTER_AUTH_SECRET
+   openssl rand -base64 32                       # AI_TOKEN_ENCRYPTION_KEY
+   openssl rand -hex 24                          # POSTGRES_PASSWORD (hex keeps DATABASE_URL valid)
+   echo "urn:uuid:$(cat /proc/sys/kernel/random/uuid)"  # CHATGPT_HOST_ID, set once
+   ```
+
+   Fill `.env.family`: the secrets above, `AUTH_ALLOWED_EMAILS` (comma-separated, only these can register), email provider, `OPENAI_API_KEY` for voice.
+
+2. Cloudflare: Zero Trust → Networks → Tunnels → Create a tunnel (Cloudflared), copy the token into `CLOUDFLARE_TUNNEL_TOKEN`. Add public hostnames:
+   - `family.myuchetka.com` → `http://web:4321`
+   - `family-api.myuchetka.com` → `http://api:3000`
+
+3. Backups dir (the backup container writes as uid 999):
+
+   ```bash
+   mkdir -p backups && sudo chown -R 999:999 backups
+   ```
+
+4. Start:
+
+   ```bash
+   docker compose -f docker/compose.family.yml --env-file .env.family up -d --build
+   ```
+
+   Migrations run on API start. Update: `git pull` and run the same command.
+
+Backups: daily dumps in `BACKUP_DIR` (absolute, or relative to `docker/`; default is `backups/` in the repo root), keeping 7 daily, 4 weekly and 6 monthly. Run one now with `docker compose -f docker/compose.family.yml --env-file .env.family exec backup /backup.sh`. Restore:
+
+```bash
+C="docker compose -f docker/compose.family.yml --env-file .env.family"
+$C stop api web
+$C exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+gunzip -c backups/last/tutor_finance-latest.sql.gz | $C exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+$C start api web
+```
+
+iOS app ("Uchetka Family", talks to `family-api.myuchetka.com`):
+
+```bash
+cd apps/mobile
+eas build -p ios --profile family
+eas submit -p ios --profile family
+```
+
+Then add the family members as internal testers in App Store Connect → TestFlight.
+
 ## Useful commands
 
 ```bash

@@ -31,6 +31,7 @@ lerna-debug.log*
 .env.test
 .env.production
 .env.local
+.env.family
 
 # temp directory
 .temp
@@ -45,3 +46,5 @@ lerna-debug.log*
 
 # Volumes (local docker)
 docker/data
+/backups
+docker/backups

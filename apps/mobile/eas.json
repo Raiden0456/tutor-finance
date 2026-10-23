@@ -39,6 +39,16 @@
         "APP_VARIANT": "production"
       },
       "environment": "production"
+    },
+    "family": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://family-api.myuchetka.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "665d0277-0ce2-4824-8813-3ff706bc41ea",
+        "APP_VARIANT": "family"
+      },
+      "environment": "production"
     }
   },
   "submit": {
@@ -46,6 +56,9 @@
       "android": {
         "track": "internal"
       },
+      "ios": {}
+    },
+    "family": {
       "ios": {}
     }
   }

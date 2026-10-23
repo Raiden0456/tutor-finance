@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { GoogleAuthSection } from './google-auth-button';
 import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
+import { SIGNUP_CLOSED } from '@tutor-finance/shared';
 
 type LoginFormProps = {
   locale: Locale;
@@ -124,8 +125,13 @@ export function LoginForm({ locale }: LoginFormProps) {
       changed = true;
     }
     if (url.searchParams.get('oauth_error') === 'google') {
-      setError(t('Could not sign in with Google'));
+      setError(
+        url.searchParams.get('error') === SIGNUP_CLOSED
+          ? t('Registration is closed. Ask the owner to invite your email.')
+          : t('Could not sign in with Google'),
+      );
       url.searchParams.delete('oauth_error');
+      url.searchParams.delete('error');
       changed = true;
     }
     if (changed) window.history.replaceState(null, '', url.toString());

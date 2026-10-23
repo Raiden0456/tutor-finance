@@ -103,6 +103,8 @@ Native Expo Router app (no WebView) talking to the API directly.
 - Tailwind v4 syntax — no `tailwind.config.js`, config lives in CSS via `@theme`.
 - Drizzle schema is the source of truth; always regenerate migrations after schema changes (`pnpm db:generate`).
 - Better Auth tables are managed separately — use `pnpm db:auth:generate` after auth config changes.
+- Two deployments from one codebase: public Render (`render.yaml`, `AI_CHATGPT_ENABLED=false`, `AUTH_SIGNUP=open`) and the family self-host (`docker/compose.family.yml` + `.env.family`, Dockerfiles in `apps/api` and `apps/web`, Cloudflare Tunnel, mobile `APP_VARIANT=family` / scheme `uchetka-family`).
+- `AUTH_SIGNUP=invite` limits new users to `AUTH_ALLOWED_EMAILS` via a Better Auth `databaseHooks.user.create.before` hook in `packages/auth` (error code `SIGNUP_CLOSED` from `@tutor-finance/shared`). Native app schemes live in `env.mobileSchemes` (`apps/api/src/config.ts`).
 - Auth email provider is selected by `AUTH_EMAIL_PROVIDER` env var (`smtp` or `resend`). Set `MAIL_FROM` for the sender address.
 - TypeScript strict mode everywhere; ES2022 target.
 - Git commits follow `type(scope): description` — types: `feat`, `fix`, `style`, `refactor`.

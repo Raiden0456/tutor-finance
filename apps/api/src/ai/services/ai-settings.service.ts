@@ -26,7 +26,7 @@ export class AiSettingsService {
       this.hasConsent(userId),
       this.providers.activeKind(userId),
     ]);
-    const connected = this.chatgpt.isConnected(row);
+    const connected = this.chatgpt.available && this.chatgpt.isConnected(row);
     return {
       providers: {
         chatgpt: {

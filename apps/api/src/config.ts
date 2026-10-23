@@ -1,3 +1,5 @@
+import { SIGNUP_MODES } from '@tutor-finance/shared';
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value || value.length === 0) {
@@ -8,6 +10,13 @@ function required(name: string): string {
 
 function optional(name: string, fallback = ''): string {
   return process.env[name] ?? fallback;
+}
+
+function list(name: string): string[] {
+  return optional(name)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function num(name: string, fallback: number): number {
@@ -58,10 +67,12 @@ export const env = {
   betterAuthSecret: required('BETTER_AUTH_SECRET'),
   betterAuthUrl: required('BETTER_AUTH_URL'),
   publicAppUrl,
-  trustedOrigins: optional('TRUSTED_ORIGINS', '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+  trustedOrigins: list('TRUSTED_ORIGINS'),
+  mobileSchemes: ['uchetka://', 'uchetka-dev://', 'uchetka-family://'],
+  signup: {
+    mode: oneOf('AUTH_SIGNUP', SIGNUP_MODES, 'open'),
+    allowedEmails: list('AUTH_ALLOWED_EMAILS'),
+  },
   emailProvider,
   mailFrom,
   smtp: {
@@ -105,6 +116,7 @@ export const env = {
     transcribeModel: optional('AI_TRANSCRIBE_MODEL', 'gpt-transcribe'),
     tokenEncryptionKey: optional('AI_TOKEN_ENCRYPTION_KEY'),
     chatgpt: {
+      enabled: bool('AI_CHATGPT_ENABLED', true),
       hostId: optional('CHATGPT_HOST_ID'),
       redirectUri: optional('CHATGPT_REDIRECT_URI', `http://127.0.0.1:${port}/auth/callback`),
       agentName: optional('CHATGPT_AGENT_NAME', 'Uchetka'),

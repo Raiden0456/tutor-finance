@@ -7,10 +7,12 @@ import {
   HttpCode,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { AiChatgptConnectResponse, AiStatusResponse } from '@tutor-finance/shared';
 import { CurrentUser, type CurrentUserData } from '../../auth/current-user.decorator.js';
+import { ChatgptEnabledGuard } from '../guards/chatgpt-enabled.guard.js';
 import { ChatgptCallbackDto, ChatgptDisconnectQueryDto, ConnectQueryDto } from '../dto/ai.dto.js';
 import { AiSettingsService } from '../services/ai-settings.service.js';
 import { ChatgptConnectionService } from '../services/chatgpt-connection.service.js';
@@ -24,6 +26,7 @@ export class ChatgptController {
   ) {}
 
   @Get('connect')
+  @UseGuards(ChatgptEnabledGuard)
   connect(
     @CurrentUser() user: CurrentUserData,
     @Query() q: ConnectQueryDto,
@@ -32,6 +35,7 @@ export class ChatgptController {
   }
 
   @Post('callback')
+  @UseGuards(ChatgptEnabledGuard)
   @HttpCode(200)
   async pasteCallback(
     @CurrentUser() user: CurrentUserData,

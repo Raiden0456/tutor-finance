@@ -7,6 +7,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { GoogleAuthButton } from './google-auth-button';
 import { createTranslator, localizePath, type Locale } from '@/lib/i18n';
+import { SIGNUP_CLOSED } from '@tutor-finance/shared';
 
 type SignupFormProps = {
   locale: Locale;
@@ -29,8 +30,13 @@ export function SignupForm({ locale }: SignupFormProps) {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('oauth_error') === 'google') {
-      setError(t('Could not sign in with Google'));
+      setError(
+        url.searchParams.get('error') === SIGNUP_CLOSED
+          ? t('Registration is closed. Ask the owner to invite your email.')
+          : t('Could not sign in with Google'),
+      );
       url.searchParams.delete('oauth_error');
+      url.searchParams.delete('error');
       window.history.replaceState(null, '', url.toString());
     }
   }, [t]);
@@ -47,7 +53,11 @@ export function SignupForm({ locale }: SignupFormProps) {
     });
     setLoading(false);
     if (res.error) {
-      setError(res.error.message ?? t('Could not create account'));
+      setError(
+        res.error.code === SIGNUP_CLOSED
+          ? t('Registration is closed. Ask the owner to invite your email.')
+          : (res.error.message ?? t('Could not create account')),
+      );
       return;
     }
     setDone(true);

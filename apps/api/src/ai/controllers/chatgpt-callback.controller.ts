@@ -1,7 +1,8 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
+import { ChatgptEnabledGuard } from '../guards/chatgpt-enabled.guard.js';
 import {
   ChatgptConnectionService,
   type CallbackParams,
@@ -14,6 +15,7 @@ export class ChatgptCallbackController {
 
   @Public()
   @Get('callback')
+  @UseGuards(ChatgptEnabledGuard)
   async callback(@Query() params: CallbackParams, @Res() res: Response): Promise<void> {
     const result = await this.connection.completeCallback(params);
     if (!result.returnTo) {

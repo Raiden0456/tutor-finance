@@ -15,6 +15,7 @@ import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { authClient } from '~/lib/auth-client';
 import { useI18n } from '~/lib/i18n';
+import { SIGNUP_CLOSED } from '@tutor-finance/shared';
 
 export default function SignUpScreen() {
   const { t } = useI18n();
@@ -36,8 +37,13 @@ export default function SignUpScreen() {
         password,
         name: name.trim(),
       });
-      if (err) setError(t('Could not create account'));
-      else setSent(true);
+      if (err) {
+        setError(
+          err.code === SIGNUP_CLOSED
+            ? t('Registration is closed. Ask the owner to invite your email.')
+            : t('Could not create account'),
+        );
+      } else setSent(true);
     } catch {
       setError(t('Could not create account'));
     } finally {

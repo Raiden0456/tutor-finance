@@ -113,6 +113,8 @@ export const RU_DICT: Record<string, string> = {
   'Email verified. You can sign in now.': 'Email подтверждён. Теперь можно войти.',
   'Invalid email or password': 'Неверный email или пароль',
   'Could not create account': 'Не удалось создать аккаунт',
+  'Registration is closed. Ask the owner to invite your email.':
+    'Регистрация закрыта. Попросите владельца добавить ваш email.',
   'Could not resend verification email': 'Не удалось повторно отправить письмо подтверждения',
   'Verification email sent again. Check your inbox.':
     'Письмо подтверждения отправлено ещё раз. Проверьте почту.',

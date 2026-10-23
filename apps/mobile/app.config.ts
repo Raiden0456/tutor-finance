@@ -7,10 +7,27 @@ const EAS_PROJECT_ID =
 // "Uchetka (Dev Build)" app (own package id + scheme) so it can live next to
 // the preview/production app on the same device. Set via eas.json build env;
 // keep APP_VARIANT=development in apps/mobile/.env so local Metro matches.
-const IS_DEV_VARIANT = process.env.APP_VARIANT === 'development';
-const APP_NAME = IS_DEV_VARIANT ? 'Uchetka (Dev Build)' : 'Uchetka';
-const APP_ID = IS_DEV_VARIANT ? 'com.tutorfinance.uchetka.dev' : 'com.tutorfinance.uchetka';
-const APP_SCHEME = IS_DEV_VARIANT ? 'uchetka-dev' : 'uchetka';
+const VARIANTS = {
+  development: {
+    name: 'Uchetka (Dev Build)',
+    id: 'com.tutorfinance.uchetka.dev',
+    scheme: 'uchetka-dev',
+  },
+  family: {
+    name: 'Uchetka Family',
+    id: 'com.tutorfinance.uchetka.family',
+    scheme: 'uchetka-family',
+  },
+  default: { name: 'Uchetka', id: 'com.tutorfinance.uchetka', scheme: 'uchetka' },
+};
+const APP_VARIANT: string | undefined = process.env.APP_VARIANT;
+const VARIANT =
+  APP_VARIANT === 'development' || APP_VARIANT === 'family'
+    ? VARIANTS[APP_VARIANT]
+    : VARIANTS.default;
+const APP_NAME = VARIANT.name;
+const APP_ID = VARIANT.id;
+const APP_SCHEME = VARIANT.scheme;
 
 // Android push (FCM) config: required for getExpoPushTokenAsync on Android.
 // Locally: download google-services.json from the Firebase console into this
@@ -63,6 +80,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: APP_ID,
+    config: { usesNonExemptEncryption: false },
     icon: {
       light: './assets/icon-light.png',
       dark: './assets/icon-dark.png',
