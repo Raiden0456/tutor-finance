@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SUPPORTED_CURRENCIES, type Currency } from './currency.js';
+import { isValidTimeZone } from './timezone.js';
 
 const currencyEnum = z.enum(SUPPORTED_CURRENCIES as unknown as [Currency, ...Currency[]]);
 
@@ -85,4 +86,5 @@ export const UserSettingsInputSchema = z.object({
   weekStartsOn: WeekStartsOnEnum,
   /** Minutes before a lesson starts to send the push reminder. */
   lessonReminderMinutes: z.number().int().min(1).max(1440),
+  timezone: z.string().refine(isValidTimeZone, 'Invalid IANA time zone'),
 });

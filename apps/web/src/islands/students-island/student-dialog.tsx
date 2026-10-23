@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -30,9 +31,10 @@ export function StudentDialog({
   onSubmit,
 }: {
   editing: Student | null;
-  onSubmit: (form: HTMLFormElement) => void;
+  onSubmit: (form: HTMLFormElement) => Promise<unknown>;
 }) {
   const { t } = useI18n();
+  const [submitting, setSubmitting] = useState(false);
   const [pricingMode, setPricingMode] = useState<PricingMode>(editing?.pricingMode ?? 'hourly');
 
   useEffect(() => {
@@ -54,9 +56,15 @@ export function StudentDialog({
         </ResponsiveModalDescription>
       </ResponsiveModalHeader>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          onSubmit(e.currentTarget);
+          if (submitting) return;
+          setSubmitting(true);
+          try {
+            await onSubmit(e.currentTarget);
+          } finally {
+            setSubmitting(false);
+          }
         }}
         className="flex min-h-0 flex-1 flex-col gap-4"
       >
@@ -238,7 +246,8 @@ export function StudentDialog({
           </div>
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
-          <Button type="submit" className="w-full sm:w-auto">
+          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+            {submitting && <Spinner />}
             {editing ? t('Save') : t('Create')}
           </Button>
         </ResponsiveModalFooter>

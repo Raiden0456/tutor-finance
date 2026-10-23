@@ -193,6 +193,9 @@ function PreferencesTab({ settings, t }: { settings: Settings; t: TFunction }) {
             ) : null}
           </View>
         </Field>
+        <Field label={t('Time zone')} hint={t('Detected automatically from your device')}>
+          <Input value={settings.timezone} editable={false} />
+        </Field>
         <Field label={t('Theme')}>
           <Segmented<Theme>
             value={theme}

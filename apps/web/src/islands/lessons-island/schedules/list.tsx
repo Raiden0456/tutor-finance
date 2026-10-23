@@ -9,6 +9,7 @@ import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import type { RecurringLesson, StudentRef } from '@/lib/types';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
 import { weekStartOptions } from '../shared';
 import { ScheduleCard } from './card';
 import { WeekGrid } from './week-grid';
@@ -26,6 +27,7 @@ export function SchedulesView({
   weekStartsOn: WeekStartsOn;
 }) {
   const { t } = useI18n();
+  const { run } = useMutation();
   const [schedules, setSchedules] = useState<RecurringLesson[]>(initialSchedules);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringLesson | null>(null);
@@ -50,15 +52,19 @@ export function SchedulesView({
   }
 
   async function handleToggle(item: RecurringLesson) {
-    const updated = await api.patch<RecurringLesson>(`/recurring-lessons/${item.id}`, {
-      isActive: !item.isActive,
+    await run(async () => {
+      const updated = await api.patch<RecurringLesson>(`/recurring-lessons/${item.id}`, {
+        isActive: !item.isActive,
+      });
+      setSchedules((prev) => prev.map((s) => (s.id === item.id ? updated : s)));
     });
-    setSchedules((prev) => prev.map((s) => (s.id === item.id ? updated : s)));
   }
 
   async function handleDelete(id: string) {
-    await api.delete(`/recurring-lessons/${id}`);
-    setSchedules((prev) => prev.filter((s) => s.id !== id));
+    await run(async () => {
+      await api.delete(`/recurring-lessons/${id}`);
+      setSchedules((prev) => prev.filter((s) => s.id !== id));
+    });
   }
 
   return (

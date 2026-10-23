@@ -5,6 +5,7 @@ import { CheckCircle2, CircleDollarSign, Pencil, Trash2, Video } from 'lucide-re
 import { Screen } from '~/components/common/screen';
 import { StatusBadge } from '~/components/lessons/status-badge';
 import { LessonForm } from '~/components/forms/lesson-form';
+import { ErrorState } from '~/components/common/error-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useMutation } from '~/lib/use-mutation';
 import { useI18n } from '~/lib/i18n';
 import { formatDate, money } from '~/lib/format';
 import type { Lesson, Student } from '~/lib/types';
@@ -46,16 +48,16 @@ export default function LessonDetailScreen() {
     void lesson.refetch();
   };
 
-  const patchStatus = async (patch: Record<string, unknown>) => {
+  const patchStatus = useMutation(async (patch: Record<string, unknown>) => {
     await api.patch(`lessons/${id}`, patch);
     refresh();
-  };
+  });
 
-  const remove = async () => {
+  const remove = useMutation(async () => {
     await api.delete(`lessons/${id}`);
     setConfirmDelete(false);
     router.back();
-  };
+  });
 
   if (lesson.loading && !l) {
     return (
@@ -67,7 +69,7 @@ export default function LessonDetailScreen() {
   if (!l) {
     return (
       <Screen onBack={() => router.back()} title={t('Lesson')}>
-        <Text className="text-muted-foreground">{t('Error')}</Text>
+        <ErrorState message={lesson.error} onRetry={refresh} retrying={lesson.loading} />
       </Screen>
     );
   }
@@ -126,7 +128,8 @@ export default function LessonDetailScreen() {
               <Button
                 size="sm"
                 variant="secondary"
-                onPress={() => patchStatus({ status: 'completed' })}
+                disabled={patchStatus.pending}
+                onPress={() => void patchStatus.run({ status: 'completed' })}
               >
                 <Icon as={CheckCircle2} size={15} />
                 <Text>{t('Mark as Completed')}</Text>
@@ -135,7 +138,8 @@ export default function LessonDetailScreen() {
             {l.status !== 'paid' && !l.isPackageCovered ? (
               <Button
                 size="sm"
-                onPress={() => patchStatus({ status: 'paid', paidAmount: price?.amount })}
+                disabled={patchStatus.pending}
+                onPress={() => void patchStatus.run({ status: 'paid', paidAmount: price?.amount })}
               >
                 <Icon as={CircleDollarSign} size={15} />
                 <Text>{t('Mark as Paid')}</Text>
@@ -196,7 +200,11 @@ export default function LessonDetailScreen() {
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onPress={remove}>
+            <AlertDialogAction
+              className="bg-destructive"
+              disabled={remove.pending}
+              onPress={() => void remove.run()}
+            >
               <Text>{t('Delete')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>

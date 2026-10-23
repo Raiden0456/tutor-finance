@@ -16,6 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Select,
   SelectContent,
@@ -57,6 +59,7 @@ export function CreateLessonModal({
   weekStartsOn,
 }: CreateLessonModalProps) {
   const { locale, t } = useI18n();
+  const { run } = useMutation();
   const dateLocale = getDateFnsLocale(locale);
   const initialDateRef = useRef(initialDate);
 
@@ -186,17 +189,21 @@ export function CreateLessonModal({
     const [h, m] = createTime.split(':').map(Number);
     const startsAt = new Date(createDate);
     startsAt.setHours(h, m, 0, 0);
-    await api.post('/lessons', {
-      studentId: createStudentId,
-      startsAt: startsAt.toISOString(),
-      durationMin: createDurationMin,
-      status: String(data.get('status') ?? 'scheduled'),
-      notes: String(data.get('notes') ?? '').trim() || undefined,
-      homework: String(data.get('homework') ?? '').trim() || undefined,
-      meetingLink: createMeetingLink.trim() || undefined,
+    setCreateSubmitting(true);
+    await run(async () => {
+      await api.post('/lessons', {
+        studentId: createStudentId,
+        startsAt: startsAt.toISOString(),
+        durationMin: createDurationMin,
+        status: String(data.get('status') ?? 'scheduled'),
+        notes: String(data.get('notes') ?? '').trim() || undefined,
+        homework: String(data.get('homework') ?? '').trim() || undefined,
+        meetingLink: createMeetingLink.trim() || undefined,
+      });
+      onOpenChange(false);
+      await onCreated([createDate]);
     });
-    onOpenChange(false);
-    await onCreated([createDate]);
+    setCreateSubmitting(false);
   }
 
   async function onBatchCreate() {
@@ -232,7 +239,7 @@ export function CreateLessonModal({
     setCreateErrors(errs);
     if (errs.length === 0) {
       onOpenChange(false);
-      await onCreated(slots.map((s) => s.date));
+      await run(() => onCreated(slots.map((s) => s.date)));
     }
   }
 
@@ -247,7 +254,7 @@ export function CreateLessonModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (!batchMode) onCreate(e.currentTarget);
+            if (!batchMode && !createSubmitting) onCreate(e.currentTarget);
           }}
           className="contents"
         >
@@ -527,11 +534,14 @@ export function CreateLessonModal({
               disabled={createSubmitting || (batchMode && slots.some((s) => !s.studentId))}
               className="w-full sm:w-auto"
             >
+              {createSubmitting && <Spinner />}
               {createSubmitting
-                ? t('Creating {done}/{total}…', {
-                    done: createProgress?.done ?? 0,
-                    total: createProgress?.total ?? 0,
-                  })
+                ? batchMode
+                  ? t('Creating {done}/{total}…', {
+                      done: createProgress?.done ?? 0,
+                      total: createProgress?.total ?? 0,
+                    })
+                  : t('Saving…')
                 : batchMode
                   ? t(slots.length === 1 ? 'Create {count} lesson' : 'Create {count} lessons', {
                       count: slots.length,

@@ -12,6 +12,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { currencyOptions } from '~/lib/catalog';
 import { useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
@@ -44,7 +45,6 @@ export function StudentForm({
   const [telegram, setTelegram] = React.useState('');
   const [whatsapp, setWhatsapp] = React.useState('');
   const [notes, setNotes] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // Seed from the student being edited whenever the sheet opens.
@@ -70,43 +70,36 @@ export function StudentForm({
     setNotes(student?.notes ?? '');
   }, [open, student, primaryCurrency]);
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     setError(null);
     if (!name.trim()) return setError(t('Student name'));
-    setSaving(true);
-    try {
-      const base: Record<string, unknown> = {
-        name: name.trim(),
-        defaultCurrency: currency,
-        pricingMode,
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        meetingLink: meetingLink.trim() || undefined,
-        telegramLink: telegram.trim() || undefined,
-        whatsappLink: whatsapp.trim() || undefined,
-        notes: notes.trim() || undefined,
+    const base: Record<string, unknown> = {
+      name: name.trim(),
+      defaultCurrency: currency,
+      pricingMode,
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+      meetingLink: meetingLink.trim() || undefined,
+      telegramLink: telegram.trim() || undefined,
+      whatsappLink: whatsapp.trim() || undefined,
+      notes: notes.trim() || undefined,
+    };
+    if (pricingMode === 'hourly') {
+      base.hourlyRate = { amount: toMinorUnits(Number(rate) || 0, currency), currency };
+      base.ratePeriodMin = Number(ratePeriod) || 60;
+    } else {
+      base.package = {
+        lessonCount: Number(lessonCount) || 1,
+        price: { amount: toMinorUnits(Number(packagePrice) || 0, currency), currency },
       };
-      if (pricingMode === 'hourly') {
-        base.hourlyRate = { amount: toMinorUnits(Number(rate) || 0, currency), currency };
-        base.ratePeriodMin = Number(ratePeriod) || 60;
-      } else {
-        base.package = {
-          lessonCount: Number(lessonCount) || 1,
-          price: { amount: toMinorUnits(Number(packagePrice) || 0, currency), currency },
-        };
-      }
-
-      if (student) await api.patch(`students/${student.id}`, base);
-      else await api.post('students', base);
-
-      onOpenChange(false);
-      onSaved();
-    } catch {
-      setError(t('Error'));
-    } finally {
-      setSaving(false);
     }
-  };
+
+    if (student) await api.patch(`students/${student.id}`, base);
+    else await api.post('students', base);
+
+    onOpenChange(false);
+    onSaved();
+  }, { onError: setError });
 
   return (
     <FormSheet
@@ -114,8 +107,8 @@ export function StudentForm({
       onOpenChange={onOpenChange}
       title={student ? t('Edit student') : t('New student')}
       footer={
-        <Button onPress={submit} disabled={saving}>
-          {saving ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
+        <Button onPress={() => void submit.run()} disabled={submit.pending}>
+          {submit.pending ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
         </Button>
       }
     >

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { LessonCard } from '@/components/lesson-card';
 import { useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
 import type { Lesson } from '@/lib/types';
 
 export function ArchiveView({
@@ -26,18 +27,18 @@ export function ArchiveView({
   onRefresh: () => void;
 }) {
   const { t } = useI18n();
+  const { run } = useMutation();
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
 
   async function handleDeleteAll() {
     setDeletingAll(true);
-    try {
+    await run(async () => {
       await api.delete('/lessons/archive');
       setDeleteAllOpen(false);
       onRefresh();
-    } finally {
-      setDeletingAll(false);
-    }
+    });
+    setDeletingAll(false);
   }
 
   return (

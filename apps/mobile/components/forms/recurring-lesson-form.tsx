@@ -12,6 +12,7 @@ import { Input } from '~/components/ui/input';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { useI18n } from '~/lib/i18n';
 import type { RecurringLesson, Student } from '~/lib/types';
 import { cn } from '~/lib/utils';
@@ -44,7 +45,6 @@ export function RecurringLessonForm({
   const [time, setTime] = React.useState(new Date());
   const [duration, setDuration] = React.useState('60');
   const [frequency, setFrequency] = React.useState<LessonFrequency>('weekly');
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -69,29 +69,22 @@ export function RecurringLessonForm({
   const toggleDay = (d: number) =>
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     setError(null);
     if (!studentId) return setError(t('Select student'));
     if (days.length === 0) return setError(t('Days of week'));
-    setSaving(true);
-    try {
-      const payload = {
-        studentId,
-        daysOfWeek: [...days].sort((a, b) => a - b),
-        startTime: `${pad(time.getHours())}:${pad(time.getMinutes())}`,
-        durationMin: Number(duration) || 60,
-        frequency,
-      };
-      if (schedule) await api.patch(`recurring-lessons/${schedule.id}`, payload);
-      else await api.post('recurring-lessons', payload);
-      onOpenChange(false);
-      onSaved();
-    } catch {
-      setError(t('Error'));
-    } finally {
-      setSaving(false);
-    }
-  };
+    const payload = {
+      studentId,
+      daysOfWeek: [...days].sort((a, b) => a - b),
+      startTime: `${pad(time.getHours())}:${pad(time.getMinutes())}`,
+      durationMin: Number(duration) || 60,
+      frequency,
+    };
+    if (schedule) await api.patch(`recurring-lessons/${schedule.id}`, payload);
+    else await api.post('recurring-lessons', payload);
+    onOpenChange(false);
+    onSaved();
+  }, { onError: setError });
 
   return (
     <FormSheet
@@ -99,8 +92,8 @@ export function RecurringLessonForm({
       onOpenChange={onOpenChange}
       title={schedule ? t('Edit schedule') : t('New schedule')}
       footer={
-        <Button onPress={submit} disabled={saving}>
-          {saving ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
+        <Button onPress={() => void submit.run()} disabled={submit.pending}>
+          {submit.pending ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
         </Button>
       }
     >

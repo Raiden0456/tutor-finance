@@ -1,4 +1,13 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsTimeZone,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 import {
   SUPPORTED_CURRENCIES,
   ThemeEnum,
@@ -34,6 +43,10 @@ export class UpdateSettingsDto {
   @Min(1)
   @Max(1440)
   lessonReminderMinutes?: number;
+
+  @IsOptional()
+  @IsTimeZone()
+  timezone?: string;
 }
 
 export class SetPasswordDto {
@@ -58,6 +71,7 @@ export interface SettingsResponse {
   locale: Locale;
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
+  timezone: string;
   accountSecurity: AccountSecurityResponse;
   profile: AccountProfileResponse;
 }

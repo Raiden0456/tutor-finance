@@ -1,0 +1,9 @@
+ALTER TABLE "lessons" ALTER COLUMN "price_override_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "lessons" ALTER COLUMN "paid_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "recurring_expenses" ALTER COLUMN "amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "recurring_lessons" ALTER COLUMN "price_override_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "student_lesson_packages" ALTER COLUMN "price_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "student_lesson_packages" ALTER COLUMN "paid_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "students" ALTER COLUMN "hourly_rate_amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "transactions" ALTER COLUMN "amount" SET DATA TYPE bigint;--> statement-breakpoint
+ALTER TABLE "user_settings" ADD COLUMN "timezone" text DEFAULT 'UTC' NOT NULL;

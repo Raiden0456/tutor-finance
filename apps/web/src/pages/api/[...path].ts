@@ -3,9 +3,7 @@ import { SERVER_API_URL } from '@/lib/env';
 
 export const prerender = false;
 
-// Headers we must NOT forward upstream/back to the client.
-// `host` would break virtual hosting; hop-by-hop headers per RFC 7230.
-const HOP_BY_HOP = new Set([
+const STRIPPED_REQUEST_HEADERS = new Set([
   'connection',
   'keep-alive',
   'proxy-authenticate',
@@ -16,50 +14,100 @@ const HOP_BY_HOP = new Set([
   'upgrade',
   'host',
   'content-length',
+  'accept-encoding',
 ]);
 
-function filterHeaders(src: Headers): Headers {
+const STRIPPED_RESPONSE_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+  'content-length',
+  'content-encoding',
+]);
+
+const apiBase = new URL(SERVER_API_URL);
+const apiBasePath = apiBase.pathname.replace(/\/+$/, '');
+
+function filterHeaders(src: Headers, stripped: Set<string>): Headers {
+  const connectionTokens = (src.get('connection') ?? '')
+    .split(',')
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
   const out = new Headers();
   src.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) out.append(key, value);
+    const name = key.toLowerCase();
+    if (!stripped.has(name) && !connectionTokens.includes(name)) out.append(key, value);
   });
   return out;
+}
+
+function buildTarget(subPath: string, search: string): URL | null {
+  if (!subPath || subPath.startsWith('/') || subPath.includes('\\')) {
+    return null;
+  }
+  const segments = subPath.split('/');
+  if (segments.some((s) => s === '..' || s === '.' || decodeSafe(s) === '..')) return null;
+
+  const upstreamPath = subPath.startsWith('auth/') ? `/api/${subPath}` : `/${subPath}`;
+  let target: URL;
+  try {
+    target = new URL(`${apiBase.origin}${apiBasePath}${upstreamPath}${search}`);
+  } catch {
+    return null;
+  }
+  return target.origin === apiBase.origin ? target : null;
+}
+
+function decodeSafe(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 const handler: APIRoute = async ({ request, params }) => {
   const subPath = Array.isArray(params.path) ? params.path.join('/') : (params.path ?? '');
   const incoming = new URL(request.url);
-  const upstreamPath = subPath.startsWith('auth/') ? `/api/${subPath}` : `/${subPath}`;
-  const target = new URL(`${upstreamPath}${incoming.search}`, SERVER_API_URL);
+  const target = buildTarget(subPath, incoming.search);
+
+  if (!target) {
+    return new Response(JSON.stringify({ message: 'Invalid path' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   const init: RequestInit = {
     method: request.method,
-    headers: filterHeaders(request.headers),
+    headers: filterHeaders(request.headers, STRIPPED_REQUEST_HEADERS),
     redirect: 'manual',
   };
 
-  // Only attach a body for methods that allow one.
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     init.body = await request.arrayBuffer();
   }
 
   let upstream: Response;
   try {
-    console.log(`Proxying ${request.method} ${incoming.pathname} to ${target.href}`);
     upstream = await fetch(target, init);
   } catch (err) {
-    return new Response(
-      JSON.stringify({ message: 'Upstream API unreachable', error: String(err) }),
-      { status: 502, headers: { 'content-type': 'application/json' } },
-    );
+    console.error(`Proxy ${request.method} ${target.pathname} failed`, err);
+    return new Response(JSON.stringify({ message: 'Upstream API unreachable' }), {
+      status: 502,
+      headers: { 'content-type': 'application/json' },
+    });
   }
 
-  // Pass through status + headers (including Set-Cookie). Strip hop-by-hop.
-  const respHeaders = filterHeaders(upstream.headers);
   return new Response(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
-    headers: respHeaders,
+    headers: filterHeaders(upstream.headers, STRIPPED_RESPONSE_HEADERS),
   });
 };
 

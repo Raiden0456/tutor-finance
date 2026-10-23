@@ -161,6 +161,7 @@ async function main() {
   }
 
   const userId = existing.id;
+  await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
 
   // 2. Wipe domain data
   console.log('Wiping domain data…');

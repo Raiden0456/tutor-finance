@@ -23,6 +23,8 @@ import { I18nProvider } from '~/lib/i18n';
 import { SettingsProvider } from '~/lib/settings';
 import { authClient } from '~/lib/auth-client';
 import { usePushNotifications } from '~/lib/use-push-notifications';
+import { OfflineBanner } from '~/components/common/offline-banner';
+import { ToastHost } from '~/components/common/toast-host';
 
 void SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 220, fade: true });
@@ -57,6 +59,8 @@ function Providers({ fontsLoaded }: { fontsLoaded: boolean }) {
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <AuthGate fontsLoaded={fontsLoaded} />
         <PortalHost />
+        <OfflineBanner />
+        <ToastHost />
       </SettingsProvider>
     </ThemeProvider>
   );

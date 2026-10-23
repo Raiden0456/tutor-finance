@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Currency, WeekStartsOn } from '@tutor-finance/shared';
+import { detectTimeZone, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { api } from '~/lib/api';
 import { authClient } from '~/lib/auth-client';
 import type { Settings } from '~/lib/types';
@@ -44,7 +44,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const data = await api.get<Settings>('settings/me');
-      setSettings(data);
+      const timezone = detectTimeZone();
+      setSettings(
+        timezone && timezone !== data.timezone
+          ? await api.patch<Settings>('settings/me', { timezone }).catch(() => data)
+          : data,
+      );
     } catch {
       // leave previous settings in place
     } finally {

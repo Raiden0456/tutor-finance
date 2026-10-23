@@ -19,11 +19,18 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal';
-import { fromMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
+import {
+  fromMinorUnits,
+  parseMajorToMinor,
+  SUPPORTED_CURRENCIES,
+  type Currency,
+} from '@tutor-finance/shared';
 import type { LessonFrequency, RecurringLesson, StudentRef } from '@/lib/types';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 
 // Jan 5 2025 = Sunday (index 0)
 const REF_SUNDAY = new Date(2025, 0, 5);
@@ -70,7 +77,7 @@ export function ScheduleFormDialog({
 }) {
   const { locale, t } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
-  const [submitting, setSubmitting] = useState(false);
+  const { run, pending: submitting } = useMutation();
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(defaults?.daysOfWeek ?? [1]);
   const isEdit = !!defaults;
   const [selectedStudentId, setSelectedStudentId] = useState(
@@ -121,33 +128,33 @@ export function ScheduleFormDialog({
 
   async function handleSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
+    if (submitting) return;
+    const data = new FormData(e.currentTarget);
+    await run(async () => {
+      const studentId = selectedStudentId;
+      const startTime = String(data.get('startTime') ?? '');
+      const durationMin = parseInt(String(data.get('durationMin') ?? '60'), 10);
+      const startDate = String(data.get('startDate') ?? '').trim() || undefined;
+      const endDateRaw = String(data.get('endDate') ?? '').trim();
+      const endDate: string | null | undefined = endDateRaw
+        ? endDateRaw
+        : isEdit
+          ? null
+          : undefined;
+      const meetingLinkValue = meetingLink.trim() || undefined;
+      const notes = String(data.get('notes') ?? '').trim() || undefined;
 
-    const studentId = selectedStudentId;
-    const startTime = String(data.get('startTime') ?? '');
-    const durationMin = parseInt(String(data.get('durationMin') ?? '60'), 10);
-    const startDate = String(data.get('startDate') ?? '').trim() || undefined;
-    const endDateRaw = String(data.get('endDate') ?? '').trim();
-    // On edit, send null to clear; on create, omit
-    const endDate: string | null | undefined = endDateRaw ? endDateRaw : isEdit ? null : undefined;
-    const meetingLinkValue = meetingLink.trim() || undefined;
-    const notes = String(data.get('notes') ?? '').trim() || undefined;
-
-    let priceOverride: ScheduleFormPayload['priceOverride'] = undefined;
-    if (showPrice) {
-      const currency = String(data.get('priceCurrency') ?? 'USD') as Currency;
-      const rawAmount = String(data.get('priceAmount') ?? '').trim();
-      if (rawAmount) {
-        const { parseMajorToMinor } = await import('@tutor-finance/shared');
-        priceOverride = { amount: parseMajorToMinor(rawAmount, currency), currency };
-      } else {
-        priceOverride = null;
+      let priceOverride: ScheduleFormPayload['priceOverride'] = undefined;
+      if (showPrice) {
+        const currency = String(data.get('priceCurrency') ?? 'USD') as Currency;
+        const rawAmount = String(data.get('priceAmount') ?? '').trim();
+        if (rawAmount) {
+          priceOverride = { amount: parseMajorToMinor(rawAmount, currency), currency };
+        } else {
+          priceOverride = null;
+        }
       }
-    }
 
-    setSubmitting(true);
-    try {
       await onSubmit({
         studentId,
         daysOfWeek,
@@ -160,9 +167,7 @@ export function ScheduleFormDialog({
         meetingLink: meetingLinkValue,
         notes,
       });
-    } finally {
-      setSubmitting(false);
-    }
+    });
   }
 
   return (
@@ -374,7 +379,8 @@ export function ScheduleFormDialog({
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-            {submitting ? `${t('Saving')}…` : t('Save')}
+            {submitting && <Spinner />}
+            {submitting ? t('Saving…') : t('Save')}
           </Button>
         </ResponsiveModalFooter>
       </form>

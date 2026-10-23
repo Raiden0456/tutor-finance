@@ -13,6 +13,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { currencyOptions, categoryOptions, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '~/lib/catalog';
 import { useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
@@ -41,7 +42,6 @@ export function TransactionForm({
   const [occurredAt, setOccurredAt] = React.useState(new Date());
   const [studentId, setStudentId] = React.useState<string | null>(null);
   const [description, setDescription] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -58,31 +58,24 @@ export function TransactionForm({
 
   const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     setError(null);
     const minor = toMinorUnits(Number(amount) || 0, currency);
     if (minor < 1) return setError(t('Amount'));
-    setSaving(true);
-    try {
-      const payload = {
-        type,
-        amount: minor,
-        currency,
-        occurredAt: occurredAt.toISOString(),
-        category,
-        studentId: type === 'income' ? studentId ?? undefined : undefined,
-        description: description.trim() || undefined,
-      };
-      if (transaction) await api.patch(`transactions/${transaction.id}`, payload);
-      else await api.post('transactions', payload);
-      onOpenChange(false);
-      onSaved();
-    } catch {
-      setError(t('Error'));
-    } finally {
-      setSaving(false);
-    }
-  };
+    const payload = {
+      type,
+      amount: minor,
+      currency,
+      occurredAt: occurredAt.toISOString(),
+      category,
+      studentId: type === 'income' ? studentId ?? undefined : undefined,
+      description: description.trim() || undefined,
+    };
+    if (transaction) await api.patch(`transactions/${transaction.id}`, payload);
+    else await api.post('transactions', payload);
+    onOpenChange(false);
+    onSaved();
+  }, { onError: setError });
 
   return (
     <FormSheet
@@ -90,8 +83,8 @@ export function TransactionForm({
       onOpenChange={onOpenChange}
       title={transaction ? t('Edit transaction') : t('New transaction')}
       footer={
-        <Button onPress={submit} disabled={saving}>
-          {saving ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
+        <Button onPress={() => void submit.run()} disabled={submit.pending}>
+          {submit.pending ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
         </Button>
       }
     >

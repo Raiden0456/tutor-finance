@@ -1,12 +1,18 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
-import type { Currency, PricingMode, StudentLessonPackage } from '@tutor-finance/shared';
+import {
+  convertMoney,
+  type Currency,
+  type PricingMode,
+  type StudentLessonPackage,
+} from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { lessons, studentLessonPackages, students } from '../db/schema.js';
-import { TransactionsService } from '../transactions/transactions.service.js';
+import { FxService } from '../fx/fx.service.js';
+import { type DbExecutor, TransactionsService } from '../transactions/transactions.service.js';
 import type {
   CloseStudentPackageDto,
   CreateStudentDto,
@@ -52,6 +58,7 @@ export class StudentsService {
     @Inject(DB) private readonly db: Database,
     private readonly transactions: TransactionsService,
     private readonly cacheService: RedisCacheService,
+    private readonly fx: FxService,
   ) {}
 
   async list(userId: string, includeArchived = false): Promise<StudentResponse[]> {
@@ -182,24 +189,28 @@ export class StudentsService {
 
     let row = await this.findRowById(userId, id);
 
-    if (Object.keys(set).length > 0) {
-      const [updated] = await this.db
-        .update(students)
-        .set(set)
-        .where(and(eq(students.id, id), eq(students.userId, userId)))
-        .returning();
-      if (!updated) throw new NotFoundException('Student not found');
-      row = updated;
-    }
-
-    if (patch.lessonPackage !== undefined) {
-      await this.upsertActivePackage(userId, id, patch.lessonPackage);
-    } else if (patch.pricingMode === 'package') {
+    if (patch.pricingMode === 'package' && patch.lessonPackage === undefined) {
       const activePackage = await this.findActivePackageRow(userId, id);
       if (!activePackage) {
         throw new BadRequestException('package is required when switching to package pricing');
       }
     }
+
+    await this.db.transaction(async (tx) => {
+      if (Object.keys(set).length > 0) {
+        const [updated] = await tx
+          .update(students)
+          .set(set)
+          .where(and(eq(students.id, id), eq(students.userId, userId)))
+          .returning();
+        if (!updated) throw new NotFoundException('Student not found');
+        row = updated;
+      }
+
+      if (patch.lessonPackage !== undefined) {
+        await this.upsertActivePackage(tx, userId, id, patch.lessonPackage);
+      }
+    });
 
     await this.invalidateUserCache(userId);
     return this.toResponse(userId, row);
@@ -218,32 +229,37 @@ export class StudentsService {
       throw new BadRequestException('paidAmount cannot exceed package price');
     }
 
-    const [updatedPackage] = await this.db
-      .update(studentLessonPackages)
-      .set({ paidAmount: input.paidAmount, paidAt: input.paidAmount > 0 ? new Date() : null })
-      .where(
-        and(
-          eq(studentLessonPackages.id, activePackage.id),
-          eq(studentLessonPackages.userId, userId),
-        ),
-      )
-      .returning();
+    await this.db.transaction(async (tx) => {
+      const [updatedPackage] = await tx
+        .update(studentLessonPackages)
+        .set({ paidAmount: input.paidAmount, paidAt: input.paidAmount > 0 ? new Date() : null })
+        .where(
+          and(
+            eq(studentLessonPackages.id, activePackage.id),
+            eq(studentLessonPackages.userId, userId),
+          ),
+        )
+        .returning();
 
-    if (!updatedPackage) throw new NotFoundException('Active package not found');
+      if (!updatedPackage) throw new NotFoundException('Active package not found');
 
-    if (input.paidAmount > 0) {
-      await this.transactions.upsertForPackage({
-        userId,
-        studentId: id,
-        packageId: activePackage.id,
-        amount: input.paidAmount,
-        currency: activePackage.priceCurrency,
-        occurredAt: new Date(),
-        description: 'Lesson package',
-      });
-    } else {
-      await this.transactions.deleteForPackage(userId, activePackage.id);
-    }
+      if (input.paidAmount > 0) {
+        await this.transactions.upsertForPackage(
+          {
+            userId,
+            studentId: id,
+            packageId: activePackage.id,
+            amount: input.paidAmount,
+            currency: activePackage.priceCurrency,
+            occurredAt: new Date(),
+            description: 'Lesson package',
+          },
+          tx,
+        );
+      } else {
+        await this.transactions.deleteForPackage(userId, activePackage.id, tx);
+      }
+    });
 
     await this.invalidateUserCache(userId);
     return this.findById(userId, id);
@@ -345,8 +361,9 @@ export class StudentsService {
   private async findActivePackageRow(
     userId: string,
     studentId: string,
+    executor: DbExecutor = this.db,
   ): Promise<PackageRow | null> {
-    const [row] = await this.db
+    const [row] = await executor
       .select()
       .from(studentLessonPackages)
       .where(
@@ -366,6 +383,7 @@ export class StudentsService {
     studentId: string,
     from: Date,
     to?: Date,
+    executor: DbExecutor = this.db,
   ): Promise<number> {
     const conds = [
       eq(lessons.userId, userId),
@@ -375,7 +393,7 @@ export class StudentsService {
     ];
     if (to) conds.push(lte(lessons.startsAt, to));
 
-    const [row] = await this.db
+    const [row] = await executor
       .select({ count: sql<number>`count(*)::int` })
       .from(lessons)
       .where(and(...conds));
@@ -390,22 +408,26 @@ export class StudentsService {
   }
 
   private async upsertActivePackage(
+    tx: DbExecutor,
     userId: string,
     studentId: string,
     input: LessonPackageDto,
   ): Promise<void> {
-    const activePackage = await this.findActivePackageRow(userId, studentId);
+    const activePackage = await this.findActivePackageRow(userId, studentId, tx);
 
     if (activePackage) {
       const completedLessons = await this.countConductedLessons(
         userId,
         studentId,
         activePackage.createdAt,
+        undefined,
+        tx,
       );
 
       if (completedLessons < activePackage.lessonCount) {
-        const paidAmount = Math.min(activePackage.paidAmount, input.price.amount);
-        await this.db
+        const carriedPaid = await this.convertPaidAmount(activePackage, input.price.currency);
+        const paidAmount = Math.min(carriedPaid, input.price.amount);
+        await tx
           .update(studentLessonPackages)
           .set({
             lessonCount: input.lessonCount,
@@ -421,21 +443,24 @@ export class StudentsService {
           );
 
         if (paidAmount > 0) {
-          await this.transactions.upsertForPackage({
-            userId,
-            studentId,
-            packageId: activePackage.id,
-            amount: paidAmount,
-            currency: input.price.currency,
-            description: 'Lesson package',
-          });
+          await this.transactions.upsertForPackage(
+            {
+              userId,
+              studentId,
+              packageId: activePackage.id,
+              amount: paidAmount,
+              currency: input.price.currency,
+              description: 'Lesson package',
+            },
+            tx,
+          );
         } else {
-          await this.transactions.deleteForPackage(userId, activePackage.id);
+          await this.transactions.deleteForPackage(userId, activePackage.id, tx);
         }
         return;
       }
 
-      await this.db
+      await tx
         .update(studentLessonPackages)
         .set({
           closedAt: new Date(),
@@ -449,13 +474,27 @@ export class StudentsService {
         );
     }
 
-    await this.db.insert(studentLessonPackages).values({
+    await tx.insert(studentLessonPackages).values({
       userId,
       studentId,
       lessonCount: input.lessonCount,
       priceAmount: input.price.amount,
       priceCurrency: input.price.currency,
     });
+  }
+
+  private async convertPaidAmount(pkg: PackageRow, target: Currency): Promise<number> {
+    if (pkg.paidAmount <= 0 || pkg.priceCurrency === target) return pkg.paidAmount;
+    try {
+      const rates = await this.fx.getRatesMap();
+      return convertMoney(
+        { amount: pkg.paidAmount, currency: pkg.priceCurrency as Currency },
+        target,
+        rates,
+      ).amount;
+    } catch {
+      throw new BadRequestException('Cannot convert paid amount to the new package currency');
+    }
   }
 
   private async invalidateUserCache(userId: string): Promise<void> {

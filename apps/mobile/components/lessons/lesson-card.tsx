@@ -50,6 +50,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { currencyOptions } from '~/lib/catalog';
 import { formatDate, money } from '~/lib/format';
 import { useI18n } from '~/lib/i18n';
@@ -76,7 +77,8 @@ export function LessonCard({
   const [lesson, setLesson] = React.useState(lessonProp);
   React.useEffect(() => setLesson(lessonProp), [lessonProp]);
 
-  const [busy, setBusy] = React.useState(false);
+  const action = useMutation((fn: () => Promise<boolean>) => fn());
+  const busy = action.pending;
   const [cardMenu, setCardMenu] = React.useState(false);
   const [actionMenu, setActionMenu] = React.useState(false);
   const [reschedOpen, setReschedOpen] = React.useState(false);
@@ -91,16 +93,13 @@ export function LessonCard({
   const dueVisible = needsPayment(lesson.status) && !packageCovered;
   const isPaidish = (lesson.status === 'paid' || lesson.status === 'partially_paid') && !packageCovered;
 
-  const patch = async (body: Record<string, unknown>) => {
-    setBusy(true);
-    try {
+  const patch = (body: Record<string, unknown>) =>
+    action.run(async () => {
       const updated = await api.patch<Lesson>(`lessons/${lesson.id}`, body);
       setLesson(updated);
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
-  };
+      return true;
+    });
 
   const viewDetails = () => router.push(`/(app)/lessons/${lesson.id}`);
 
@@ -128,25 +127,19 @@ export function LessonCard({
     { label: t('Cancel lesson'), icon: Ban, destructive: true, onPress: () => void patch({ status: 'cancelled' }) },
   ];
 
-  const archive = async () => {
-    setBusy(true);
-    try {
+  const archive = () =>
+    action.run(async () => {
       await api.post(`lessons/${lesson.id}/archive`);
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
-  };
-  const remove = async () => {
-    setBusy(true);
-    try {
+      return true;
+    });
+  const remove = () =>
+    action.run(async () => {
       await api.delete(`lessons/${lesson.id}`);
       setDeleteOpen(false);
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
-  };
+      return true;
+    });
 
   const canJoinScheduled = !!lesson.meetingLink && isNotPastDay(lesson.startsAt);
 
@@ -226,7 +219,7 @@ export function LessonCard({
       {scheduledVisible || dueVisible ? (
         <View className="mt-3 border-t border-border pt-3">
           <View className="flex-row items-center gap-2">
-            <Button className="flex-1 bg-tf-jade" onPress={() => patch(scheduledVisible ? { status: 'completed' } : { status: 'paid' })} disabled={busy}>
+            <Button className="flex-1 bg-tf-jade" onPress={() => void patch(scheduledVisible ? { status: 'completed' } : { status: 'paid' })} disabled={busy}>
               {busy ? (
                 <Spinner color="#fff" />
               ) : (
@@ -300,7 +293,7 @@ export function LessonCard({
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onPress={remove}>
+            <AlertDialogAction variant="destructive" disabled={busy} onPress={() => void remove()}>
               <Text>{t('Delete')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -319,7 +312,7 @@ function RescheduleSheet({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   lesson: Lesson;
-  onSubmit: (body: Record<string, unknown>) => Promise<void>;
+  onSubmit: (body: Record<string, unknown>) => Promise<boolean | undefined>;
 }) {
   const { t } = useI18n();
   const [date, setDate] = React.useState(new Date(lesson.startsAt));
@@ -337,8 +330,11 @@ function RescheduleSheet({
   const submit = async () => {
     setSaving(true);
     try {
-      await onSubmit({ startsAt: combineDateTime(date, time).toISOString(), durationMin: Number(duration) || 60 });
-      onOpenChange(false);
+      const ok = await onSubmit({
+        startsAt: combineDateTime(date, time).toISOString(),
+        durationMin: Number(duration) || 60,
+      });
+      if (ok) onOpenChange(false);
     } finally {
       setSaving(false);
     }
@@ -385,7 +381,7 @@ function PartialPaymentSheet({
   onOpenChange: (o: boolean) => void;
   currency: Currency;
   fullPrice: number | null;
-  onSubmit: (body: Record<string, unknown>) => Promise<void>;
+  onSubmit: (body: Record<string, unknown>) => Promise<boolean | undefined>;
 }) {
   const { t, locale } = useI18n();
   const [amount, setAmount] = React.useState('');
@@ -398,8 +394,11 @@ function PartialPaymentSheet({
   const submit = async () => {
     setSaving(true);
     try {
-      await onSubmit({ status: 'partially_paid', paidAmount: toMinorUnits(Number(amount) || 0, currency) });
-      onOpenChange(false);
+      const ok = await onSubmit({
+        status: 'partially_paid',
+        paidAmount: toMinorUnits(Number(amount) || 0, currency),
+      });
+      if (ok) onOpenChange(false);
     } finally {
       setSaving(false);
     }
@@ -441,7 +440,7 @@ function EditDetailsSheet({
   onOpenChange: (o: boolean) => void;
   lesson: Lesson;
   defaultCurrency: Currency;
-  onSubmit: (body: Record<string, unknown>) => Promise<void>;
+  onSubmit: (body: Record<string, unknown>) => Promise<boolean | undefined>;
 }) {
   const { t } = useI18n();
   const [notes, setNotes] = React.useState('');
@@ -467,7 +466,7 @@ function EditDetailsSheet({
   const submit = async () => {
     setSaving(true);
     try {
-      await onSubmit({
+      const ok = await onSubmit({
         notes: notes.trim() || null,
         homework: homework.trim() || null,
         meetingLink: meetingLink.trim() || null,
@@ -475,7 +474,7 @@ function EditDetailsSheet({
           ? { amount: toMinorUnits(Number(priceAmount) || 0, priceCurrency), currency: priceCurrency }
           : null,
       });
-      onOpenChange(false);
+      if (ok) onOpenChange(false);
     } finally {
       setSaving(false);
     }

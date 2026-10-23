@@ -3,6 +3,9 @@ import { api } from '@/lib/api';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
 import { fmtMajor, fmtMoney } from '@/lib/format';
 import { localizePath, useI18n } from '@/lib/i18n';
+import { errorMessage, useMutation } from '@/hooks/use-mutation';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 import {
   SUPPORTED_CURRENCIES,
   parseMajorToMinor,
@@ -64,9 +67,9 @@ export interface LessonCardProps {
   studentName: string;
   overlapping?: boolean;
   isArchived?: boolean;
-  onChanged?: () => void;
+  onChanged?: () => void | Promise<unknown>;
   onArchived?: () => void;
-  onDeleted?: () => void;
+  onDeleted?: () => void | Promise<unknown>;
 }
 
 export function LessonCard({
@@ -93,6 +96,13 @@ export function LessonCard({
   const [dueCollapsed, setDueCollapsed] = useState(false);
   const [editDetailsOpen, setEditDetailsOpen] = useState(false);
 
+  function notify(callback?: () => void | Promise<unknown>) {
+    if (!callback) return;
+    Promise.resolve()
+      .then(callback)
+      .catch((error: unknown) => toast.error(errorMessage(error, t)));
+  }
+
   function onPaymentComplete(newStatus: Lesson['status'], newPaidAmount?: number | null) {
     setLesson((prev) => ({
       ...prev,
@@ -103,10 +113,10 @@ export function LessonCard({
       setDueCollapsed(true);
       setTimeout(() => {
         setDueVisible(false);
-        onChanged?.();
+        notify(onChanged);
       }, 520);
     } else {
-      onChanged?.();
+      notify(onChanged);
     }
   }
 
@@ -120,7 +130,7 @@ export function LessonCard({
         setDueVisible(true);
         setDueCollapsed(false);
       }
-      onChanged?.();
+      notify(onChanged);
     }, 420);
   }
 
@@ -201,7 +211,7 @@ export function LessonCard({
             lesson={lesson}
             isArchived={isArchived}
             onArchived={onArchived}
-            onDeleted={onDeleted}
+            onDeleted={() => notify(onDeleted)}
           />
         </div>
       </div>
@@ -218,7 +228,7 @@ export function LessonCard({
             <ScheduledActions
               lesson={lesson}
               onStatusChange={onScheduledChange}
-              onRescheduled={onChanged}
+              onRescheduled={() => notify(onChanged)}
               onEditDetailsClick={() => setEditDetailsOpen(true)}
             />
           </div>
@@ -249,7 +259,7 @@ export function LessonCard({
         lesson={lesson}
         onSaved={(updates) => {
           setLesson(updates);
-          onChanged?.();
+          notify(onChanged);
         }}
       />
     </div>
@@ -268,28 +278,22 @@ function LessonCardMenu({
   onDeleted?: () => void;
 }) {
   const { locale, t } = useI18n();
+  const { run, pending: busy } = useMutation();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   async function handleArchive() {
-    setBusy(true);
-    try {
+    await run(async () => {
       await api.post(`/lessons/${lesson.id}/archive`);
       onArchived?.();
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function handleDelete() {
-    setBusy(true);
-    try {
+    await run(async () => {
       await api.delete(`/lessons/${lesson.id}`);
       onDeleted?.();
       setConfirmDeleteOpen(false);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   const isPaid =
@@ -374,6 +378,7 @@ export function DuePaymentActions({
   const [labelSuccess, setLabelSuccess] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
   const [partialInput, setPartialInput] = useState('');
+  const { run, pending } = useMutation();
 
   const effectiveCurrency = lesson.effectivePrice?.currency ?? 'USD';
   const isPartial = lesson.status === 'partially_paid';
@@ -383,9 +388,9 @@ export function DuePaymentActions({
   const canEditDetails = isNotPastDay(lesson.startsAt);
 
   async function handlePaidClick() {
-    if (phase !== 'idle') return;
-    try {
-      await api.patch(`/lessons/${lesson.id}`, { status: 'paid' });
+    if (phase !== 'idle' || pending) return;
+    const ok = await run(() => api.patch(`/lessons/${lesson.id}`, { status: 'paid' }));
+    if (ok) {
       setPhase('success');
       setLabelVisible(false);
       setTimeout(() => {
@@ -393,32 +398,25 @@ export function DuePaymentActions({
         setLabelVisible(true);
       }, 150);
       setTimeout(() => onComplete('paid'), 750);
-    } catch (error) {
-      console.error('Failed to mark lesson as paid', error);
     }
   }
 
   async function changeStatus(status: Lesson['status']) {
-    try {
+    await run(async () => {
       await api.patch(`/lessons/${lesson.id}`, { status });
       onComplete(status);
-    } catch (error) {
-      console.error('Failed to change lesson status', error);
-    }
+    });
   }
 
   async function submitPartial() {
-    let amount: number;
-    try {
-      amount = parseMajorToMinor(partialInput, effectiveCurrency);
+    await run(async () => {
+      const amount = parseMajorToMinor(partialInput, effectiveCurrency);
       if (amount <= 0) return;
       await api.patch(`/lessons/${lesson.id}`, { status: 'partially_paid', paidAmount: amount });
       setPartialOpen(false);
       setPartialInput('');
       onComplete('partially_paid', amount);
-    } catch (error) {
-      console.error('Failed to save partial payment', error);
-    }
+    });
   }
 
   return (
@@ -522,7 +520,8 @@ export function DuePaymentActions({
             <Button variant="outline" onClick={() => setPartialOpen(false)}>
               {t('Cancel')}
             </Button>
-            <Button onClick={submitPartial} disabled={!partialInput}>
+            <Button onClick={submitPartial} disabled={!partialInput || pending}>
+              {pending && <Spinner />}
               {t('Save')}
             </Button>
           </ResponsiveModalFooter>
@@ -548,6 +547,7 @@ export function ScheduledActions({
   const [labelVisible, setLabelVisible] = useState(true);
   const [labelSuccess, setLabelSuccess] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const { run, pending } = useMutation();
   const showJoin = !!lesson.meetingLink && isNotPastDay(lesson.startsAt);
 
   const defaultDateTime = new Date(
@@ -557,9 +557,9 @@ export function ScheduledActions({
     .slice(0, 16);
 
   async function handleCompletedClick() {
-    if (phase !== 'idle') return;
-    try {
-      await api.patch(`/lessons/${lesson.id}`, { status: 'completed' });
+    if (phase !== 'idle' || pending) return;
+    const ok = await run(() => api.patch(`/lessons/${lesson.id}`, { status: 'completed' }));
+    if (ok) {
       setPhase('success');
       setLabelVisible(false);
       setTimeout(() => {
@@ -567,27 +567,25 @@ export function ScheduledActions({
         setLabelVisible(true);
       }, 150);
       setTimeout(() => onStatusChange('completed'), 750);
-    } catch (error) {
-      console.error('Failed to mark lesson as completed', error);
     }
   }
 
   async function changeStatus(status: Lesson['status']) {
-    try {
+    await run(async () => {
       await api.patch(`/lessons/${lesson.id}`, { status });
       onStatusChange(status);
-    } catch (error) {
-      console.error('Failed to change lesson status', error);
-    }
+    });
   }
 
   async function handleReschedule(form: HTMLFormElement) {
     const data = new FormData(form);
-    const startsAt = new Date(String(data.get('startsAt'))).toISOString();
-    const durationMin = Number(data.get('durationMin'));
-    await api.patch(`/lessons/${lesson.id}`, { startsAt, durationMin });
-    setRescheduleOpen(false);
-    onRescheduled?.();
+    await run(async () => {
+      const startsAt = new Date(String(data.get('startsAt'))).toISOString();
+      const durationMin = Number(data.get('durationMin'));
+      await api.patch(`/lessons/${lesson.id}`, { startsAt, durationMin });
+      setRescheduleOpen(false);
+      onRescheduled?.();
+    });
   }
 
   return (
@@ -683,7 +681,7 @@ export function ScheduledActions({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleReschedule(e.currentTarget);
+              if (!pending) handleReschedule(e.currentTarget);
             }}
             className="flex min-h-0 flex-1 flex-col gap-4"
           >
@@ -714,7 +712,10 @@ export function ScheduledActions({
               <Button variant="outline" type="button" onClick={() => setRescheduleOpen(false)}>
                 {t('Cancel')}
               </Button>
-              <Button type="submit">{t('Save')}</Button>
+              <Button type="submit" disabled={pending}>
+                {pending && <Spinner />}
+                {t('Save')}
+              </Button>
             </ResponsiveModalFooter>
           </form>
         </ResponsiveModalContent>
@@ -740,6 +741,7 @@ export function EditDetailsModal({
   const [meetingLink, setMeetingLink] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
+  const { run, pending } = useMutation();
 
   useEffect(() => {
     if (open) {
@@ -766,7 +768,7 @@ export function EditDetailsModal({
       meetingLink: meetingLink.trim() || null,
     };
 
-    try {
+    await run(async () => {
       if (!amount.trim()) {
         patch.priceOverride = null;
       } else {
@@ -778,9 +780,7 @@ export function EditDetailsModal({
       const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, patch);
       onSaved(updated);
       onOpenChange(false);
-    } catch (error) {
-      console.error('Failed to save lesson details', error);
-    }
+    });
   }
 
   return (
@@ -852,7 +852,10 @@ export function EditDetailsModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={handleSave}>{t('Save')}</Button>
+          <Button onClick={handleSave} disabled={pending}>
+            {pending && <Spinner />}
+            {t('Save')}
+          </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
     </ResponsiveModal>

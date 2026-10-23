@@ -18,10 +18,7 @@ Notifications.setNotificationHandler({
 });
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Device.isDevice || IS_EXPO_GO) {
-    console.warn('[push] skipped: not a physical device or running in Expo Go');
-    return null;
-  }
+  if (!Device.isDevice || IS_EXPO_GO) return null;
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('reminders', {
@@ -37,33 +34,20 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (status !== 'granted') {
     status = (await Notifications.requestPermissionsAsync()).status;
   }
-  if (status !== 'granted') {
-    console.warn('[push] skipped: notification permission not granted');
-    return null;
-  }
+  if (status !== 'granted') return null;
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
-  if (!projectId) {
-    console.warn('[push] skipped: no EAS projectId (set EXPO_PUBLIC_EAS_PROJECT_ID)');
-    return null;
-  }
+  if (!projectId) return null;
 
-  // NOTE: on Android this requires FCM in the BUILD (google-services.json via
-  // android.googleServicesFile) — without it the native call throws.
+  // Android throws here unless the build ships FCM config (google-services.json).
   const token = await Notifications.getExpoPushTokenAsync({ projectId });
   return token.data;
 }
 
-/**
- * Registers the Expo push token with the API (replacing the old WebView
- * postMessage bridge) and deep-links to the screen referenced by a tapped
- * notification's `path` payload.
- */
 export function usePushNotifications(authenticated: boolean) {
   const router = useRouter();
 
-  // Register token once authenticated.
   React.useEffect(() => {
     if (!authenticated) return;
     let cancelled = false;
@@ -71,18 +55,14 @@ export function usePushNotifications(authenticated: boolean) {
       .then((token) => {
         if (cancelled || !token) return;
         const platform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined;
-        void api
-          .post('device-tokens', { token, platform })
-          .then(() => console.log('[push] token registered with API'))
-          .catch((e) => console.warn('[push] token registration with API failed:', e));
+        void api.post('device-tokens', { token, platform }).catch(() => undefined);
       })
-      .catch((e) => console.warn('[push] getting push token failed (missing FCM setup?):', e));
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [authenticated]);
 
-  // Deep-link on notification tap.
   React.useEffect(() => {
     const goToPath = (path: unknown) => {
       if (typeof path === 'string' && path.startsWith('/')) router.push(path as never);

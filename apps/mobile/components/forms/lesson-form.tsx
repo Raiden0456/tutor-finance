@@ -18,6 +18,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { currencyOptions } from '~/lib/catalog';
 import { LESSON_STATUS_OPTIONS } from '~/lib/lesson-status';
 import { useI18n } from '~/lib/i18n';
@@ -53,7 +54,6 @@ export function LessonForm({
   const [meetingLink, setMeetingLink] = React.useState('');
   const [homework, setHomework] = React.useState('');
   const [notes, setNotes] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -89,39 +89,32 @@ export function LessonForm({
       students.find((s) => s.id === studentId)?.hourlyRate.currency ??
       overrideCurrency);
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     setError(null);
     if (!studentId) return setError(t('Select student'));
-    setSaving(true);
-    try {
-      const payload: Record<string, unknown> = {
-        studentId,
-        startsAt: combineDateTime(date, time).toISOString(),
-        durationMin: Number(duration) || 60,
-        status,
-        notes: notes.trim() || undefined,
-        homework: homework.trim() || undefined,
-        meetingLink: meetingLink.trim() || undefined,
+    const payload: Record<string, unknown> = {
+      studentId,
+      startsAt: combineDateTime(date, time).toISOString(),
+      durationMin: Number(duration) || 60,
+      status,
+      notes: notes.trim() || undefined,
+      homework: homework.trim() || undefined,
+      meetingLink: meetingLink.trim() || undefined,
+    };
+    if (overrideAmount.trim()) {
+      payload.priceOverride = {
+        amount: toMinorUnits(Number(overrideAmount) || 0, overrideCurrency),
+        currency: overrideCurrency,
       };
-      if (overrideAmount.trim()) {
-        payload.priceOverride = {
-          amount: toMinorUnits(Number(overrideAmount) || 0, overrideCurrency),
-          currency: overrideCurrency,
-        };
-      }
-      if (showPaid && paidAmount.trim()) {
-        payload.paidAmount = toMinorUnits(Number(paidAmount) || 0, paidCurrency);
-      }
-      if (lesson) await api.patch(`lessons/${lesson.id}`, payload);
-      else await api.post('lessons', payload);
-      onOpenChange(false);
-      onSaved();
-    } catch {
-      setError(t('Error'));
-    } finally {
-      setSaving(false);
     }
-  };
+    if (showPaid && paidAmount.trim()) {
+      payload.paidAmount = toMinorUnits(Number(paidAmount) || 0, paidCurrency);
+    }
+    if (lesson) await api.patch(`lessons/${lesson.id}`, payload);
+    else await api.post('lessons', payload);
+    onOpenChange(false);
+    onSaved();
+  }, { onError: setError });
 
   return (
     <FormSheet
@@ -129,8 +122,8 @@ export function LessonForm({
       onOpenChange={onOpenChange}
       title={lesson ? t('Edit lesson') : t('New lesson')}
       footer={
-        <Button onPress={submit} disabled={saving}>
-          {saving ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
+        <Button onPress={() => void submit.run()} disabled={submit.pending}>
+          {submit.pending ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
         </Button>
       }
     >

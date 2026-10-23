@@ -6,13 +6,22 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { and, asc, eq, gte, isNull, lte } from 'drizzle-orm';
-import type { Currency, LessonFrequency } from '@tutor-finance/shared';
+import { and, asc, eq, gte, isNotNull, isNull, lte } from 'drizzle-orm';
+import {
+  DEFAULT_TIMEZONE,
+  civilDate,
+  civilDateToUtc,
+  rezone,
+  zonedParts,
+  type Currency,
+  type LessonFrequency,
+} from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { recurringLessons, lessons, students } from '../db/schema.js';
+import { recurringLessons, lessons, students, userSettings } from '../db/schema.js';
+import { getUserTimeZone } from '../settings/user-timezone.js';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service.js';
 import type {
   CreateRecurringLessonDto,
@@ -23,54 +32,37 @@ import type {
 type Row = typeof recurringLessons.$inferSelect;
 
 const LOOKAHEAD_DAYS = 14;
+const DAY_MS = 24 * 3600 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 
-function startOfUtcDay(date: Date): Date {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+function addDays(civil: Date, days: number): Date {
+  return new Date(civil.getTime() + days * DAY_MS);
 }
 
-function firstOccurrence(from: Date, daysOfWeek: number[]): Date {
-  const d = startOfUtcDay(from);
-  for (let i = 0; i < 7; i++) {
-    if (daysOfWeek.includes(d.getUTCDay())) return d;
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return d;
-}
-
-function applyTime(date: Date, startTime: string): Date {
-  const [h, m] = startTime.split(':').map(Number);
-  const d = new Date(date);
-  d.setUTCHours(h!, m!, 0, 0);
-  return d;
-}
-
-function addDay(date: Date): Date {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d;
+function toCivilDate(value: string, timeZone: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00Z`);
+  return civilDate(new Date(value), timeZone);
 }
 
 function nextGenerationCursor(
   startDate: Date,
   daysOfWeek: number[],
   startTime: string,
+  timeZone: string,
   from = new Date(),
 ): Date {
-  const today = startOfUtcDay(from);
-  const scheduleStart = startOfUtcDay(startDate);
-  let d = scheduleStart > today ? scheduleStart : today;
+  const today = civilDate(from, timeZone);
+  let d = startDate > today ? startDate : today;
 
   for (let i = 0; i <= 7; i++) {
     if (daysOfWeek.includes(d.getUTCDay())) {
-      const startsAt = applyTime(d, startTime);
+      const startsAt = civilDateToUtc(d, timeZone, startTime);
       if (startsAt >= from) return startsAt;
     }
-    d = addDay(d);
+    d = addDays(d, 1);
   }
 
-  return applyTime(firstOccurrence(d, daysOfWeek), startTime);
+  return civilDateToUtc(d, timeZone, startTime);
 }
 
 function toResponse(r: Row): RecurringLessonResponse {
@@ -131,10 +123,12 @@ export class RecurringLessonsService implements OnModuleInit {
       .limit(1);
     if (!student) throw new NotFoundException('Student not found');
 
-    const startDate = input.startDate ? new Date(input.startDate) : new Date();
-    startDate.setUTCHours(0, 0, 0, 0);
+    const timeZone = await getUserTimeZone(this.db, userId);
+    const startDate = input.startDate
+      ? toCivilDate(input.startDate, timeZone)
+      : civilDate(new Date(), timeZone);
 
-    const nextAt = nextGenerationCursor(startDate, input.daysOfWeek, input.startTime);
+    const nextAt = nextGenerationCursor(startDate, input.daysOfWeek, input.startTime, timeZone);
 
     const [row] = await this.db
       .insert(recurringLessons)
@@ -146,7 +140,7 @@ export class RecurringLessonsService implements OnModuleInit {
         durationMin: input.durationMin,
         frequency: input.frequency,
         startDate,
-        endDate: input.endDate ? new Date(input.endDate) : null,
+        endDate: input.endDate ? toCivilDate(input.endDate, timeZone) : null,
         nextScheduledAt: nextAt,
         isActive: true,
         priceOverrideAmount: input.priceOverride?.amount ?? null,
@@ -171,6 +165,7 @@ export class RecurringLessonsService implements OnModuleInit {
     }
 
     const set: Partial<typeof recurringLessons.$inferInsert> = {};
+    const timeZone = await getUserTimeZone(this.db, userId);
 
     if (patch.isActive === true) {
       const [current] = await this.db
@@ -190,6 +185,7 @@ export class RecurringLessonsService implements OnModuleInit {
         current.startDate,
         patch.daysOfWeek ?? current.daysOfWeek,
         patch.startTime ?? current.startTime,
+        timeZone,
       );
     }
 
@@ -197,7 +193,8 @@ export class RecurringLessonsService implements OnModuleInit {
     if (patch.startTime !== undefined) set.startTime = patch.startTime;
     if (patch.durationMin !== undefined) set.durationMin = patch.durationMin;
     if (patch.frequency !== undefined) set.frequency = patch.frequency;
-    if (patch.endDate !== undefined) set.endDate = patch.endDate ? new Date(patch.endDate) : null;
+    if (patch.endDate !== undefined)
+      set.endDate = patch.endDate ? toCivilDate(patch.endDate, timeZone) : null;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;
     if (patch.meetingLink !== undefined) set.meetingLink = patch.meetingLink ?? null;
     if (patch.notes !== undefined) set.notes = patch.notes ?? null;
@@ -248,12 +245,12 @@ export class RecurringLessonsService implements OnModuleInit {
   @Cron('0 7 * * *')
   async dispatch() {
     const now = new Date();
-    const horizon = new Date(now);
-    horizon.setUTCDate(horizon.getUTCDate() + LOOKAHEAD_DAYS);
+    const horizon = new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS);
 
     const due = await this.db
-      .select()
+      .select({ schedule: recurringLessons, timezone: userSettings.timezone })
       .from(recurringLessons)
+      .leftJoin(userSettings, eq(userSettings.userId, recurringLessons.userId))
       .where(
         and(
           eq(recurringLessons.isActive, true),
@@ -264,25 +261,25 @@ export class RecurringLessonsService implements OnModuleInit {
 
     const freqWeeks = (f: LessonFrequency) => (f === 'biweekly' ? 2 : 1);
 
-    for (const schedule of due) {
-      let d = startOfUtcDay(schedule.nextScheduledAt);
-      const today = startOfUtcDay(now);
-      const scheduleStart = startOfUtcDay(schedule.startDate);
+    for (const { schedule, timezone } of due) {
+      const timeZone = timezone ?? DEFAULT_TIMEZONE;
+      const today = civilDate(now, timeZone);
+      const lastDay = civilDate(horizon, timeZone);
+      let d = civilDate(schedule.nextScheduledAt, timeZone);
       if (d < today) d = today;
-      if (d < scheduleStart) d = scheduleStart;
+      if (d < schedule.startDate) d = schedule.startDate;
 
       const insertedLessonIds: string[] = [];
       await this.db.transaction(async (tx) => {
-        while (d <= horizon) {
+        while (d <= lastDay) {
           if (schedule.endDate && d > schedule.endDate) break;
 
           if (schedule.daysOfWeek.includes(d.getUTCDay())) {
-            const msPerWeek = 7 * 24 * 3600 * 1000;
             const weeksSinceStart = Math.floor(
-              (d.getTime() - schedule.startDate.getTime()) / msPerWeek,
+              (d.getTime() - schedule.startDate.getTime()) / WEEK_MS,
             );
             if (weeksSinceStart % freqWeeks(schedule.frequency as LessonFrequency) === 0) {
-              const startsAt = applyTime(d, schedule.startTime);
+              const startsAt = civilDateToUtc(d, timeZone, schedule.startTime);
               if (startsAt >= now) {
                 const inserted = await tx
                   .insert(lessons)
@@ -307,12 +304,12 @@ export class RecurringLessonsService implements OnModuleInit {
             }
           }
 
-          d = addDay(d);
+          d = addDays(d, 1);
         }
 
         await tx
           .update(recurringLessons)
-          .set({ nextScheduledAt: d })
+          .set({ nextScheduledAt: civilDateToUtc(d, timeZone) })
           .where(eq(recurringLessons.id, schedule.id));
       });
 
@@ -321,6 +318,56 @@ export class RecurringLessonsService implements OnModuleInit {
       }
       await this.invalidateUserCache(schedule.userId);
     }
+  }
+
+  async rezone(userId: string, fromTimeZone: string, toTimeZone: string): Promise<void> {
+    const schedules = await this.db
+      .select({ id: recurringLessons.id, nextScheduledAt: recurringLessons.nextScheduledAt })
+      .from(recurringLessons)
+      .where(and(eq(recurringLessons.userId, userId), isNull(recurringLessons.deletedAt)));
+
+    const upcoming = await this.db
+      .select({
+        id: lessons.id,
+        startsAt: lessons.startsAt,
+        startTime: recurringLessons.startTime,
+      })
+      .from(lessons)
+      .innerJoin(recurringLessons, eq(recurringLessons.id, lessons.recurringLessonId))
+      .where(
+        and(
+          eq(lessons.userId, userId),
+          isNotNull(lessons.recurringLessonId),
+          eq(lessons.status, 'scheduled'),
+          isNull(lessons.archivedAt),
+          gte(lessons.startsAt, new Date()),
+        ),
+      );
+
+    const movedLessonIds: string[] = [];
+    await this.db.transaction(async (tx) => {
+      for (const schedule of schedules) {
+        await tx
+          .update(recurringLessons)
+          .set({ nextScheduledAt: rezone(schedule.nextScheduledAt, fromTimeZone, toTimeZone) })
+          .where(eq(recurringLessons.id, schedule.id));
+      }
+
+      for (const lesson of upcoming) {
+        const local = zonedParts(lesson.startsAt, fromTimeZone);
+        const hhmm = `${String(local.hour).padStart(2, '0')}:${String(local.minute).padStart(2, '0')}`;
+        if (hhmm !== lesson.startTime) continue;
+        const startsAt = rezone(lesson.startsAt, fromTimeZone, toTimeZone);
+        if (startsAt.getTime() === lesson.startsAt.getTime()) continue;
+        await tx.update(lessons).set({ startsAt }).where(eq(lessons.id, lesson.id));
+        movedLessonIds.push(lesson.id);
+      }
+    });
+
+    for (const lessonId of movedLessonIds) {
+      await this.calendar.enqueueUpsert(userId, lessonId);
+    }
+    await this.invalidateUserCache(userId);
   }
 
   private async deleteFutureScheduledOccurrences(userId: string, recurringLessonId: string) {

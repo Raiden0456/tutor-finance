@@ -16,8 +16,11 @@ import {
   ResponsiveModalTrigger,
 } from '@/components/ui/responsive-modal';
 import { Plus } from 'lucide-react';
-import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
-import type { PricingMode, Student, IncomeTx } from '@/lib/types';
+import type { Currency } from '@tutor-finance/shared';
+import type { Student, IncomeTx } from '@/lib/types';
+import { buildStudentPayload } from '@/lib/student-payload';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import { TabSwitcher } from '../transactions-island/tab-switcher';
 import { StudentCard } from './student-card';
 import { StudentDialog, EmptyState } from './student-dialog';
@@ -41,6 +44,7 @@ export function StudentsIsland({ locale, ...props }: Props) {
 
 function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props, 'locale'>) {
   const { t } = useI18n();
+  const { run, pending } = useMutation();
   const [students, setStudents] = useState(initial);
   const [tab, setTab] = useState<StudentsTab>('active');
   const [editing, setEditing] = useState<Student | null>(null);
@@ -80,67 +84,35 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
   }
 
   async function handleSubmit(form: HTMLFormElement) {
-    const data = new FormData(form);
-    const name = String(data.get('name') ?? '').trim();
-    const email = String(data.get('email') ?? '').trim() || undefined;
-    const phone = String(data.get('phone') ?? '').trim() || undefined;
-    const notes = String(data.get('notes') ?? '').trim() || undefined;
-    const meetingLink = String(data.get('meetingLink') ?? '').trim() || undefined;
-    const telegramLink = String(data.get('telegramLink') ?? '').trim() || undefined;
-    const whatsappLink = String(data.get('whatsappLink') ?? '').trim() || undefined;
-    const pricingMode = String(data.get('pricingMode') ?? 'hourly') as PricingMode;
-    const input: Record<string, unknown> = {
-      name,
-      email,
-      phone,
-      pricingMode,
-      meetingLink,
-      telegramLink,
-      whatsappLink,
-      notes,
-    };
-
-    if (pricingMode === 'hourly') {
-      const currency = String(data.get('currency') ?? 'USD') as Currency;
-      input.hourlyRate = {
-        amount: parseMajorToMinor(String(data.get('rate') ?? ''), currency),
-        currency,
-      };
-      input.ratePeriodMin = Number(data.get('ratePeriodMin') ?? 60);
-      input.defaultCurrency = currency;
-    } else {
-      const currency = String(data.get('packageCurrency') ?? 'USD') as Currency;
-      input.package = {
-        lessonCount: Number(data.get('packageLessonCount') ?? 0),
-        price: {
-          amount: parseMajorToMinor(String(data.get('packagePrice') ?? ''), currency),
-          currency,
-        },
-      };
-      input.defaultCurrency = currency;
-    }
-    if (editing) {
-      const updated = await api.patch<Student>(`/students/${editing.id}`, input);
-      setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setEditing(null);
-    } else {
-      const created = await api.post<Student>('/students', input);
-      setStudents((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-    }
-    setOpen(false);
+    await run(async () => {
+      const input = buildStudentPayload(form);
+      if (editing) {
+        const updated = await api.patch<Student>(`/students/${editing.id}`, input);
+        setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+        setEditing(null);
+      } else {
+        const created = await api.post<Student>('/students', input);
+        setStudents((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      setOpen(false);
+    });
   }
 
   async function archive(id: string) {
-    await api.post(`/students/${id}/archive`);
-    setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, archivedAt: new Date().toISOString() } : s)),
-    );
-    setArchiveId(null);
+    await run(async () => {
+      await api.post(`/students/${id}/archive`);
+      setStudents((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, archivedAt: new Date().toISOString() } : s)),
+      );
+      setArchiveId(null);
+    });
   }
 
   async function restore(id: string) {
-    await api.delete(`/students/${id}/archive`);
-    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, archivedAt: null } : s)));
+    await run(async () => {
+      await api.delete(`/students/${id}/archive`);
+      setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, archivedAt: null } : s)));
+    });
   }
 
   return (
@@ -247,7 +219,12 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
             <Button variant="outline" onClick={() => setArchiveId(null)}>
               {t('Cancel')}
             </Button>
-            <Button variant="destructive" onClick={() => archiveId && archive(archiveId)}>
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() => archiveId && archive(archiveId)}
+            >
+              {pending && <Spinner />}
               {t('Archive')}
             </Button>
           </ResponsiveModalFooter>

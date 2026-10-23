@@ -26,6 +26,7 @@ import { LessonCard } from '~/components/lessons/lesson-card';
 import { LessonForm } from '~/components/forms/lesson-form';
 import { RecurringLessonForm } from '~/components/forms/recurring-lesson-form';
 import { EmptyState } from '~/components/common/empty-state';
+import { ErrorState } from '~/components/common/error-state';
 import { Fab } from '~/components/common/fab';
 import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
@@ -46,6 +47,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useMutation } from '~/lib/use-mutation';
 import { capitalizeFirst, getDateFnsLocale, useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import { formatDate } from '~/lib/format';
@@ -77,7 +79,13 @@ export default function LessonsScreen() {
             ]}
           />
           <TabFade tabKey={tab}>
-            {tab === 'calendar' ? (
+            {students.error && !students.data ? (
+              <ErrorState
+                message={students.error}
+                onRetry={students.refetch}
+                retrying={students.loading}
+              />
+            ) : tab === 'calendar' ? (
               <CalendarTab
                 students={students.data ?? []}
                 formOpen={logOpen}
@@ -254,7 +262,9 @@ function CalendarTab({
             ) : null}
           </View>
 
-          {lessons.loading && (lessons.data ?? []).length === 0 ? (
+          {lessons.error && !lessons.data ? (
+            <ErrorState message={lessons.error} onRetry={lessons.refetch} retrying={lessons.loading} />
+          ) : lessons.loading && (lessons.data ?? []).length === 0 ? (
             <Skeleton className="h-20 w-full" />
           ) : dayLessons.length === 0 ? (
             <View className="items-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10">
@@ -335,11 +345,11 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
   const [confirmAll, setConfirmAll] = React.useState(false);
   const list = (archived.data ?? []).filter((l) => l.archivedAt);
 
-  const deleteAll = async () => {
+  const deleteAll = useMutation(async () => {
     await api.delete('lessons/archive');
     setConfirmAll(false);
     void archived.refetch();
-  };
+  });
 
   return (
     <View className="mt-1 gap-2">
@@ -356,7 +366,9 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
         ) : null}
       </View>
 
-      {archived.loading && list.length === 0 ? (
+      {archived.error && !archived.data ? (
+        <ErrorState message={archived.error} onRetry={archived.refetch} retrying={archived.loading} />
+      ) : archived.loading && list.length === 0 ? (
         <Skeleton className="h-20 w-full" />
       ) : list.length === 0 ? (
         <EmptyState title={t('No archived lessons')} />
@@ -393,7 +405,11 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onPress={deleteAll}>
+            <AlertDialogAction
+              className="bg-destructive"
+              disabled={deleteAll.pending}
+              onPress={() => void deleteAll.run()}
+            >
               <Text>{t('Delete all')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -412,12 +428,12 @@ function SchedulesTab({ students }: { students: Student[] }) {
 
   const nameOf = (id: string) => students.find((s) => s.id === id)?.name ?? t('Student');
 
-  const remove = async () => {
+  const remove = useMutation(async () => {
     if (!toDelete) return;
     await api.delete(`recurring-lessons/${toDelete.id}`);
     setToDelete(null);
     void schedules.refetch();
-  };
+  });
 
   return (
     <View className="gap-3">
@@ -437,7 +453,9 @@ function SchedulesTab({ students }: { students: Student[] }) {
         <Text>{t('Add schedule')}</Text>
       </Button>
 
-      {schedules.loading && (schedules.data ?? []).length === 0 ? (
+      {schedules.error && !schedules.data ? (
+        <ErrorState message={schedules.error} onRetry={schedules.refetch} retrying={schedules.loading} />
+      ) : schedules.loading && (schedules.data ?? []).length === 0 ? (
         <Skeleton className="h-24 w-full" />
       ) : (schedules.data ?? []).length === 0 ? (
         <EmptyState icon={CalendarDays} title={t('No recurring schedules yet.')} />
@@ -492,7 +510,11 @@ function SchedulesTab({ students }: { students: Student[] }) {
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onPress={remove}>
+            <AlertDialogAction
+              className="bg-destructive"
+              disabled={remove.pending}
+              onPress={() => void remove.run()}
+            >
               <Text>{t('Delete')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>

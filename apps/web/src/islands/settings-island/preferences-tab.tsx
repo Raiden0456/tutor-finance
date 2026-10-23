@@ -31,6 +31,7 @@ type Props = {
   primaryCurrency: Currency;
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
+  timezone: string;
   saving: boolean;
   saved: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -45,6 +46,7 @@ export function PreferencesTab({
   primaryCurrency,
   weekStartsOn,
   lessonReminderMinutes,
+  timezone,
   saving,
   saved,
   t,
@@ -135,6 +137,14 @@ export function PreferencesTab({
               ) : null}
             </div>
             <p className="text-xs text-muted-foreground">{t('Minutes before lesson')}</p>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>{t('Time zone')}</Label>
+            <Input value={timezone} readOnly className="transition-all duration-200 ease-in-out" />
+            <p className="text-xs text-muted-foreground">
+              {t('Detected automatically from your device')}
+            </p>
           </div>
 
           <div className="pt-2">

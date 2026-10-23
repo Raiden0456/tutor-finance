@@ -6,9 +6,14 @@ export const RU_DICT: Record<string, string> = {
   Theme: 'Тема',
   'Lesson reminder': 'Напоминание об уроке',
   'Minutes before lesson': 'Минут до начала урока',
+  'Time zone': 'Часовой пояс',
+  'Detected automatically from your device': 'Определяется автоматически по вашему устройству',
   '{count} min': '{count} мин',
   '1 hour': '1 час',
   '{count} unpaid': '{count} не оплачено',
+  'Something went wrong': 'Что-то пошло не так',
+  "Couldn't load data": 'Не удалось загрузить данные',
+  'No internet connection': 'Нет подключения к интернету',
   // Navigation / common
   Dashboard: 'Панель',
   Students: 'Ученики',
@@ -117,6 +122,10 @@ export const RU_DICT: Record<string, string> = {
   'Resend reset link': 'Отправить ссылку для сброса ещё раз',
   'Send verification link': 'Отправить ссылку подтверждения',
   'Back to sign in': 'Назад ко входу',
+  'Page not found': 'Страница не найдена',
+  'This page does not exist or you do not have access to it.':
+    'Эта страница не существует или у вас нет к ней доступа.',
+  'Back to dashboard': 'Назад к панели',
   'This reset link is invalid or expired. Request a new one.':
     'Эта ссылка для сброса недействительна или истекла. Запросите новую.',
   'Missing reset token. Use the link from your email.':
@@ -283,6 +292,7 @@ export const RU_DICT: Record<string, string> = {
   'Meeting link': 'Ссылка на встречу',
   'Join meeting': 'Открыть встречу',
   'Price override': 'Переопределить цену',
+  'Effective price': 'Итоговая цена',
   'Mark as Paid': 'Оплачено',
   'Pay Remaining': 'Оплатить остаток',
   'Partial Payment': 'Частичная оплата',

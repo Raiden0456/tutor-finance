@@ -11,6 +11,7 @@ import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
 import { StaggerItem } from '~/components/common/stagger';
 import { EmptyState } from '~/components/common/empty-state';
+import { ErrorState } from '~/components/common/error-state';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Progress } from '~/components/ui/progress';
 import { Skeleton } from '~/components/ui/skeleton';
@@ -118,7 +119,13 @@ export default function StudentsScreen() {
               ]}
             />
             <TabFade tabKey={tab}>
-              {students.loading && all.length === 0 ? (
+              {students.error && !students.data ? (
+                <ErrorState
+                  message={students.error}
+                  onRetry={students.refetch}
+                  retrying={students.loading}
+                />
+              ) : students.loading && all.length === 0 ? (
                 <View className="gap-2">
                   <Skeleton className="h-16 w-full" />
                   <Skeleton className="h-16 w-full" />

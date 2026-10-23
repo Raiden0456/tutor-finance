@@ -1,10 +1,6 @@
 import * as React from 'react';
 import { useFocusEffect } from 'expo-router';
 
-/**
- * Minimal data hook: runs `fn` on mount / when deps change / on screen focus,
- * tracking loading + error, and exposes a manual `refetch` (for pull-to-refresh).
- */
 export function useApiQuery<T>(fn: () => Promise<T>, deps: React.DependencyList = []) {
   const [data, setData] = React.useState<T | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -24,10 +20,6 @@ export function useApiQuery<T>(fn: () => Promise<T>, deps: React.DependencyList 
       setLoading(false);
     }
   }, deps);
-
-  React.useEffect(() => {
-    void run();
-  }, [run]);
 
   useFocusEffect(
     React.useCallback(() => {

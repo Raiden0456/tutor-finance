@@ -15,6 +15,9 @@ import { api } from '@/lib/api';
 import { fmtMajor, fmtMoney } from '@/lib/format';
 import { I18nProvider, localizePath, useI18n, type Locale } from '@/lib/i18n';
 import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
+import { buildStudentPayload } from '@/lib/student-payload';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { TelegramIcon, WhatsAppIcon } from '@/components/social-icons';
 import { Input } from '@/components/ui/input';
@@ -30,7 +33,7 @@ import {
 } from '@/components/ui/responsive-modal';
 import { LessonCard } from '@/components/lesson-card';
 import { StudentDialog } from '@/islands/students-island/student-dialog';
-import type { Lesson, PricingMode, Student } from '@/lib/types';
+import type { Lesson, Student } from '@/lib/types';
 
 const AVATAR_TINTS = [
   'var(--tf-indigo)',
@@ -80,6 +83,7 @@ function StudentDetailContent({
   backUrl = '/students',
 }: Omit<Props, 'locale'>) {
   const { locale, t } = useI18n();
+  const { run, pending } = useMutation();
   const [student, setStudent] = useState(initialStudent);
   const [lessons, setLessons] = useState(initialLessons);
   const [totalIncome, setTotalIncome] = useState(initialTotalIncome);
@@ -139,73 +143,44 @@ function StudentDetailContent({
   }, [activePackage, lessons]);
 
   async function handleEditSubmit(form: HTMLFormElement) {
-    const data = new FormData(form);
-    const name = String(data.get('name') ?? '').trim();
-    const email = String(data.get('email') ?? '').trim() || undefined;
-    const phone = String(data.get('phone') ?? '').trim() || undefined;
-    const notes = String(data.get('notes') ?? '').trim() || undefined;
-    const meetingLink = String(data.get('meetingLink') ?? '').trim() || undefined;
-    const telegramLink = String(data.get('telegramLink') ?? '').trim() || undefined;
-    const whatsappLink = String(data.get('whatsappLink') ?? '').trim() || undefined;
-    const pricingMode = String(data.get('pricingMode') ?? 'hourly') as PricingMode;
-    const body: Record<string, unknown> = {
-      name,
-      email,
-      phone,
-      pricingMode,
-      meetingLink,
-      telegramLink,
-      whatsappLink,
-      notes,
-    };
-
-    if (pricingMode === 'hourly') {
-      const currency = String(data.get('currency') ?? 'USD') as Currency;
-      body.hourlyRate = {
-        amount: parseMajorToMinor(String(data.get('rate') ?? '0'), currency),
-        currency,
-      };
-      body.ratePeriodMin = Number(data.get('ratePeriodMin') ?? 60);
-      body.defaultCurrency = currency;
-    } else {
-      const currency = String(data.get('packageCurrency') ?? 'USD') as Currency;
-      body.package = {
-        lessonCount: Number(data.get('packageLessonCount') ?? 0),
-        price: {
-          amount: parseMajorToMinor(String(data.get('packagePrice') ?? ''), currency),
-          currency,
-        },
-      };
-      body.defaultCurrency = currency;
-    }
-
-    const updated = await api.patch<Student>(`/students/${student.id}`, body);
-    setStudent(updated);
-    setEditOpen(false);
+    await run(async () => {
+      const updated = await api.patch<Student>(
+        `/students/${student.id}`,
+        buildStudentPayload(form),
+      );
+      setStudent(updated);
+      setEditOpen(false);
+    });
   }
 
   async function handleArchive() {
-    await api.post(`/students/${student.id}/archive`);
-    window.location.href = localizePath('/students', locale);
+    await run(async () => {
+      await api.post(`/students/${student.id}/archive`);
+      window.location.href = localizePath('/students', locale);
+    });
   }
 
   async function handleClosePackage(form: HTMLFormElement) {
     const data = new FormData(form);
     const coveredLessons = Number(data.get('coveredLessons') ?? 0);
-    const updated = await api.post<Student>(`/students/${student.id}/package/close`, {
-      coveredLessons,
+    await run(async () => {
+      const updated = await api.post<Student>(`/students/${student.id}/package/close`, {
+        coveredLessons,
+      });
+      setStudent(updated);
+      setClosePackageOpen(false);
     });
-    setStudent(updated);
-    setClosePackageOpen(false);
   }
 
-  async function handlePackagePayment(paidAmount: number) {
-    const updated = await api.post<Student>(`/students/${student.id}/package/payment`, {
-      paidAmount,
+  async function handlePackagePayment(getPaidAmount: () => number) {
+    await run(async () => {
+      const updated = await api.post<Student>(`/students/${student.id}/package/payment`, {
+        paidAmount: getPaidAmount(),
+      });
+      setStudent(updated);
+      setPackagePaymentOpen(false);
+      await reloadStudentFinancials();
     });
-    setStudent(updated);
-    setPackagePaymentOpen(false);
-    await reloadStudentFinancials();
   }
 
   async function reloadStudentFinancials() {
@@ -314,7 +289,8 @@ function StudentDetailContent({
                   <Button variant="outline" onClick={() => setArchiveOpen(false)}>
                     {t('Cancel')}
                   </Button>
-                  <Button variant="destructive" onClick={handleArchive}>
+                  <Button variant="destructive" disabled={pending} onClick={handleArchive}>
+                    {pending && <Spinner />}
                     {t('Archive')}
                   </Button>
                 </ResponsiveModalFooter>
@@ -451,9 +427,10 @@ function StudentDetailContent({
                   <Button
                     size="sm"
                     className="flex-1"
-                    onClick={() => handlePackagePayment(activePackage.price.amount)}
+                    disabled={pending}
+                    onClick={() => handlePackagePayment(() => activePackage.price.amount)}
                   >
-                    <Banknote className="h-4 w-4" />
+                    {pending ? <Spinner /> : <Banknote className="h-4 w-4" />}
                     {t('Mark package paid')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setPackagePaymentOpen(true)}>
@@ -588,7 +565,7 @@ function StudentDetailContent({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleClosePackage(e.currentTarget);
+              if (!pending) handleClosePackage(e.currentTarget);
             }}
             className="flex min-h-0 flex-1 flex-col gap-4"
           >
@@ -615,7 +592,10 @@ function StudentDetailContent({
               <Button variant="outline" type="button" onClick={() => setClosePackageOpen(false)}>
                 {t('Cancel')}
               </Button>
-              <Button type="submit">{t('Close package')}</Button>
+              <Button type="submit" disabled={pending}>
+                {pending && <Spinner />}
+                {t('Close package')}
+              </Button>
             </ResponsiveModalFooter>
           </form>
         </ResponsiveModalContent>
@@ -629,11 +609,10 @@ function StudentDetailContent({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const data = new FormData(e.currentTarget);
-              const raw = String(data.get('paidAmount') ?? '').trim();
+              if (pending) return;
+              const raw = String(new FormData(e.currentTarget).get('paidAmount') ?? '');
               const currency = activePackage?.price.currency ?? primaryCurrency;
-              const paidAmount = parseMajorToMinor(raw, currency);
-              if (paidAmount >= 0) handlePackagePayment(paidAmount);
+              handlePackagePayment(() => parseMajorToMinor(raw, currency));
             }}
             className="flex min-h-0 flex-1 flex-col gap-4"
           >
@@ -677,7 +656,10 @@ function StudentDetailContent({
               <Button variant="outline" type="button" onClick={() => setPackagePaymentOpen(false)}>
                 {t('Cancel')}
               </Button>
-              <Button type="submit">{t('Save')}</Button>
+              <Button type="submit" disabled={pending}>
+                {pending && <Spinner />}
+                {t('Save')}
+              </Button>
             </ResponsiveModalFooter>
           </form>
         </ResponsiveModalContent>

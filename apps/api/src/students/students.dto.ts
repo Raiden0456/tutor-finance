@@ -4,6 +4,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
   MinLength,
   ValidateNested,
@@ -17,9 +19,12 @@ import {
   type StudentLessonPackage,
 } from '@tutor-finance/shared';
 
+export const MAX_MINOR_AMOUNT = 1_000_000_000_000;
+
 export class MoneyDto {
   @IsInt()
   @Min(0)
+  @Max(MAX_MINOR_AMOUNT)
   amount!: number;
 
   @IsIn(SUPPORTED_CURRENCIES as unknown as string[])
@@ -29,6 +34,7 @@ export class MoneyDto {
 export class LessonPackageDto {
   @IsInt()
   @Min(1)
+  @Max(1000)
   lessonCount!: number;
 
   @ValidateNested()
@@ -39,14 +45,17 @@ export class LessonPackageDto {
 export class CreateStudentDto {
   @IsString()
   @MinLength(1)
+  @MaxLength(200)
   name!: string;
 
   @IsOptional()
   @IsEmail()
+  @MaxLength(200)
   email?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   phone?: string;
 
   @IsOptional()
@@ -57,6 +66,7 @@ export class CreateStudentDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(1440)
   ratePeriodMin?: number;
 
   @IsOptional()
@@ -74,18 +84,22 @@ export class CreateStudentDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   meetingLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   telegramLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   whatsappLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string;
 }
 
@@ -93,14 +107,17 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
+  @MaxLength(200)
   name?: string;
 
   @IsOptional()
   @IsEmail()
+  @MaxLength(200)
   email?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   phone?: string;
 
   @IsOptional()
@@ -111,6 +128,7 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(1440)
   ratePeriodMin?: number;
 
   @IsOptional()
@@ -129,30 +147,36 @@ export class UpdateStudentDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   meetingLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   telegramLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   whatsappLink?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string;
 }
 
 export class CloseStudentPackageDto {
   @IsInt()
   @Min(0)
+  @Max(1000)
   coveredLessons!: number;
 }
 
 export class UpdateStudentPackagePaymentDto {
   @IsInt()
   @Min(0)
+  @Max(MAX_MINOR_AMOUNT)
   paidAmount!: number;
 }
 

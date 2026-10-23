@@ -10,6 +10,7 @@ import { Input } from '~/components/ui/input';
 import { Spinner } from '~/components/ui/spinner';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useMutation } from '~/lib/use-mutation';
 import { currencyOptions, categoryOptions, EXPENSE_CATEGORIES } from '~/lib/catalog';
 import { useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
@@ -34,7 +35,6 @@ export function RecurringForm({
   const [category, setCategory] = React.useState('rent');
   const [description, setDescription] = React.useState('');
   const [frequency, setFrequency] = React.useState<Frequency>('monthly');
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -54,23 +54,16 @@ export function RecurringForm({
     { value: 'yearly', label: t('Yearly') },
   ];
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     setError(null);
     const minor = toMinorUnits(Number(amount) || 0, currency);
     if (minor < 1) return setError(t('Amount'));
-    setSaving(true);
-    try {
-      const payload = { amount: minor, currency, category, description: description.trim() || undefined, frequency };
-      if (recurring) await api.patch(`recurring/${recurring.id}`, payload);
-      else await api.post('recurring', payload);
-      onOpenChange(false);
-      onSaved();
-    } catch {
-      setError(t('Error'));
-    } finally {
-      setSaving(false);
-    }
-  };
+    const payload = { amount: minor, currency, category, description: description.trim() || undefined, frequency };
+    if (recurring) await api.patch(`recurring/${recurring.id}`, payload);
+    else await api.post('recurring', payload);
+    onOpenChange(false);
+    onSaved();
+  }, { onError: setError });
 
   return (
     <FormSheet
@@ -78,8 +71,8 @@ export function RecurringForm({
       onOpenChange={onOpenChange}
       title={recurring ? t('Edit recurring expense') : t('New recurring expense')}
       footer={
-        <Button onPress={submit} disabled={saving}>
-          {saving ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
+        <Button onPress={() => void submit.run()} disabled={submit.pending}>
+          {submit.pending ? <Spinner color="#fff" /> : <Text>{t('Save')}</Text>}
         </Button>
       }
     >

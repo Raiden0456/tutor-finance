@@ -84,7 +84,7 @@ export const env = {
           }
         : undefined,
   },
-  fxApiUrl: optional('FX_API_URL', 'https://api.exchangerate.host/latest'),
+  fxApiUrl: optional('FX_API_URL', 'https://open.er-api.com/v6/latest'),
   cache: {
     enabled: bool('CACHE_ENABLED', isProd),
     redisUrl: optional('REDIS_URL', 'redis://localhost:6379'),

@@ -1,11 +1,13 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
+import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { convertMoney, type Currency, type TransactionType } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { students, transactions } from '../db/schema.js';
+import { students, transactions, type schema } from '../db/schema.js';
 import { FxService } from '../fx/fx.service.js';
 import type {
   CreateTransactionDto,
@@ -15,6 +17,8 @@ import type {
 } from './transactions.dto.js';
 
 type Row = typeof transactions.$inferSelect;
+
+export type DbExecutor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
 
 function baseResponse(r: Row): Omit<TransactionResponse, 'convertedAmount'> {
   return {
@@ -221,15 +225,18 @@ export class TransactionsService {
     await this.invalidateDashboard(userId);
   }
 
-  async upsertForPackage(args: {
-    userId: string;
-    packageId: string;
-    studentId: string;
-    amount: number;
-    currency: string;
-    occurredAt?: Date;
-    description?: string;
-  }) {
+  async upsertForPackage(
+    args: {
+      userId: string;
+      packageId: string;
+      studentId: string;
+      amount: number;
+      currency: string;
+      occurredAt?: Date;
+      description?: string;
+    },
+    executor: DbExecutor = this.db,
+  ) {
     const updateSet: Partial<typeof transactions.$inferInsert> = {
       type: 'income',
       amount: args.amount,
@@ -240,7 +247,7 @@ export class TransactionsService {
     };
     if (args.occurredAt) updateSet.occurredAt = args.occurredAt;
 
-    await this.db
+    await executor
       .insert(transactions)
       .values({
         userId: args.userId,
@@ -260,8 +267,8 @@ export class TransactionsService {
     await this.invalidateDashboard(args.userId);
   }
 
-  async deleteForPackage(userId: string, packageId: string) {
-    await this.db
+  async deleteForPackage(userId: string, packageId: string, executor: DbExecutor = this.db) {
+    await executor
       .delete(transactions)
       .where(
         and(eq(transactions.userId, userId), eq(transactions.studentLessonPackageId, packageId)),
@@ -274,7 +281,7 @@ export class TransactionsService {
       .select({
         type: transactions.type,
         currency: transactions.currency,
-        total: sql<number>`sum(${transactions.amount})::int`,
+        total: sql<string>`sum(${transactions.amount})`,
         count: sql<number>`count(*)::int`,
       })
       .from(transactions)
@@ -301,7 +308,7 @@ export class TransactionsService {
         date: day,
         type: transactions.type,
         currency: transactions.currency,
-        total: sql<number>`sum(${transactions.amount})::int`,
+        total: sql<string>`sum(${transactions.amount})`,
       })
       .from(transactions)
       .where(

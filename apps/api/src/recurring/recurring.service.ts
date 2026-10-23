@@ -7,12 +7,20 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
-import type { Currency, Frequency } from '@tutor-finance/shared';
+import {
+  DEFAULT_TIMEZONE,
+  civilDate,
+  civilDateToUtc,
+  rezone,
+  type Currency,
+  type Frequency,
+} from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
-import { recurringExpenses, transactions } from '../db/schema.js';
+import { recurringExpenses, transactions, userSettings } from '../db/schema.js';
+import { getUserTimeZone } from '../settings/user-timezone.js';
 import type { CreateRecurringDto, RecurringResponse, UpdateRecurringDto } from './recurring.dto.js';
 
 type Row = typeof recurringExpenses.$inferSelect;
@@ -33,22 +41,36 @@ function toResponse(r: Row): RecurringResponse {
   };
 }
 
-function calcNextDue(d: Date, freq: Frequency): Date {
-  const next = new Date(d);
-  switch (freq) {
-    case 'daily':
-      next.setDate(next.getDate() + 1);
-      break;
-    case 'weekly':
-      next.setDate(next.getDate() + 7);
-      break;
-    case 'monthly':
-      next.setMonth(next.getMonth() + 1);
-      break;
-    case 'yearly':
-      next.setFullYear(next.getFullYear() + 1);
-      break;
+const DAY_MS = 24 * 3600 * 1000;
+const MAX_CATCH_UP = 366;
+
+function toCivilDate(value: string, timeZone: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00Z`);
+  return civilDate(new Date(value), timeZone);
+}
+
+function addMonthsClamped(anchor: Date, months: number): Date {
+  const y = anchor.getUTCFullYear();
+  const m = anchor.getUTCMonth() + months;
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(anchor.getUTCDate(), lastDay)));
+}
+
+function firstOccurrenceOnOrAfter(anchor: Date, cursor: Date, freq: Frequency): Date {
+  if (cursor <= anchor) return anchor;
+  if (freq === 'daily') return cursor;
+  if (freq === 'weekly') {
+    const weeks = Math.ceil((cursor.getTime() - anchor.getTime()) / (7 * DAY_MS));
+    return new Date(anchor.getTime() + weeks * 7 * DAY_MS);
   }
+  const step = freq === 'yearly' ? 12 : 1;
+  const monthsApart =
+    (cursor.getUTCFullYear() - anchor.getUTCFullYear()) * 12 +
+    cursor.getUTCMonth() -
+    anchor.getUTCMonth();
+  let k = Math.max(0, Math.floor(monthsApart / step));
+  let next = addMonthsClamped(anchor, k * step);
+  while (next < cursor) next = addMonthsClamped(anchor, ++k * step);
   return next;
 }
 
@@ -79,8 +101,10 @@ export class RecurringService implements OnModuleInit {
   }
 
   async create(userId: string, input: CreateRecurringDto): Promise<RecurringResponse> {
-    const startDate = input.startDate ? new Date(input.startDate) : new Date();
-    startDate.setHours(0, 0, 0, 0);
+    const timeZone = await getUserTimeZone(this.db, userId);
+    const startDate = input.startDate
+      ? toCivilDate(input.startDate, timeZone)
+      : civilDate(new Date(), timeZone);
     const [row] = await this.db
       .insert(recurringExpenses)
       .values({
@@ -91,12 +115,11 @@ export class RecurringService implements OnModuleInit {
         description: input.description ?? null,
         frequency: input.frequency,
         startDate,
-        nextDueAt: startDate,
+        nextDueAt: civilDateToUtc(startDate, timeZone),
         isActive: true,
       })
       .returning();
     await this.invalidateUserCache(userId);
-    // dispatch immediately if start date is today or past
     await this.dispatch();
     return toResponse(row!);
   }
@@ -150,8 +173,9 @@ export class RecurringService implements OnModuleInit {
   async dispatch() {
     const now = new Date();
     const due = await this.db
-      .select()
+      .select({ expense: recurringExpenses, timezone: userSettings.timezone })
       .from(recurringExpenses)
+      .leftJoin(userSettings, eq(userSettings.userId, recurringExpenses.userId))
       .where(
         and(
           eq(recurringExpenses.isActive, true),
@@ -160,11 +184,15 @@ export class RecurringService implements OnModuleInit {
         ),
       );
 
-    for (const expense of due) {
-      let nextDue = new Date(expense.nextDueAt);
+    for (const { expense, timezone } of due) {
+      const timeZone = timezone ?? DEFAULT_TIMEZONE;
+      const freq = expense.frequency as Frequency;
+      const anchor = civilDate(expense.startDate, 'UTC');
+      let day = firstOccurrenceOnOrAfter(anchor, civilDate(expense.nextDueAt, timeZone), freq);
+      let dueAt = civilDateToUtc(day, timeZone);
       let count = 0;
       await this.db.transaction(async (tx) => {
-        while (nextDue <= now && count < 366) {
+        while (dueAt <= now && count < MAX_CATCH_UP) {
           await tx
             .insert(transactions)
             .values({
@@ -172,7 +200,7 @@ export class RecurringService implements OnModuleInit {
               type: 'expense',
               amount: expense.amount,
               currency: expense.currency,
-              occurredAt: new Date(nextDue),
+              occurredAt: dueAt,
               category: expense.category,
               description: expense.description,
               recurringExpenseId: expense.id,
@@ -180,16 +208,34 @@ export class RecurringService implements OnModuleInit {
             .onConflictDoNothing({
               target: [transactions.recurringExpenseId, transactions.occurredAt],
             });
-          nextDue = calcNextDue(nextDue, expense.frequency as Frequency);
+          day = firstOccurrenceOnOrAfter(anchor, new Date(day.getTime() + DAY_MS), freq);
+          dueAt = civilDateToUtc(day, timeZone);
           count++;
         }
         await tx
           .update(recurringExpenses)
-          .set({ nextDueAt: nextDue })
+          .set({ nextDueAt: dueAt })
           .where(eq(recurringExpenses.id, expense.id));
       });
       await this.invalidateUserCache(expense.userId);
     }
+  }
+
+  async rezone(userId: string, fromTimeZone: string, toTimeZone: string): Promise<void> {
+    const rows = await this.db
+      .select({ id: recurringExpenses.id, nextDueAt: recurringExpenses.nextDueAt })
+      .from(recurringExpenses)
+      .where(and(eq(recurringExpenses.userId, userId), isNull(recurringExpenses.deletedAt)));
+    if (rows.length === 0) return;
+    await this.db.transaction(async (tx) => {
+      for (const row of rows) {
+        await tx
+          .update(recurringExpenses)
+          .set({ nextDueAt: rezone(row.nextDueAt, fromTimeZone, toTimeZone) })
+          .where(eq(recurringExpenses.id, row.id));
+      }
+    });
+    await this.invalidateUserCache(userId);
   }
 
   private async invalidateUserCache(userId: string): Promise<void> {

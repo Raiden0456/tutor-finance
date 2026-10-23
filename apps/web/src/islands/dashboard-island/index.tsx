@@ -10,7 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { errorMessage } from '@/hooks/use-mutation';
 import { createTranslator, I18nProvider, type Locale } from '@/lib/i18n';
 import { fmtMoney } from '@/lib/format';
 import { SUPPORTED_CURRENCIES, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
@@ -93,6 +95,7 @@ export function DashboardIsland({
   const [todayLessons, setTodayLessons] = useState<RecentLesson[]>(initialTodayLessons);
   const [loading, setLoading] = useState(false);
   const isFirst = useRef(true);
+  const summaryRequestId = useRef(0);
 
   const todayStart = useMemo(() => {
     const d = new Date();
@@ -107,11 +110,12 @@ export function DashboardIsland({
   const weekEnd = useMemo(() => endOfWeek(new Date(), { weekStartsOn }), [weekStartsOn]);
 
   const refreshSummary = useCallback(async () => {
+    const requestId = ++summaryRequestId.current;
     const { from, to } = resolveRange(range);
     const fresh = await api.get<Summary>('/dashboard/summary', {
       query: { from: from.toISOString(), to: to.toISOString(), target: currency },
     });
-    setSummary(fresh);
+    if (requestId === summaryRequestId.current) setSummary(fresh);
   }, [range, currency]);
 
   useEffect(() => {
@@ -123,7 +127,7 @@ export function DashboardIsland({
     setLoading(true);
     refreshSummary()
       .catch((error) => {
-        if (!cancelled) console.error('Failed to refresh dashboard summary', error);
+        if (!cancelled) toast.error(errorMessage(error, t));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -159,8 +163,12 @@ export function DashboardIsland({
   }, [todayStart, todayEnd, weekEnd]);
 
   const refreshDashboard = useCallback(async () => {
-    await Promise.all([refreshToday(), refreshSummary()]);
-  }, [refreshToday, refreshSummary]);
+    try {
+      await Promise.all([refreshToday(), refreshSummary()]);
+    } catch (error) {
+      toast.error(errorMessage(error, t));
+    }
+  }, [refreshToday, refreshSummary, t]);
 
   const displayNextLesson =
     nextLesson && new Date(nextLesson.startsAt) <= weekEnd ? nextLesson : null;

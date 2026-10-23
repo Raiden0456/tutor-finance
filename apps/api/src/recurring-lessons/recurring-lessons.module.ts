@@ -7,5 +7,6 @@ import { GoogleCalendarModule } from '../google-calendar/google-calendar.module.
   imports: [GoogleCalendarModule],
   controllers: [RecurringLessonsController],
   providers: [RecurringLessonsService],
+  exports: [RecurringLessonsService],
 })
 export class RecurringLessonsModule {}

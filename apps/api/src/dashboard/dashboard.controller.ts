@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res, ServiceUnavailableException } from '@nestjs/common';
 import type { Response } from 'express';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
 import {
@@ -47,6 +47,19 @@ interface PeriodSummary {
   targetCurrency: Currency;
 }
 
+function toTarget(
+  amount: number,
+  currency: Currency,
+  target: Currency,
+  rates: Record<string, number>,
+): number {
+  try {
+    return convertMoney({ amount, currency }, target, rates).amount;
+  } catch (err) {
+    throw new ServiceUnavailableException((err as Error).message);
+  }
+}
+
 @Controller('dashboard')
 export class DashboardController {
   constructor(
@@ -92,25 +105,10 @@ export class DashboardController {
       else expense.push(total);
     }
 
-    let rates: Record<string, number> = {};
-    try {
-      rates = await this.fx.getRatesMap();
-    } catch {
-      rates = {};
-    }
+    const rates = await this.fx.getRatesMap();
 
-    const sumIn = (rs: { amount: number; currency: Currency }[]) => {
-      let acc = 0;
-      for (const r of rs) {
-        try {
-          const c = convertMoney({ amount: r.amount, currency: r.currency }, targetCurrency, rates);
-          acc += c.amount;
-        } catch {
-          if (r.currency === targetCurrency) acc += r.amount;
-        }
-      }
-      return acc;
-    };
+    const sumIn = (rs: { amount: number; currency: Currency }[]) =>
+      rs.reduce((acc, r) => acc + toTarget(r.amount, r.currency, targetCurrency, rates), 0);
 
     const incomeT = sumIn(income);
     const expenseT = sumIn(expense);
@@ -156,21 +154,10 @@ export class DashboardController {
       this.lessons.plannedIncomeDailyRaw(user.id, from, to),
     ]);
 
-    let rates: Record<string, number> = {};
-    try {
-      rates = await this.fx.getRatesMap();
-    } catch {
-      rates = {};
-    }
+    const rates = await this.fx.getRatesMap();
 
-    const convertToTarget = (amount: number, currency: Currency) => {
-      if (currency === targetCurrency) return amount;
-      try {
-        return convertMoney({ amount, currency }, targetCurrency, rates).amount;
-      } catch {
-        return 0;
-      }
-    };
+    const convertToTarget = (amount: number, currency: Currency) =>
+      toTarget(amount, currency, targetCurrency, rates);
 
     const byDate = new Map<string, DailyStatsRow>();
     const getRow = (date: string) => {

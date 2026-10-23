@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { DEFAULT_TIMEZONE, civilDate, civilDateToUtc, zonedParts } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import type { Database } from '../db/client.js';
@@ -22,6 +23,7 @@ const DEFAULT_REMINDER_MINUTES = 30;
 const LESSON_REMINDER_WINDOW_BEFORE_MS = 30 * 1000;
 const LESSON_REMINDER_WINDOW_AFTER_MS = 90 * 1000;
 const DUE_STATUSES = ['due', 'partially_paid'] as const;
+const DAILY_SUMMARY_LOCAL_HOUR = 9;
 
 const NOTIFICATION_TYPES = {
   lessonReminder: 'lesson_reminder',
@@ -119,6 +121,7 @@ export class NotificationsService {
         studentName: students.name,
         reminderMinutes: sql<number>`coalesce(${userSettings.lessonReminderMinutes}, ${DEFAULT_REMINDER_MINUTES})`,
         locale: sql<string>`coalesce(${userSettings.locale}, 'en')`,
+        timezone: userSettings.timezone,
       })
       .from(lessons)
       .leftJoin(
@@ -144,27 +147,26 @@ export class NotificationsService {
         entityId: lesson.id,
         scheduledFor: lesson.startsAt,
         title: lessonReminderTitle(lesson.locale, minutes),
-        body: `${studentName} · ${formatTime(lesson.startsAt)}`,
+        body: `${studentName} · ${formatTime(lesson.startsAt, lesson.locale, lesson.timezone ?? DEFAULT_TIMEZONE)}`,
         path: `/lessons/${lesson.id}`,
       });
     }
   }
 
-  @Cron('0 9 * * *')
+  @Cron('0 * * * *')
   async dispatchDailyDueSummary(): Promise<void> {
     if (!env.push.enabled) return;
 
     await this.markStaleLessonsDue();
 
-    const scheduledFor = new Date();
-    scheduledFor.setUTCHours(0, 0, 0, 0);
-
+    const now = new Date();
     const rows = await this.db
       .select({
         userId: lessons.userId,
         dueCount: sql<number>`cast(count(${lessons.id}) as integer)`,
         studentCount: sql<number>`cast(count(distinct ${lessons.studentId}) as integer)`,
         locale: sql<string>`coalesce(min(${userSettings.locale}), 'en')`,
+        timezone: sql<string>`coalesce(min(${userSettings.timezone}), ${DEFAULT_TIMEZONE})`,
       })
       .from(lessons)
       .leftJoin(userSettings, eq(userSettings.userId, lessons.userId))
@@ -174,12 +176,13 @@ export class NotificationsService {
     for (const row of rows) {
       const dueCount = Number(row.dueCount);
       if (dueCount <= 0) continue;
+      if (zonedParts(now, row.timezone).hour !== DAILY_SUMMARY_LOCAL_HOUR) continue;
 
       await this.queueAndSend({
         userId: row.userId,
         type: NOTIFICATION_TYPES.dailyDueSummary,
         entityId: row.userId,
-        scheduledFor,
+        scheduledFor: civilDateToUtc(civilDate(now, row.timezone), row.timezone),
         title: row.locale === 'ru' ? 'Ожидается оплата' : 'Payments due',
         body: dailyDueBody(row.locale, dueCount, Number(row.studentCount)),
         path: '/transactions',
@@ -361,8 +364,10 @@ function dailyDueBody(locale: string, dueCount: number, studentCount: number): s
   return `Unpaid lessons: ${dueCount} · students: ${studentCount}`;
 }
 
-function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(date);
+function formatTime(date: Date, locale: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(
+    date,
+  );
 }
 
 function chunks<T>(items: T[], size: number): T[][] {

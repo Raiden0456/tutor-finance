@@ -3,6 +3,8 @@ import { api } from '@/lib/api';
 import { fmtMajor, fmtMoney } from '@/lib/format';
 import { I18nProvider, localizePath, type Locale, useI18n } from '@/lib/i18n';
 import { cn, statusLabel, statusStyles } from '@/lib/utils';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import { AnimatePresence, motion } from 'motion/react';
 import { Ban, Banknote, CheckCircle2, ChevronLeft, MoreHorizontal, UserX } from 'lucide-react';
 import {
@@ -59,6 +61,7 @@ export function LessonDetailIsland({ locale = 'en', ...props }: Props) {
 
 function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'locale'>) {
   const { locale, t } = useI18n();
+  const { run, pending } = useMutation();
   const [lesson, setLesson] = useState(initialLesson);
   const [saving, setSaving] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
@@ -124,7 +127,7 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
 
   async function handleSave() {
     setSaving(true);
-    try {
+    await run(async () => {
       const body: Record<string, unknown> = {
         startsAt: new Date(startsAtValue).toISOString(),
         durationMin: Number(durationMin),
@@ -144,14 +147,18 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
       }
       const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, body);
       setLesson(updated);
-    } finally {
-      setSaving(false);
-    }
+    });
+    setSaving(false);
   }
 
-  async function changeStatus(status: Lesson['status'], extra?: Record<string, unknown>) {
-    const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, { status, ...extra });
-    setLesson(updated);
+  function changeStatus(status: Lesson['status'], getExtra?: () => Record<string, unknown>) {
+    return run(async () => {
+      const updated = await api.patch<Lesson>(`/lessons/${lesson.id}`, {
+        status,
+        ...getExtra?.(),
+      });
+      setLesson(updated);
+    });
   }
 
   const provider = meetingLink.trim() ? detectMeetingProvider(meetingLink.trim()) : null;
@@ -297,6 +304,7 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving && <Spinner />}
               {saving ? t('Saving…') : t('Save changes')}
             </Button>
           </motion.div>
@@ -313,16 +321,17 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
                 ? changeStatus('completed')
                 : changeStatus('paid')
             }
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.96]"
+            disabled={pending}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-tf-jade py-2.5 text-sm font-semibold text-white transition-all duration-150 active:scale-[0.96] disabled:opacity-60"
           >
             {lesson.status === 'scheduled' || packageNeedsCompletion ? (
               <>
-                <CheckCircle2 className="h-4 w-4" />
+                {pending ? <Spinner /> : <CheckCircle2 className="h-4 w-4" />}
                 {t('Mark as Completed')}
               </>
             ) : (
               <>
-                <Banknote className="h-4 w-4" />
+                {pending ? <Spinner /> : <Banknote className="h-4 w-4" />}
                 {lesson.status === 'partially_paid' ? t('Pay Remaining') : t('Mark as Paid')}
               </>
             )}
@@ -344,11 +353,12 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
                   {t('Partial Payment')}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => changeStatus('no_show')}>
+              <DropdownMenuItem disabled={pending} onClick={() => changeStatus('no_show')}>
                 <UserX className="mr-2 h-4 w-4" />
                 {t('No-show')}
               </DropdownMenuItem>
               <DropdownMenuItem
+                disabled={pending}
                 onClick={() => changeStatus('cancelled')}
                 className="text-destructive focus:text-destructive"
               >
@@ -364,9 +374,12 @@ function LessonDetailContent({ lesson: initialLesson, student }: Omit<Props, 'lo
         open={partialOpen}
         onOpenChange={setPartialOpen}
         lesson={lesson}
-        onSaved={(paidAmount) => {
-          setPartialOpen(false);
-          changeStatus('partially_paid', { paidAmount });
+        pending={pending}
+        onSaved={async (input, currency) => {
+          const ok = await changeStatus('partially_paid', () => ({
+            paidAmount: parseMajorToMinor(input, currency),
+          }));
+          if (ok) setPartialOpen(false);
         }}
       />
     </div>
@@ -388,12 +401,14 @@ function PartialModal({
   open,
   onOpenChange,
   lesson,
+  pending,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   lesson: Lesson;
-  onSaved: (amount: number) => void;
+  pending: boolean;
+  onSaved: (input: string, currency: Currency) => void;
 }) {
   const { t } = useI18n();
   const [input, setInput] = useState('');
@@ -431,17 +446,8 @@ function PartialModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('Cancel')}
           </Button>
-          <Button
-            disabled={!input}
-            onClick={() => {
-              try {
-                const amount = parseMajorToMinor(input, currency);
-                if (amount > 0) onSaved(amount);
-              } catch (error) {
-                console.error('Invalid partial payment amount', error);
-              }
-            }}
-          >
+          <Button disabled={!input || pending} onClick={() => onSaved(input, currency)}>
+            {pending && <Spinner />}
             {t('Save')}
           </Button>
         </ResponsiveModalFooter>

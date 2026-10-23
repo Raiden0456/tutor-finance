@@ -1,8 +1,8 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { LessonDetailIsland } from '@/islands/lesson-detail-island';
-import { serverApi } from '@/lib/api';
-import { createTranslator, normalizeLocale } from '@/lib/i18n';
+import { ApiError, serverApi } from '@/lib/api';
+import { createTranslator, localizePath, normalizeLocale } from '@/lib/i18n';
 import type { Lesson, Student } from '@/lib/types';
 
 const { id } = Astro.params;
@@ -11,8 +11,17 @@ const locale = normalizeLocale(Astro.currentLocale);
 const t = createTranslator(locale);
 const api = serverApi(cookie);
 
-const lesson = await api.get<Lesson>(`/lessons/${id}`);
-const student = await api.get<Student>(`/students/${lesson.studentId}`);
+let lesson: Lesson;
+let student: Student;
+try {
+  lesson = await api.get<Lesson>(`/lessons/${id}`);
+  student = await api.get<Student>(`/students/${lesson.studentId}`);
+} catch (err) {
+  if (err instanceof ApiError && [400, 403, 404].includes(err.status)) {
+    return Astro.rewrite(localizePath('/404', locale));
+  }
+  throw err;
+}
 ---
 
 <AppLayout

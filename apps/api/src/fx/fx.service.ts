@@ -19,8 +19,8 @@ const FX_FETCH_TIMEOUT_MS = 10_000;
 const FIAT = SUPPORTED_CURRENCIES.filter((c) => c !== 'USDT' && c !== 'USDC');
 const BASE = 'USD';
 
-interface ExchangeHostResponse {
-  base?: string;
+interface FxApiResponse {
+  result?: string;
   rates?: Record<string, number>;
 }
 
@@ -52,14 +52,20 @@ export class FxService implements OnModuleInit {
   }
 
   async refresh() {
-    const symbols = FIAT.filter((c) => c !== BASE).join(',');
-    const url = `${env.fxApiUrl}?base=${BASE}&symbols=${symbols}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(FX_FETCH_TIMEOUT_MS) });
+    const res = await fetch(`${env.fxApiUrl}/${BASE}`, {
+      signal: AbortSignal.timeout(FX_FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) throw new Error(`FX API ${res.status}`);
-    const data = (await res.json()) as ExchangeHostResponse;
-    if (!data.rates) throw new Error('FX response missing rates');
+    const data = (await res.json()) as FxApiResponse;
+    if (data.result !== 'success' || !data.rates) throw new Error('FX response missing rates');
+    const rates: Record<string, number> = {};
+    for (const quote of FIAT) {
+      if (quote === BASE) continue;
+      const rate = data.rates[quote];
+      if (typeof rate !== 'number') throw new Error(`FX response missing ${quote}`);
+      rates[quote] = rate;
+    }
     const fetchedAt = new Date();
-    const rates = data.rates;
 
     for (const [quote, rate] of Object.entries(rates)) {
       await this.db
@@ -118,7 +124,13 @@ export class FxService implements OnModuleInit {
 
     const newest = rows[0]?.fetchedAt;
     if (!newest || Date.now() - newest.getTime() >= env.cache.fxTtlSeconds * 1000) {
-      return this.refresh();
+      try {
+        return await this.refresh();
+      } catch (err) {
+        this.logger.warn(
+          `FX refresh failed, using stored rates from ${newest?.toISOString()}: ${(err as Error).message}`,
+        );
+      }
     }
     const usdRates: Record<string, number> = {};
     for (const r of rows) usdRates[r.quote] = r.rate;

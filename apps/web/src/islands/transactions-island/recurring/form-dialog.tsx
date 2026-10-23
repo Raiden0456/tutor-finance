@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +18,8 @@ import {
 import { fromMinorUnits, SUPPORTED_CURRENCIES, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import { EXPENSE_CATEGORIES, FREQUENCIES, categoryLabel } from '../constants';
 
 export function RecurringFormDialog({
@@ -35,16 +36,13 @@ export function RecurringFormDialog({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const [submitting, setSubmitting] = useState(false);
+  const { run, pending: submitting } = useMutation();
 
   async function handleSubmit(e: { preventDefault: () => void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
-    setSubmitting(true);
-    try {
-      await onSubmit(e.currentTarget);
-    } finally {
-      setSubmitting(false);
-    }
+    if (submitting) return;
+    const form = e.currentTarget;
+    await run(() => onSubmit(form));
   }
 
   const defaultCurrency = defaults?.currency ?? primaryCurrency;
@@ -145,7 +143,8 @@ export function RecurringFormDialog({
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-            {t('Save')}
+            {submitting && <Spinner />}
+            {submitting ? t('Saving…') : t('Save')}
           </Button>
         </ResponsiveModalFooter>
       </form>

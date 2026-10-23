@@ -10,7 +10,7 @@ import { ProcessedLessonRow } from '~/components/dashboard/processed-lesson-row'
 import { LessonCard } from '~/components/lessons/lesson-card';
 import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/common/range-tabs';
 import { SelectField } from '~/components/common/select-field';
-import { EmptyState } from '~/components/common/empty-state';
+import { ErrorState } from '~/components/common/error-state';
 import { StaggerItem } from '~/components/common/stagger';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
@@ -66,6 +66,7 @@ export default function DashboardScreen() {
   );
 
   const loading = summary.loading || students.loading || lessons.loading;
+  const failed = [summary, students, lessons].find((q) => q.error && !q.data);
   const nameOf = React.useCallback(
     (id: string) => students.data?.find((s) => s.id === id)?.name ?? t('Student'),
     [students.data, t],
@@ -225,9 +226,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {summary.error && !summary.data ? (
-          <EmptyState title={t('Error')} description={summary.error} />
-        ) : null}
+        {failed ? <ErrorState message={failed.error} onRetry={refresh} retrying={loading} /> : null}
       </View>
     </Screen>
   );

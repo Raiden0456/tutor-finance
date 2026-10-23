@@ -7,6 +7,7 @@ import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
 import type { Recurring } from '@/lib/types';
 import { RecurringCard } from './card';
 import { useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
 import { RecurringFormDialog } from './form-dialog';
 
 export function RecurringList({
@@ -19,18 +20,23 @@ export function RecurringList({
   onChange: (items: Recurring[]) => void;
 }) {
   const { t } = useI18n();
+  const { run } = useMutation();
   const [editing, setEditing] = useState<Recurring | null>(null);
 
   async function handleToggle(item: Recurring) {
-    const updated = await api.patch<Recurring>(`/recurring/${item.id}`, {
-      isActive: !item.isActive,
+    await run(async () => {
+      const updated = await api.patch<Recurring>(`/recurring/${item.id}`, {
+        isActive: !item.isActive,
+      });
+      onChange(items.map((r) => (r.id === item.id ? updated : r)));
     });
-    onChange(items.map((r) => (r.id === item.id ? updated : r)));
   }
 
   async function handleDelete(id: string) {
-    await api.delete(`/recurring/${id}`);
-    onChange(items.filter((r) => r.id !== id));
+    await run(async () => {
+      await api.delete(`/recurring/${id}`);
+      onChange(items.filter((r) => r.id !== id));
+    });
   }
 
   async function handleEdit(form: HTMLFormElement, id: string) {

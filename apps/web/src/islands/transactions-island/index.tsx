@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { I18nProvider, useI18n } from '@/lib/i18n';
+import { useMutation } from '@/hooks/use-mutation';
+import { Spinner } from '@/components/ui/spinner';
 import { RangeTabs, resolveRange, type RangeState } from '@/components/range-tabs';
 import { Button } from '@/components/ui/button';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
@@ -40,7 +42,12 @@ import {
   type WeekStartsOn,
 } from '@tutor-finance/shared';
 import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, CATEGORY_PALETTE, categoryLabel } from './constants';
+import {
+  INCOME_CATEGORIES,
+  EXPENSE_CATEGORIES,
+  CATEGORY_PALETTE,
+  categoryLabel,
+} from './constants';
 import { TabSwitcher } from './tab-switcher';
 import { TxCard } from './tx-card';
 import { IncomeExpenseBarChart, CategoryPieChart } from './charts';
@@ -100,6 +107,7 @@ function TransactionsIslandContent({
   weekStartsOn,
 }: Props) {
   const { locale, t } = useI18n();
+  const { run, pending } = useMutation();
   const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
@@ -190,34 +198,36 @@ function TransactionsIslandContent({
   const totalExpense = summary.expenseInTargetCurrency;
 
   async function onCreate(form: HTMLFormElement) {
-    const data = new FormData(form);
-    const txCurrency = String(data.get('currency') ?? 'USD') as Currency;
-    await api.post('/transactions', {
-      type: String(data.get('type')),
-      amount: parseMajorToMinor(String(data.get('amount') ?? ''), txCurrency),
-      currency: txCurrency,
-      occurredAt: new Date(String(data.get('occurredAt'))).toISOString(),
-      category: String(data.get('category') ?? 'other'),
-      description: String(data.get('description') ?? '').trim() || undefined,
-    });
+    await run(async () => {
+      const data = new FormData(form);
+      const txCurrency = String(data.get('currency') ?? 'USD') as Currency;
+      await api.post('/transactions', {
+        type: String(data.get('type')),
+        amount: parseMajorToMinor(String(data.get('amount') ?? ''), txCurrency),
+        currency: txCurrency,
+        occurredAt: new Date(String(data.get('occurredAt'))).toISOString(),
+        category: String(data.get('category') ?? 'other'),
+        description: String(data.get('description') ?? '').trim() || undefined,
+      });
+      setTxType('expense');
+      setTxOpen(false);
 
-    const { from, to } = resolveRange(range);
-    const [txs, sum, daily] = await Promise.all([
-      api.get<Tx[]>('/transactions', {
-        query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
-      }),
-      api.get<Summary>('/dashboard/summary', {
-        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-      }),
-      api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
-        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-      }),
-    ]);
-    setTxList(txs);
-    setSummary(sum);
-    setDailyStats(daily);
-    setTxType('expense');
-    setTxOpen(false);
+      const { from, to } = resolveRange(range);
+      const [txs, sum, daily] = await Promise.all([
+        api.get<Tx[]>('/transactions', {
+          query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
+        }),
+        api.get<Summary>('/dashboard/summary', {
+          query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+        }),
+        api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
+          query: { from: from.toISOString(), to: to.toISOString(), target: currency },
+        }),
+      ]);
+      setTxList(txs);
+      setSummary(sum);
+      setDailyStats(daily);
+    });
   }
 
   return (
@@ -273,7 +283,7 @@ function TransactionsIslandContent({
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      onCreate(e.currentTarget);
+                      if (!pending) onCreate(e.currentTarget);
                     }}
                     className="flex min-h-0 flex-1 flex-col gap-4"
                   >
@@ -361,7 +371,8 @@ function TransactionsIslandContent({
                       </div>
                     </ResponsiveModalBody>
                     <ResponsiveModalFooter>
-                      <Button type="submit" className="w-full sm:w-auto">
+                      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+                        {pending && <Spinner />}
                         {t('Create')}
                       </Button>
                     </ResponsiveModalFooter>

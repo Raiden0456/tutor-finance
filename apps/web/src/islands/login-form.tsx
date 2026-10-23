@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { signIn } from '@/lib/auth-client';
+import { safeRelativePath } from '@/lib/auth-server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapse } from '@/components/ui/collapse';
@@ -105,7 +106,8 @@ function LoginFields({
 
 export function LoginForm({ locale }: LoginFormProps) {
   const t = useMemo(() => createTranslator(locale), [locale]);
-  const loginPath = localizePath('/', locale);
+  const homePath = localizePath('/', locale);
+  const [loginPath, setLoginPath] = useState(homePath);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,6 +116,7 @@ export function LoginForm({ locale }: LoginFormProps) {
 
   useEffect(() => {
     const url = new URL(window.location.href);
+    setLoginPath(safeRelativePath(url.searchParams.get('returnTo'), homePath));
     let changed = false;
     if (url.searchParams.get('verified') === '1') {
       setNotice(t('Email verified. You can sign in now.'));
@@ -126,7 +129,13 @@ export function LoginForm({ locale }: LoginFormProps) {
       changed = true;
     }
     if (changed) window.history.replaceState(null, '', url.toString());
-  }, [t]);
+  }, [t, homePath]);
+
+  const loginPagePath = localizePath('/login', locale);
+  const errorCallbackURL =
+    loginPath === homePath
+      ? `${loginPagePath}?oauth_error=google`
+      : `${loginPagePath}?oauth_error=google&returnTo=${encodeURIComponent(loginPath)}`;
 
   async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -174,7 +183,7 @@ export function LoginForm({ locale }: LoginFormProps) {
               className="mt-5"
               locale={locale}
               callbackURL={loginPath}
-              errorCallbackURL={`${localizePath('/login', locale)}?oauth_error=google`}
+              errorCallbackURL={errorCallbackURL}
               onError={setError}
             />
           </form>
@@ -206,7 +215,7 @@ export function LoginForm({ locale }: LoginFormProps) {
                 <GoogleAuthSection
                   locale={locale}
                   callbackURL={loginPath}
-                  errorCallbackURL={`${localizePath('/login', locale)}?oauth_error=google`}
+                  errorCallbackURL={errorCallbackURL}
                   onError={setError}
                 />
               </FieldGroup>

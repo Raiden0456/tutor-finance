@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Development
-pnpm setup          # First-time: install deps + build shared packages
+pnpm run setup      # First-time (`pnpm setup` is a pnpm builtin): install deps + build shared packages
 pnpm dev            # Run workspace dev scripts in parallel
 pnpm --filter @tutor-finance/mobile start   # Expo dev client (mobile)
 pnpm --filter @tutor-finance/mobile android # Open Android via Expo dev client
@@ -40,7 +40,7 @@ Turborepo + pnpm monorepo. Build order enforced with `dependsOn: ["^build"]` (no
 apps/api/     # NestJS 11 REST API
 apps/web/     # Astro 5 SSR + React 19 islands
 apps/landing/ # Astro 5 marketing site
-apps/mobile/  # Expo 54 + React Native wrapper over web app (WebView + push bridge)
+apps/mobile/  # Expo 54 native app (expo-router, NativeWind)
 packages/auth/    # Shared Better Auth instance (Drizzle + pg adapter)
 packages/shared/  # Zod schemas, currency/money helpers, shared types
 drizzle/          # Generated migrations
@@ -72,13 +72,13 @@ Astro SSR (Node.js adapter, standalone). React 19 used only for interactive isla
 
 ### Mobile (`apps/mobile`)
 
-Expo app using a `WebView` shell around the web app instead of a fully native UI.
+Native Expo Router app (no WebView) talking to the API directly.
 
-- **Entry:** `index.ts` → `registerRootComponent(App)`
-- **Main app:** `App.tsx` renders `react-native-webview` pointing to `EXPO_PUBLIC_WEB_APP_URL` (fallback `http://localhost:4321`)
-- **Navigation:** internal links stay in WebView, external links open via `Linking.openURL`
-- **Push:** `expo-notifications` + `expo-device`; Expo push token is sent into web app via `postMessage` (`tutor-finance:expo-push-token`)
-- **Config:** `app.config.ts` sets `scheme`, iOS/Android package IDs, and `extra.eas.projectId` via `EXPO_PUBLIC_EAS_PROJECT_ID`
+- **Routing:** `app/` (expo-router) — `(auth)` screens, `(app)/(tabs)` dashboard/lessons/students/transactions/settings, detail screens under `(app)/`
+- **Auth:** Better Auth Expo client (`lib/auth-client.ts`), session cookie in SecureStore; `lib/api.ts` attaches it to every request to `EXPO_PUBLIC_API_URL`. A 401 signs out and routes to login.
+- **Data:** `lib/use-query.ts` (fetch on focus), `lib/use-mutation.ts` (pending guard + toast on error), `lib/toast.ts` + `components/common/` (toast host, offline banner, error state)
+- **Push:** `lib/use-push-notifications.ts` registers the Expo push token via `POST device-tokens`; Android requires `GOOGLE_SERVICES_JSON` in EAS env
+- **Config:** `app.config.ts` + `eas.json`; `APP_VARIANT=development` builds a separate dev app (own bundle id and scheme)
 - **Runtime note:** scripts use `--dev-client`; this is intended for custom dev client builds, not Expo Go
 
 ### Shared Packages
@@ -97,7 +97,8 @@ Expo app using a `WebView` shell around the web app instead of a fully native UI
 ## Key Conventions
 
 - **Mobile-first, baseline 390px (iPhone 14).** Use cards over tables; dialogs use bottom-sheet pattern on mobile.
-- **Money is stored as minor units (integers).** Always use `toMinorUnits()` / `fromMinorUnits()` from `@tutor-finance/shared` when reading or writing monetary values. Never store or pass decimal amounts directly.
+- **Money is stored as minor units (integers).** Always use `toMinorUnits()` / `fromMinorUnits()` from `@tutor-finance/shared` when reading or writing monetary values. Never store or pass decimal amounts directly. Money columns are `bigint({ mode: 'number' })`.
+- **Time zones:** `user_settings.timezone` (IANA, synced from clients). Recurring schedules, recurring expenses and notifications compute in the user's zone via helpers in `packages/shared/src/timezone.ts`.
 - Tailwind v4 syntax — no `tailwind.config.js`, config lives in CSS via `@theme`.
 - Drizzle schema is the source of truth; always regenerate migrations after schema changes (`pnpm db:generate`).
 - Better Auth tables are managed separately — use `pnpm db:auth:generate` after auth config changes.

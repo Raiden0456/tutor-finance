@@ -95,6 +95,7 @@ export interface Settings {
   locale: Locale;
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
+  timezone: string;
   accountSecurity: AccountSecurity;
   profile: AccountProfile;
 }

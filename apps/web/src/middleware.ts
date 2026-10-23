@@ -1,23 +1,21 @@
 import { defineMiddleware } from 'astro:middleware';
-import { getServerSession } from '@/lib/auth-server';
+import { getServerSession, safeRelativePath } from '@/lib/auth-server';
 import { localizePath, normalizeLocale, stripLocale } from '@/lib/i18n';
 
-const PUBLIC_ROUTES = ['/login', '/sign-up', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = new Set(['/login', '/sign-up', '/forgot-password', '/reset-password', '/404']);
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
-  const pathname = new URL(ctx.request.url).pathname;
-  const cleanPathname = stripLocale(pathname);
+  const url = new URL(ctx.request.url);
+  const { pathname } = url;
+  const cleanPathname = stripLocale(pathname).replace(/\/+$/, '') || '/';
   const locale = normalizeLocale(ctx.currentLocale);
 
-  // The /api/* routes are the same-origin reverse proxy to the API. They must
-  // never be gated by the page-auth middleware — Better Auth needs its own
-  // sign-in/sign-up endpoints reachable while unauthenticated, and the API
-  // itself is responsible for authorising the rest.
+  // The /api/* proxy must stay reachable unauthenticated for Better Auth; the API authorises the rest.
   if (pathname.startsWith('/api/')) {
     return next();
   }
 
-  if (PUBLIC_ROUTES.some((r) => cleanPathname.startsWith(r))) {
+  if (PUBLIC_ROUTES.has(cleanPathname)) {
     return next();
   }
 
@@ -25,7 +23,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const session = await getServerSession(cookie);
 
   if (!session.user) {
-    return ctx.redirect(localizePath('/login', locale));
+    const loginPath = localizePath('/login', locale);
+    const returnTo = safeRelativePath(`${pathname}${url.search}`, '/');
+    const isHome = stripLocale(returnTo) === '/';
+    return ctx.redirect(isHome ? loginPath : `${loginPath}?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   return next();

@@ -1,15 +1,17 @@
 ---
 import AuthLayout from '@/layouts/AuthLayout.astro';
 import { LoginForm } from '@/islands/login-form';
-import { getServerSession } from '@/lib/auth-server';
-import { createTranslator, normalizeLocale } from '@/lib/i18n';
+import { getServerSession, safeRelativePath } from '@/lib/auth-server';
+import { createTranslator, localizePath, normalizeLocale } from '@/lib/i18n';
 
 const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const session = await getServerSession(cookie);
 const locale = normalizeLocale(Astro.currentLocale);
 const t = createTranslator(locale);
 if (session.user) {
-  return Astro.redirect(locale === 'ru' ? '/ru' : '/');
+  return Astro.redirect(
+    safeRelativePath(Astro.url.searchParams.get('returnTo'), localizePath('/', locale)),
+  );
 }
 ---
 

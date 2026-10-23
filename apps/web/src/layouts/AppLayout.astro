@@ -7,7 +7,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { MobilePushBridge } from '@/components/mobile-push-bridge';
+import { TimeZoneSync } from '@/components/timezone-sync';
 import { PageSkeleton } from '@/components/page-skeleton';
+import { Toaster } from '@/components/ui/sonner';
 import { getServerSession } from '@/lib/auth-server';
 import { normalizeLocale } from '@/lib/i18n';
 
@@ -137,7 +139,9 @@ const userDisplayName = session.user?.name || session.user?.email;
       </div>
     </div>
     <MobilePushBridge client:load />
+    <TimeZoneSync client:load />
     <MobileTabBar current={path} locale={locale} client:load />
     <PageSkeleton client:load transition:persist />
+    <Toaster position="top-center" richColors client:load transition:persist />
   </body>
 </html>

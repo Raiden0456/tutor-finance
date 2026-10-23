@@ -8,10 +8,11 @@ import {
   IsUUID,
   Min,
   Max,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { MoneyDto } from '../students/students.dto.js';
+import { MAX_MINOR_AMOUNT, MoneyDto } from '../students/students.dto.js';
 import { LessonStatusEnum, type Currency, type LessonStatus } from '@tutor-finance/shared';
 
 export class CreateLessonDto {
@@ -23,6 +24,7 @@ export class CreateLessonDto {
 
   @IsInt()
   @Min(1)
+  @Max(1440)
   durationMin!: number;
 
   @IsIn(LessonStatusEnum.options as unknown as string[])
@@ -31,6 +33,7 @@ export class CreateLessonDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(MAX_MINOR_AMOUNT)
   paidAmount?: number;
 
   @IsOptional()
@@ -40,14 +43,17 @@ export class CreateLessonDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   homework?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   meetingLink?: string;
 }
 
@@ -63,6 +69,7 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(1440)
   durationMin?: number;
 
   @IsOptional()
@@ -72,6 +79,7 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(MAX_MINOR_AMOUNT)
   paidAmount?: number;
 
   @IsOptional()
@@ -81,14 +89,17 @@ export class UpdateLessonDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   homework?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   meetingLink?: string;
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { api } from '@/lib/api';
 import { changePassword, signOut } from '@/lib/auth-client';
@@ -7,6 +7,7 @@ import { GitHubSourceLink } from '@/components/github-source-link';
 import { type Currency, type WeekStartsOn } from '@tutor-finance/shared';
 import { createTranslator, I18nProvider, localizePath, type Locale } from '@/lib/i18n';
 import type { Settings } from '@/lib/types';
+import { syncTimeZone } from '@/lib/timezone-sync';
 import { TabSwitcher } from '../transactions-island/tab-switcher';
 import { AccountTab } from './account-tab';
 import { PreferencesTab } from './preferences-tab';
@@ -30,6 +31,7 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
     initial.lessonReminderMinutes ?? 30,
   );
   const [theme] = useState(initial.theme);
+  const [timezone, setTimezone] = useState(initial.timezone);
   const [hasPassword, setHasPassword] = useState(initial.accountSecurity.hasPassword);
   const profileName = initial.profile.name?.trim();
   const profileDisplayName = profileName || initial.profile.email;
@@ -41,6 +43,12 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  useEffect(() => {
+    syncTimeZone()
+      .then((synced) => synced && setTimezone(synced))
+      .catch(() => undefined);
+  }, []);
 
   async function handleSignOut() {
     await signOut();
@@ -175,6 +183,7 @@ export function SettingsIsland({ initial, locale: appLocale = 'en' }: Props) {
                   primaryCurrency={primaryCurrency}
                   weekStartsOn={weekStartsOn}
                   lessonReminderMinutes={lessonReminderMinutes}
+                  timezone={timezone}
                   saving={saving}
                   saved={saved}
                   t={t}

@@ -20,6 +20,7 @@ import { CategoryPieChart, type PieDatum } from '~/components/charts/category-pi
 import { TransactionForm } from '~/components/forms/transaction-form';
 import { RecurringForm } from '~/components/forms/recurring-form';
 import { EmptyState } from '~/components/common/empty-state';
+import { ErrorState } from '~/components/common/error-state';
 import { Fab } from '~/components/common/fab';
 import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
@@ -40,6 +41,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useMutation } from '~/lib/use-mutation';
 import { useI18n, type TFunction } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import { categoryLabel, currencyOptions } from '~/lib/catalog';
@@ -53,6 +55,7 @@ export default function TransactionsScreen() {
   const [range, setRange] = React.useState<RangeKey>('30d');
   const [txFormOpen, setTxFormOpen] = React.useState(false);
   const [editingTx, setEditingTx] = React.useState<Tx | null>(null);
+  const [overviewVersion, setOverviewVersion] = React.useState(0);
 
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
@@ -78,11 +81,18 @@ export default function TransactionsScreen() {
             ]}
           />
           <TabFade tabKey={tab}>
-            {tab === 'overview' ? (
+            {students.error && !students.data ? (
+              <ErrorState
+                message={students.error}
+                onRetry={students.refetch}
+                retrying={students.loading}
+              />
+            ) : tab === 'overview' ? (
               <OverviewTab
                 range={range}
                 setRange={setRange}
                 students={students.data ?? []}
+                version={overviewVersion}
                 onEdit={(tx) => {
                   setEditingTx(tx);
                   setTxFormOpen(true);
@@ -103,7 +113,10 @@ export default function TransactionsScreen() {
         onOpenChange={setTxFormOpen}
         transaction={editingTx}
         students={students.data ?? []}
-        onSaved={() => setTab('overview')}
+        onSaved={() => {
+          setTab('overview');
+          setOverviewVersion((v) => v + 1);
+        }}
       />
     </View>
   );
@@ -122,11 +135,13 @@ function OverviewTab({
   range,
   setRange,
   students,
+  version,
   onEdit,
 }: {
   range: RangeKey;
   setRange: (r: RangeKey) => void;
   students: Student[];
+  version: number;
   onEdit: (tx: Tx) => void;
 }) {
   const { t, locale } = useI18n();
@@ -141,19 +156,19 @@ function OverviewTab({
 
   const summary = useApiQuery(
     () => api.get<Summary>('dashboard/summary', { query: { from, to, target: targetCurrency } }),
-    [from, to, targetCurrency],
+    [from, to, targetCurrency, version],
   );
   const daily = useApiQuery(
     () =>
       api.get<DailyFinanceStats[]>('dashboard/daily-stats', {
         query: { from, to, target: targetCurrency },
       }),
-    [from, to, targetCurrency],
+    [from, to, targetCurrency, version],
   );
   const txs = useApiQuery(
     () =>
       api.get<Tx[]>('transactions', { query: { from, to, target: targetCurrency, limit: 200 } }),
-    [from, to, targetCurrency],
+    [from, to, targetCurrency, version],
   );
 
   const nameOf = (id?: string | null) =>
@@ -181,6 +196,12 @@ function OverviewTab({
   }, [txs.data, colors, t, targetCurrency]);
 
   const loading = summary.loading || daily.loading || txs.loading;
+  const failed = [summary, daily, txs].find((q) => q.error && !q.data);
+  const retryAll = () => {
+    void summary.refetch();
+    void daily.refetch();
+    void txs.refetch();
+  };
 
   return (
     <View className="gap-4">
@@ -252,7 +273,9 @@ function OverviewTab({
       ) : null}
 
       <View className="gap-2">
-        {loading && (txs.data ?? []).length === 0 ? (
+        {failed ? (
+          <ErrorState message={failed.error} onRetry={retryAll} retrying={loading} />
+        ) : loading && (txs.data ?? []).length === 0 ? (
           <Skeleton className="h-40 w-full" />
         ) : (txs.data ?? []).length === 0 ? (
           <EmptyState title={t('No transactions in this period.')} />
@@ -326,16 +349,16 @@ function RecurringTab() {
   const [editing, setEditing] = React.useState<Recurring | null>(null);
   const [toDelete, setToDelete] = React.useState<Recurring | null>(null);
 
-  const togglePause = async (r: Recurring) => {
+  const togglePause = useMutation(async (r: Recurring) => {
     await api.patch(`recurring/${r.id}`, { isActive: !r.isActive });
     void recurring.refetch();
-  };
-  const remove = async () => {
+  });
+  const remove = useMutation(async () => {
     if (!toDelete) return;
     await api.delete(`recurring/${toDelete.id}`);
     setToDelete(null);
     void recurring.refetch();
-  };
+  });
 
   return (
     <View className="gap-3">
@@ -350,7 +373,9 @@ function RecurringTab() {
         <Text>{t('Add recurring expense')}</Text>
       </Button>
 
-      {recurring.loading && (recurring.data ?? []).length === 0 ? (
+      {recurring.error && !recurring.data ? (
+        <ErrorState message={recurring.error} onRetry={recurring.refetch} retrying={recurring.loading} />
+      ) : recurring.loading && (recurring.data ?? []).length === 0 ? (
         <Skeleton className="h-32 w-full" />
       ) : (recurring.data ?? []).length === 0 ? (
         <EmptyState
@@ -370,7 +395,12 @@ function RecurringTab() {
                 {r.isActive ? '' : ` · ${t('Paused')}`}
               </Text>
             </View>
-            <Button size="icon" variant="ghost" onPress={() => togglePause(r)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={togglePause.pending}
+              onPress={() => void togglePause.run(r)}
+            >
               <Icon as={r.isActive ? Pause : Play} size={18} />
             </Button>
             <Button
@@ -406,7 +436,11 @@ function RecurringTab() {
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onPress={remove}>
+            <AlertDialogAction
+              className="bg-destructive"
+              disabled={remove.pending}
+              onPress={() => void remove.run()}
+            >
               <Text>{t('Delete')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -448,6 +482,8 @@ function ComparisonTab() {
     return Math.round(((cur - prev) / Math.abs(prev)) * 100);
   };
 
+  const failed = [current, previous].find((q) => q.error && !q.data);
+
   const rows: { label: string; cur: number; prev: number }[] =
     current.data && previous.data
       ? [
@@ -477,7 +513,16 @@ function ComparisonTab() {
           <CardTitle className="text-base">{t('Current vs Previous')}</CardTitle>
         </CardHeader>
         <CardContent className="gap-3">
-          {current.loading || previous.loading ? (
+          {failed ? (
+            <ErrorState
+              message={failed.error}
+              onRetry={() => {
+                void current.refetch();
+                void previous.refetch();
+              }}
+              retrying={current.loading || previous.loading}
+            />
+          ) : current.loading || previous.loading ? (
             <Skeleton className="h-24 w-full" />
           ) : (
             rows.map((r) => {

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { authClient } from '~/lib/auth-client';
 import { API_URL } from '~/lib/env';
 
@@ -39,6 +40,27 @@ function safeParse(text: string): unknown {
   }
 }
 
+export function isUnauthorized(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 401;
+}
+
+export function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof ApiError && e.message ? e.message : fallback;
+}
+
+let signingOut = false;
+
+async function handleUnauthorized() {
+  if (signingOut) return;
+  signingOut = true;
+  try {
+    await authClient.signOut().catch(() => undefined);
+    router.replace('/(auth)/login');
+  } finally {
+    signingOut = false;
+  }
+}
+
 async function request<T>(path: string, init: RequestInitExtra = {}): Promise<T> {
   const { query, body, headers, ...rest } = init;
   const url = buildUrl(path, query);
@@ -60,6 +82,8 @@ async function request<T>(path: string, init: RequestInitExtra = {}): Promise<T>
 
   const text = await res.text();
   const data = text ? safeParse(text) : undefined;
+
+  if (res.status === 401 && cookie && !path.includes('auth/')) void handleUnauthorized();
 
   if (!res.ok) {
     const msg =

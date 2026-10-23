@@ -9,6 +9,7 @@ import { StudentForm } from '~/components/forms/student-form';
 import { LessonCard } from '~/components/lessons/lesson-card';
 import { FormSheet } from '~/components/common/form-sheet';
 import { Field } from '~/components/common/field';
+import { ErrorState } from '~/components/common/error-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useMutation } from '~/lib/use-mutation';
 import { useI18n } from '~/lib/i18n';
 import { money } from '~/lib/format';
 import type { Lesson, Student, Tx } from '~/lib/types';
@@ -68,20 +70,20 @@ export default function StudentDetailScreen() {
     void incomeTx.refetch();
   };
 
-  const toggleArchive = async () => {
+  const toggleArchive = useMutation(async () => {
     if (!s) return;
     if (s.archivedAt) await api.delete(`students/${s.id}/archive`);
     else await api.post(`students/${s.id}/archive`);
     setArchiveOpen(false);
     if (s.archivedAt) refresh();
     else router.back();
-  };
+  });
 
-  const markPackagePaid = async () => {
+  const markPackagePaid = useMutation(async () => {
     if (!s?.activePackage) return;
     await api.post(`students/${s.id}/package/payment`, { paidAmount: s.activePackage.price.amount });
     refresh();
-  };
+  });
 
   if (student.loading && !s) {
     return (
@@ -96,7 +98,7 @@ export default function StudentDetailScreen() {
   if (!s) {
     return (
       <Screen onBack={() => router.back()} title={t('Student')}>
-        <Text className="text-muted-foreground">{t('Error')}</Text>
+        <ErrorState message={student.error} onRetry={refresh} retrying={student.loading} />
       </Screen>
     );
   }
@@ -188,7 +190,11 @@ export default function StudentDetailScreen() {
                   <View className="flex-row flex-wrap gap-2 pt-1">
                     {pkg.paymentStatus !== 'paid' ? (
                       <>
-                        <Button size="sm" onPress={markPackagePaid}>
+                        <Button
+                          size="sm"
+                          disabled={markPackagePaid.pending}
+                          onPress={() => void markPackagePaid.run()}
+                        >
                           <Text>{t('Mark package paid')}</Text>
                         </Button>
                         <Button size="sm" variant="outline" onPress={() => setPartialOpen(true)}>
@@ -228,7 +234,9 @@ export default function StudentDetailScreen() {
           {/* Lessons */}
           <View className="gap-2">
             <Text className="text-base font-semibold">{t('Lessons')}</Text>
-            {(lessons.data ?? []).length === 0 ? (
+            {lessons.error && !lessons.data ? (
+              <ErrorState message={lessons.error} onRetry={lessons.refetch} retrying={lessons.loading} />
+            ) : (lessons.data ?? []).length === 0 ? (
               <Text className="text-sm text-muted-foreground">{t('No lessons yet')}</Text>
             ) : (
               <View className="gap-2">
@@ -255,7 +263,7 @@ export default function StudentDetailScreen() {
             <AlertDialogCancel>
               <Text>{t('Cancel')}</Text>
             </AlertDialogCancel>
-            <AlertDialogAction onPress={toggleArchive}>
+            <AlertDialogAction disabled={toggleArchive.pending} onPress={() => void toggleArchive.run()}>
               <Text>{s.archivedAt ? t('Restore') : t('Archive')}</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -317,11 +325,11 @@ function ClosePackageDialog({
     if (open) setCovered(String(maxCovered));
   }, [open, maxCovered]);
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     await api.post(`students/${studentId}/package/close`, { coveredLessons: Number(covered) || 0 });
     onOpenChange(false);
     onDone();
-  };
+  });
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -339,7 +347,7 @@ function ClosePackageDialog({
           <AlertDialogCancel>
             <Text>{t('Cancel')}</Text>
           </AlertDialogCancel>
-          <AlertDialogAction onPress={submit}>
+          <AlertDialogAction disabled={submit.pending} onPress={() => void submit.run()}>
             <Text>{t('Close package')}</Text>
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -361,22 +369,16 @@ function PartialPaymentSheet({
 }) {
   const { t, locale } = useI18n();
   const [amount, setAmount] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
   const pkg = student.activePackage;
 
-  const submit = async () => {
+  const submit = useMutation(async () => {
     if (!pkg) return;
-    setSaving(true);
-    try {
-      await api.post(`students/${student.id}/package/payment`, {
-        paidAmount: toMinorUnits(Number(amount) || 0, pkg.price.currency),
-      });
-      onOpenChange(false);
-      onDone();
-    } finally {
-      setSaving(false);
-    }
-  };
+    await api.post(`students/${student.id}/package/payment`, {
+      paidAmount: toMinorUnits(Number(amount) || 0, pkg.price.currency),
+    });
+    onOpenChange(false);
+    onDone();
+  });
 
   return (
     <FormSheet
@@ -384,7 +386,7 @@ function PartialPaymentSheet({
       onOpenChange={onOpenChange}
       title={t('Partial package payment')}
       footer={
-        <Button onPress={submit} disabled={saving || !amount}>
+        <Button onPress={() => void submit.run()} disabled={submit.pending || !amount}>
           <Text>{t('Save')}</Text>
         </Button>
       }

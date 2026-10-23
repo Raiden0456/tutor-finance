@@ -6,6 +6,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -15,6 +16,7 @@ import {
   type Currency,
   type TransactionType,
 } from '@tutor-finance/shared';
+import { MAX_MINOR_AMOUNT } from '../students/students.dto.js';
 
 export class CreateTransactionDto {
   @IsIn(TransactionTypeEnum.options as unknown as string[])
@@ -22,6 +24,7 @@ export class CreateTransactionDto {
 
   @IsInt()
   @Min(1)
+  @Max(MAX_MINOR_AMOUNT)
   amount!: number;
 
   @IsIn(SUPPORTED_CURRENCIES as unknown as string[])
@@ -32,6 +35,7 @@ export class CreateTransactionDto {
 
   @IsString()
   @MinLength(1)
+  @MaxLength(200)
   category!: string;
 
   @IsOptional()
@@ -40,6 +44,7 @@ export class CreateTransactionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   description?: string;
 }
 
@@ -47,6 +52,7 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(MAX_MINOR_AMOUNT)
   amount?: number;
 
   @IsOptional()
@@ -60,6 +66,7 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
+  @MaxLength(200)
   category?: string;
 
   @IsOptional()
@@ -68,6 +75,7 @@ export class UpdateTransactionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   description?: string;
 }
 

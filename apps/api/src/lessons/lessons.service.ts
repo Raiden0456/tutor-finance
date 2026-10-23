@@ -51,7 +51,6 @@ const JOIN_COLS = {
   studentHourlyRateAmount: students.hourlyRateAmount,
   studentHourlyRateCurrency: students.hourlyRateCurrency,
   studentRatePeriodMin: students.ratePeriodMin,
-  studentPricingMode: students.pricingMode,
 };
 
 type JoinRow = {
@@ -74,7 +73,6 @@ type JoinRow = {
   studentHourlyRateAmount: number | null;
   studentHourlyRateCurrency: string | null;
   studentRatePeriodMin: number | null;
-  studentPricingMode: string | null;
 };
 
 type EffectivePrice = { amount: number; currency: Currency };
@@ -235,21 +233,7 @@ export class LessonsService {
   }
 
   private async toResponse(row: JoinRow): Promise<LessonResponse> {
-    const resolution = await this.resolveEffectivePriceFromJoin(row);
-    if (
-      resolution?.source === 'package' &&
-      (row.status === 'due' || row.status === 'paid' || row.status === 'partially_paid')
-    ) {
-      await this.db
-        .update(lessons)
-        .set({ status: 'completed', paidAmount: null })
-        .where(and(eq(lessons.id, row.id), eq(lessons.userId, row.userId)));
-      await this.transactions.deleteForLesson(row.userId, row.id);
-      await this.invalidateUserCache(row.userId);
-      return toLessonResponse({ ...row, status: 'completed', paidAmount: null }, resolution);
-    }
-
-    return toLessonResponse(row, resolution);
+    return toLessonResponse(row, await this.resolveEffectivePriceFromJoin(row));
   }
 
   private async findStudentOwned(
@@ -292,7 +276,6 @@ export class LessonsService {
       hourlyRateAmount: row.studentHourlyRateAmount,
       hourlyRateCurrency: row.studentHourlyRateCurrency,
       ratePeriodMin: row.studentRatePeriodMin ?? 60,
-      pricingMode: row.studentPricingMode ?? 'hourly',
     });
   }
 
@@ -320,7 +303,6 @@ export class LessonsService {
       hourlyRateAmount: student.hourlyRateAmount,
       hourlyRateCurrency: student.hourlyRateCurrency,
       ratePeriodMin: student.ratePeriodMin,
-      pricingMode: student.pricingMode,
     });
   }
 
@@ -333,7 +315,6 @@ export class LessonsService {
     hourlyRateAmount: number;
     hourlyRateCurrency: string;
     ratePeriodMin: number;
-    pricingMode: string;
   }): Promise<PriceResolution> {
     const activePackage = await this.findActivePackageRow(input.userId, input.studentId);
 
@@ -346,7 +327,7 @@ export class LessonsService {
         input.status,
       );
 
-      if (packageCoverage.covered || input.pricingMode === 'package') {
+      if (packageCoverage.covered) {
         return {
           price: packageUnitPrice(activePackage, packageCoverage.lessonNumber),
           source: 'package',
@@ -632,7 +613,6 @@ export class LessonsService {
         studentHourlyRateAmount: students.hourlyRateAmount,
         studentHourlyRateCurrency: students.hourlyRateCurrency,
         studentRatePeriodMin: students.ratePeriodMin,
-        studentPricingMode: students.pricingMode,
       })
       .from(lessons)
       .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.userId, userId)))
@@ -666,7 +646,6 @@ export class LessonsService {
       hourlyRateAmount: r.studentHourlyRateAmount,
       hourlyRateCurrency: r.studentHourlyRateCurrency,
       ratePeriodMin: r.studentRatePeriodMin ?? 60,
-      pricingMode: r.studentPricingMode ?? 'hourly',
     });
 
     return resolution.source === 'package' ? null : resolution.price;

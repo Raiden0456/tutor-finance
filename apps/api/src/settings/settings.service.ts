@@ -6,6 +6,8 @@ import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
 import type { Database } from '../db/client.js';
 import { account, user, userSettings } from '../db/schema.js';
+import { RecurringLessonsService } from '../recurring-lessons/recurring-lessons.service.js';
+import { RecurringService } from '../recurring/recurring.service.js';
 import type {
   AccountProfileResponse,
   AccountSecurityResponse,
@@ -26,6 +28,7 @@ function toResponse(
     locale: r.locale as Locale,
     weekStartsOn: r.weekStartsOn as WeekStartsOn,
     lessonReminderMinutes: r.lessonReminderMinutes,
+    timezone: r.timezone,
     accountSecurity,
     profile,
   };
@@ -36,6 +39,8 @@ export class SettingsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly cacheService: RedisCacheService,
+    private readonly recurringLessons: RecurringLessonsService,
+    private readonly recurring: RecurringService,
   ) {}
 
   async getOrCreate(userId: string): Promise<SettingsResponse> {
@@ -44,6 +49,7 @@ export class SettingsService {
     if (
       cached?.weekStartsOn !== undefined &&
       cached.lessonReminderMinutes !== undefined &&
+      cached.timezone !== undefined &&
       cached.accountSecurity &&
       cached.profile
     )
@@ -100,6 +106,15 @@ export class SettingsService {
     if (patch.weekStartsOn !== undefined) set.weekStartsOn = patch.weekStartsOn;
     if (patch.lessonReminderMinutes !== undefined)
       set.lessonReminderMinutes = patch.lessonReminderMinutes;
+    if (patch.timezone !== undefined) set.timezone = patch.timezone;
+
+    const [previous] = set.timezone
+      ? await this.db
+          .select({ timezone: userSettings.timezone })
+          .from(userSettings)
+          .where(eq(userSettings.userId, userId))
+          .limit(1)
+      : [];
 
     const upserted = await this.db
       .insert(userSettings)
@@ -111,6 +126,10 @@ export class SettingsService {
       this.cacheService.deleteByPrefix(`user:${userId}:dashboard:`),
       this.cacheService.deleteByPrefix(`user:${userId}:transactions:`),
     ]);
+    if (previous && set.timezone && previous.timezone !== set.timezone) {
+      await this.recurringLessons.rezone(userId, previous.timezone, set.timezone);
+      await this.recurring.rezone(userId, previous.timezone, set.timezone);
+    }
     return toResponse(
       upserted[0]!,
       await this.getAccountSecurity(userId),

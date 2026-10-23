@@ -26,3 +26,19 @@ export async function getServerSession(cookieHeader: string | undefined): Promis
     return { user: null };
   }
 }
+
+export function safeRelativePath(value: string | null | undefined, fallback: string): string {
+  if (!value || !isSingleSlashPath(value)) return fallback;
+  try {
+    const base = 'http://local.invalid';
+    const url = new URL(value, base);
+    const path = `${url.pathname}${url.search}${url.hash}`;
+    return url.origin === base && isSingleSlashPath(path) ? path : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function isSingleSlashPath(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\');
+}
