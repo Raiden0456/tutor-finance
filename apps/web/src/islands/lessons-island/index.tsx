@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { I18nProvider, useI18n, type Locale } from '@/lib/i18n';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
 import type { WeekStartsOn } from '@tutor-finance/shared';
-import type { Lesson, RecurringLesson, StudentRef } from '@/lib/types';
+import type { Lesson, RecurringLesson, LessonStudent } from '@/lib/types';
 import { dayKey, monthKey, weekStartOptions } from './shared';
 import { CalendarHeader } from './calendar/header';
 import { WeekStrip } from './calendar/week-strip';
@@ -22,11 +22,15 @@ import { DayDetail } from './day-detail';
 import { ArchiveView } from './archive-view';
 import { CreateLessonModal } from './create-modal';
 import { SchedulesView } from './schedules/list';
-import { TabSwitcher } from '../transactions-island/tab-switcher';
+import { TabSwitcher } from '@/components/tab-switcher';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/page-header';
+import { useDataChanged } from '@/features/assistant';
 
 interface Props {
   initial: Lesson[];
-  students: StudentRef[];
+  students: LessonStudent[];
   initialMonthStr: string;
   weekStartsOn: WeekStartsOn;
   locale?: Locale;
@@ -60,6 +64,7 @@ function LessonsContent({
   const [monthLessons, setMonthLessons] = useState<Lesson[]>(initial);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [archivedLessons, setArchivedLessons] = useState<Lesson[]>([]);
   const [loadingArchive, setLoadingArchive] = useState(false);
@@ -115,6 +120,11 @@ function LessonsContent({
       await loadMonth(rangeEnd, true);
     }
   }, [rangeStart, rangeEnd, loadMonth]);
+
+  useDataChanged(() => {
+    void reloadRange();
+    if (showArchive) void loadArchive();
+  });
 
   const loadArchive = useCallback(async () => {
     setLoadingArchive(true);
@@ -187,10 +197,6 @@ function LessonsContent({
     }
   }
 
-  function openCreate() {
-    setCreateOpen(true);
-  }
-
   const handleModalCreated = useCallback(
     async (affectedDates: Date[]) => {
       const distinctMonths = [...new Set(affectedDates.map((d) => monthKey(d)))];
@@ -206,7 +212,24 @@ function LessonsContent({
   const { t } = useI18n();
 
   return (
-    <div className="page-enter flex flex-col">
+    <div className="page-enter flex flex-col gap-4">
+      <PageHeader
+        title={t('Lessons')}
+        actionKey={activeTab}
+        action={
+          activeTab === 'calendar' ? (
+            <Button onClick={() => setCreateOpen(true)} disabled={students.length === 0}>
+              <Plus className="h-4 w-4" />
+              {t('Add lesson')}
+            </Button>
+          ) : (
+            <Button onClick={() => setScheduleOpen(true)} disabled={students.length === 0}>
+              <Plus className="h-4 w-4" />
+              {t('Add schedule')}
+            </Button>
+          )
+        }
+      />
       <TabSwitcher
         value={activeTab}
         onChange={setActiveTab}
@@ -224,10 +247,12 @@ function LessonsContent({
             students={students}
             studentMap={studentMap}
             weekStartsOn={weekStartsOn}
+            addOpen={scheduleOpen}
+            onAddOpenChange={setScheduleOpen}
           />
         ) : (
           <>
-            <div className="sticky top-14 z-20 -mx-4 bg-background px-4 pb-3">
+            <div className="sticky top-14 z-20 -mx-4 bg-background px-4 pb-3 md:top-0">
               <CalendarHeader
                 rangeStart={rangeStart}
                 selectionMode={selectionMode}
@@ -237,8 +262,6 @@ function LessonsContent({
                 onToggleMonth={() => setMonthExpanded((x) => !x)}
                 onToggleMode={toggleMode}
                 onToggleArchive={toggleArchive}
-                onLog={openCreate}
-                disabledLog={students.length === 0}
               />
               <WeekStrip
                 weekViewStart={weekViewStart}
@@ -284,7 +307,6 @@ function LessonsContent({
                   studentMap={studentMap}
                   loading={loadingMonth}
                   onLessonChanged={reloadRange}
-                  onLog={openCreate}
                   hasStudents={students.length > 0}
                 />
               )}

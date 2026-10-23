@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { Currency, Locale, Theme, WeekStartsOn } from '@tutor-finance/shared';
+import type { AiLanguage, Currency, Locale, Theme, WeekStartsOn } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
 import { DB } from '../db/db.module.js';
@@ -29,6 +29,7 @@ function toResponse(
     weekStartsOn: r.weekStartsOn as WeekStartsOn,
     lessonReminderMinutes: r.lessonReminderMinutes,
     timezone: r.timezone,
+    aiLanguage: r.aiLanguage as AiLanguage,
     accountSecurity,
     profile,
   };
@@ -50,6 +51,7 @@ export class SettingsService {
       cached?.weekStartsOn !== undefined &&
       cached.lessonReminderMinutes !== undefined &&
       cached.timezone !== undefined &&
+      cached.aiLanguage !== undefined &&
       cached.accountSecurity &&
       cached.profile
     )
@@ -107,6 +109,7 @@ export class SettingsService {
     if (patch.lessonReminderMinutes !== undefined)
       set.lessonReminderMinutes = patch.lessonReminderMinutes;
     if (patch.timezone !== undefined) set.timezone = patch.timezone;
+    if (patch.aiLanguage !== undefined) set.aiLanguage = patch.aiLanguage;
 
     const [previous] = set.timezone
       ? await this.db

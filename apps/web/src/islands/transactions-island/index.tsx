@@ -1,30 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { GitCompareArrows, Plus } from 'lucide-react';
+import {
+  fromMinorUnits,
+  SUPPORTED_CURRENCIES,
+  type Currency,
+  type WeekStartsOn,
+} from '@tutor-finance/shared';
 import { api } from '@/lib/api';
+import { fmtMoney } from '@/lib/format';
 import { I18nProvider, useI18n } from '@/lib/i18n';
-import { useMutation } from '@/hooks/use-mutation';
-import { Spinner } from '@/components/ui/spinner';
+import type { DailyFinanceStats, Recurring, StudentRef, Summary, Tx } from '@/lib/types';
+import { errorMessage } from '@/hooks/use-mutation';
 import { RangeTabs, resolveRange, type RangeState } from '@/components/range-tabs';
+import { FinanceStat } from '@/components/finance-stat';
+import { PageHeader } from '@/components/layout/page-header';
+import { useDataChanged } from '@/features/assistant';
 import { Button } from '@/components/ui/button';
 import { Collapse, FadeSwap } from '@/components/ui/collapse';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-} from '@/components/ui/pagination';
-import { FinanceStat } from '@/components/finance-stat';
-import {
-  ResponsiveModal,
-  ResponsiveModalBody,
-  ResponsiveModalContent,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-  ResponsiveModalTrigger,
-} from '@/components/ui/responsive-modal';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Toggle } from '@/components/ui/toggle';
 import {
   Select,
   SelectContent,
@@ -32,45 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronLeftIcon, ChevronRightIcon, Plus } from 'lucide-react';
-import { fmtMoney } from '@/lib/format';
-import {
-  fromMinorUnits,
-  parseMajorToMinor,
-  SUPPORTED_CURRENCIES,
-  type Currency,
-  type WeekStartsOn,
-} from '@tutor-finance/shared';
-import type { Tx, Recurring, Summary, StudentRef, DailyFinanceStats } from '@/lib/types';
-import {
-  INCOME_CATEGORIES,
-  EXPENSE_CATEGORIES,
-  CATEGORY_PALETTE,
-  categoryLabel,
-} from './constants';
-import { TabSwitcher } from './tab-switcher';
-import { TxCard } from './tx-card';
+import { CATEGORY_PALETTE, categoryLabel } from './constants';
+import { TabSwitcher } from '@/components/tab-switcher';
 import { IncomeExpenseBarChart, CategoryPieChart } from './charts';
-import { RecurringAddButton } from './recurring/add-button';
+import { PeriodComparison } from './comparison';
 import { RecurringList } from './recurring/list';
-import { ComparisonView } from './comparison';
+import { RecurringCreateDialog } from './recurring/create-dialog';
+import { TransactionList } from './transactions/list';
+import { TransactionFormDialog, type TransactionPayload } from './transactions/form-dialog';
 
-const PAGE_SIZE = 15;
-
-function getPaginationItems(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-
-  const pages: Array<number | 'ellipsis'> = [1];
-  const start = Math.max(2, currentPage - 1);
-  const end = Math.min(totalPages - 1, currentPage + 1);
-
-  if (start > 2) pages.push('ellipsis');
-  for (let page = start; page <= end; page += 1) pages.push(page);
-  if (end < totalPages - 1) pages.push('ellipsis');
-
-  pages.push(totalPages);
-  return pages;
-}
+type FinanceTab = 'transactions' | 'recurring';
 
 interface Props {
   initial: Tx[];
@@ -83,21 +48,15 @@ interface Props {
   locale?: string | null;
 }
 
-function formatRangeLabel(range: RangeState, locale: string, t: (key: string) => string) {
-  if (range.kind === 'preset') return t(range.key);
-  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
-  return `${fmt.format(range.from)} – ${fmt.format(range.to)}`;
-}
-
 export function TransactionsIsland(props: Props) {
   return (
     <I18nProvider locale={props.locale}>
-      <TransactionsIslandContent {...props} />
+      <TransactionsContent {...props} />
     </I18nProvider>
   );
 }
 
-function TransactionsIslandContent({
+function TransactionsContent({
   initial,
   primaryCurrency,
   initialRecurring,
@@ -107,82 +66,59 @@ function TransactionsIslandContent({
   weekStartsOn,
 }: Props) {
   const { locale, t } = useI18n();
-  const { run, pending } = useMutation();
-  const [tab, setTab] = useState<'transactions' | 'recurring' | 'analytics'>('transactions');
+  const [tab, setTab] = useState<FinanceTab>('transactions');
   const [range, setRange] = useState<RangeState>({ kind: 'preset', key: '30d' });
   const [currency, setCurrency] = useState<Currency>(primaryCurrency);
+  const [compare, setCompare] = useState(false);
   const [txList, setTxList] = useState<Tx[]>(initial);
   const [summary, setSummary] = useState<Summary>(initialSummary);
   const [dailyStats, setDailyStats] = useState<DailyFinanceStats[]>(initialDailyStats);
   const [loading, setLoading] = useState(false);
-  const [txOpen, setTxOpen] = useState(false);
   const [recurring, setRecurring] = useState<Recurring[]>(initialRecurring);
-  const [txType, setTxType] = useState<'income' | 'expense'>('expense');
-  const [page, setPage] = useState(1);
+  const [txFormOpen, setTxFormOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<Tx | null>(null);
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const requestId = useRef(0);
   const isFirst = useRef(true);
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s.name])), [students]);
-  const totalPages = Math.max(1, Math.ceil(txList.length / PAGE_SIZE));
-  const pageItems = useMemo(() => getPaginationItems(page, totalPages), [page, totalPages]);
-  const paginatedTxList = useMemo(
-    () => txList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [page, txList],
-  );
 
-  useEffect(() => {
-    setPage(1);
+  const reload = useCallback(async () => {
+    const id = ++requestId.current;
+    const { from, to } = resolveRange(range);
+    const query = { from: from.toISOString(), to: to.toISOString(), target: currency };
+    const [txs, sum, daily] = await Promise.all([
+      api.get<Tx[]>('/transactions', { query: { ...query, limit: 1000 } }),
+      api.get<Summary>('/dashboard/summary', { query }),
+      api.get<DailyFinanceStats[]>('/dashboard/daily-stats', { query }),
+    ]);
+    if (id !== requestId.current) return;
+    setTxList(txs);
+    setSummary(sum);
+    setDailyStats(daily);
   }, [range, currency]);
-
-  useEffect(() => {
-    setPage((current) => Math.min(current, totalPages));
-  }, [totalPages]);
 
   useEffect(() => {
     if (isFirst.current) {
       isFirst.current = false;
       return;
     }
-    let cancelled = false;
-    const { from, to } = resolveRange(range);
     setLoading(true);
-    Promise.all([
-      api.get<Tx[]>('/transactions', {
-        query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
-      }),
-      api.get<Summary>('/dashboard/summary', {
-        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-      }),
-      api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
-        query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-      }),
-    ])
-      .then(([txs, sum, daily]) => {
-        if (!cancelled) {
-          setTxList(txs);
-          setSummary(sum);
-          setDailyStats(daily);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [range, currency]);
+    reload()
+      .catch((error) => toast.error(errorMessage(error, t)))
+      .finally(() => setLoading(false));
+  }, [reload]);
 
-  const { pieData, incomeExpenseSeries } = useMemo(() => {
+  useDataChanged(() => {
+    reload().catch((error) => toast.error(errorMessage(error, t)));
+  });
+
+  const pieData = useMemo(() => {
     const totals = new Map<string, number>();
-
-    for (const t of txList) {
-      const v = typeof t.convertedAmount === 'number' ? t.convertedAmount : 0;
-      if (!v) continue;
-
-      if (t.type === 'expense') {
-        totals.set(t.category, (totals.get(t.category) ?? 0) + v);
-      }
+    for (const tx of txList) {
+      if (tx.type !== 'expense' || !tx.convertedAmount) continue;
+      totals.set(tx.category, (totals.get(tx.category) ?? 0) + tx.convertedAmount);
     }
-
-    const pie = Array.from(totals.entries())
+    return [...totals.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([cat, amt], i) => ({
@@ -190,366 +126,177 @@ function TransactionsIslandContent({
         amount: Math.round(fromMinorUnits(amt, currency) * 100) / 100,
         fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]!,
       }));
+  }, [txList, currency, t]);
 
-    return { pieData: pie, incomeExpenseSeries: dailyStats };
-  }, [txList, dailyStats, currency, t]);
-
-  const totalIncome = summary.incomeInTargetCurrency;
-  const totalExpense = summary.expenseInTargetCurrency;
-
-  async function onCreate(form: HTMLFormElement) {
-    await run(async () => {
-      const data = new FormData(form);
-      const txCurrency = String(data.get('currency') ?? 'USD') as Currency;
-      await api.post('/transactions', {
-        type: String(data.get('type')),
-        amount: parseMajorToMinor(String(data.get('amount') ?? ''), txCurrency),
-        currency: txCurrency,
-        occurredAt: new Date(String(data.get('occurredAt'))).toISOString(),
-        category: String(data.get('category') ?? 'other'),
-        description: String(data.get('description') ?? '').trim() || undefined,
-      });
-      setTxType('expense');
-      setTxOpen(false);
-
-      const { from, to } = resolveRange(range);
-      const [txs, sum, daily] = await Promise.all([
-        api.get<Tx[]>('/transactions', {
-          query: { limit: 1000, target: currency, from: from.toISOString(), to: to.toISOString() },
-        }),
-        api.get<Summary>('/dashboard/summary', {
-          query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-        }),
-        api.get<DailyFinanceStats[]>('/dashboard/daily-stats', {
-          query: { from: from.toISOString(), to: to.toISOString(), target: currency },
-        }),
-      ]);
-      setTxList(txs);
-      setSummary(sum);
-      setDailyStats(daily);
-    });
+  async function saveTransaction({ type, ...patch }: TransactionPayload) {
+    if (editingTx) await api.patch(`/transactions/${editingTx.id}`, patch);
+    else await api.post('/transactions', { type, ...patch });
+    await reload();
   }
+
+  function openCreate() {
+    if (tab === 'recurring') {
+      setRecurringOpen(true);
+      return;
+    }
+    setEditingTx(null);
+    setTxFormOpen(true);
+  }
+
+  const rangeLabel =
+    range.kind === 'preset'
+      ? t(range.key)
+      : `${new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(range.from)} – ${new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(range.to)}`;
 
   return (
     <div className="page-enter space-y-5">
-      <header className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="hidden text-xl font-semibold tracking-tight md:block">
-              {t('Transactions')}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {tab === 'transactions'
-                ? `${formatRangeLabel(range, locale, t)} · ${t('{count} entries', { count: txList.length })}`
-                : tab === 'recurring'
-                  ? recurring.length === 0
-                    ? t('No recurring expenses')
-                    : t('{count} rules', { count: recurring.length })
-                  : t('Growth & period comparison')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {(tab === 'transactions' || tab === 'analytics') && (
-              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                <SelectTrigger className="h-9 w-[88px] shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {tab === 'analytics' ? null : tab === 'transactions' ? (
-              <ResponsiveModal
-                open={txOpen}
-                onOpenChange={(open) => {
-                  setTxOpen(open);
-                  if (!open) setTxType('expense');
-                }}
-              >
-                <ResponsiveModalTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4" /> {t('Add')}
-                  </Button>
-                </ResponsiveModalTrigger>
-                <ResponsiveModalContent className="max-w-md">
-                  <ResponsiveModalHeader>
-                    <ResponsiveModalTitle>{t('New transaction')}</ResponsiveModalTitle>
-                  </ResponsiveModalHeader>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!pending) onCreate(e.currentTarget);
-                    }}
-                    className="flex min-h-0 flex-1 flex-col gap-4"
-                  >
-                    <ResponsiveModalBody className="grid gap-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                          <Label htmlFor="type">{t('Type')}</Label>
-                          <Select
-                            name="type"
-                            value={txType}
-                            onValueChange={(v) => setTxType(v as 'income' | 'expense')}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="income">{t('Income')}</SelectItem>
-                              <SelectItem value="expense">{t('Expense')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="occurredAt">{t('Date')}</Label>
-                          <Input
-                            id="occurredAt"
-                            name="occurredAt"
-                            type="datetime-local"
-                            required
-                            defaultValue={new Date(
-                              Date.now() - new Date().getTimezoneOffset() * 60000,
-                            )
-                              .toISOString()
-                              .slice(0, 16)}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                          <Label htmlFor="amount">{t('Amount')}</Label>
-                          <Input
-                            id="amount"
-                            name="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            required
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="currency">{t('Currency')}</Label>
-                          <Select name="currency" defaultValue={primaryCurrency}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {SUPPORTED_CURRENCIES.map((c) => (
-                                <SelectItem key={c} value={c}>
-                                  {c}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category">{t('Category')}</Label>
-                        <Select name="category" defaultValue="other" key={txType}>
-                          <SelectTrigger id="category">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(
-                              (c) => (
-                                <SelectItem key={c} value={c} className="capitalize">
-                                  {categoryLabel(c, t)}
-                                </SelectItem>
-                              ),
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">{t('Description')}</Label>
-                        <Input id="description" name="description" />
-                      </div>
-                    </ResponsiveModalBody>
-                    <ResponsiveModalFooter>
-                      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-                        {pending && <Spinner />}
-                        {t('Create')}
-                      </Button>
-                    </ResponsiveModalFooter>
-                  </form>
-                </ResponsiveModalContent>
-              </ResponsiveModal>
-            ) : (
-              <RecurringAddButton
-                primaryCurrency={primaryCurrency}
-                onCreated={(r) => setRecurring((prev) => [...prev, r])}
-              />
-            )}
-          </div>
-        </div>
+      <PageHeader
+        title={t('Finance')}
+        subtitle={
+          tab === 'transactions'
+            ? `${rangeLabel} · ${t('{count} entries', { count: txList.length })}`
+            : recurring.length === 0
+              ? t('No recurring expenses')
+              : t('{count} rules', { count: recurring.length })
+        }
+        actionKey={tab}
+        action={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            {tab === 'transactions' ? t('Add transaction') : t('Add recurring expense')}
+          </Button>
+        }
+      />
 
-        <div className="flex flex-col gap-3 md:flex-row">
-          <TabSwitcher
-            value={tab}
-            onChange={setTab}
-            groupId="tx-main"
-            tabs={[
-              { key: 'transactions', label: t('Transactions') },
-              { key: 'recurring', label: t('Recurring') },
-              { key: 'analytics', label: t('Analytics') },
-            ]}
-          />
-          <Collapse open={tab === 'transactions'} className="md:flex-1" duration={0.18}>
-            <RangeTabs
-              value={range}
-              onChange={setRange}
-              groupId="tx-list"
-              weekStartsOn={weekStartsOn}
-            />
-          </Collapse>
-        </div>
-      </header>
+      <TabSwitcher
+        value={tab}
+        onChange={setTab}
+        groupId="finance-main"
+        tabs={[
+          { key: 'transactions', label: t('Transactions') },
+          { key: 'recurring', label: t('Recurring') },
+        ]}
+      />
 
       <FadeSwap motionKey={tab}>
         {tab === 'transactions' ? (
-          <div
-            className={
-              'space-y-5 transition-opacity duration-150 ' +
-              (loading ? 'opacity-60' : 'opacity-100')
-            }
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <FinanceStat
-                label={t('Planned')}
-                value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
-                tone="planned"
-              />
-              <FinanceStat
-                label={t('Income')}
-                value={fmtMoney(totalIncome, currency)}
-                tone="income"
-              />
-              <FinanceStat
-                label={t('Expenses')}
-                value={fmtMoney(totalExpense, currency)}
-                tone="expense"
-              />
-              <FinanceStat
-                label={t('Net')}
-                value={fmtMoney(totalIncome - totalExpense, currency)}
-                tone={totalIncome >= totalExpense ? 'income' : 'expense'}
-              />
-            </div>
-
-            <Collapse open={incomeExpenseSeries.length > 0}>
-              <IncomeExpenseBarChart
-                data={incomeExpenseSeries}
-                currency={currency}
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <RangeTabs
+                value={range}
+                onChange={setRange}
+                groupId="finance-range"
                 weekStartsOn={weekStartsOn}
               />
-            </Collapse>
+              <div className="flex items-center justify-between gap-3 md:flex-1 md:justify-end">
+                <Toggle
+                  variant="outline"
+                  size="sm"
+                  pressed={compare}
+                  onPressedChange={setCompare}
+                  className="rounded-full px-3 text-xs transition-all duration-200 data-[state=on]:border-primary/40 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                >
+                  <GitCompareArrows className="h-3.5 w-3.5" />
+                  {t('Compare with previous period')}
+                </Toggle>
+                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                  <SelectTrigger className="h-9 w-[88px] shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-            <Collapse open={pieData.length > 0}>
-              <CategoryPieChart data={pieData} currency={currency} />
-            </Collapse>
+            <div
+              className={
+                'space-y-5 transition-opacity duration-150 ' +
+                (loading ? 'opacity-60' : 'opacity-100')
+              }
+            >
+              <FadeSwap motionKey={compare ? 'compare' : 'totals'}>
+                {compare ? (
+                  <PeriodComparison range={range} currency={currency} current={summary} />
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <FinanceStat
+                      label={t('Income')}
+                      value={fmtMoney(summary.incomeInTargetCurrency, currency)}
+                      tone="income"
+                    />
+                    <FinanceStat
+                      label={t('Expenses')}
+                      value={fmtMoney(summary.expenseInTargetCurrency, currency)}
+                      tone="expense"
+                    />
+                    <FinanceStat
+                      label={t('Net')}
+                      value={fmtMoney(summary.netInTargetCurrency, currency)}
+                      tone={summary.netInTargetCurrency >= 0 ? 'income' : 'expense'}
+                    />
+                    <FinanceStat
+                      label={t('Planned')}
+                      value={fmtMoney(summary.plannedIncomeInTargetCurrency, currency)}
+                      tone="planned"
+                    />
+                  </div>
+                )}
+              </FadeSwap>
 
-            <FadeSwap motionKey={txList.length === 0 ? 'empty' : 'list'}>
-              {txList.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-                  {t('No transactions in this period.')}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <FadeSwap motionKey={`tx-page-${page}`}>
-                    <ul className="flex flex-col gap-2">
-                      {paginatedTxList.map((t) => (
-                        <TxCard
-                          key={t.id}
-                          tx={t}
-                          primaryCurrency={currency}
-                          studentMap={studentMap}
-                        />
-                      ))}
-                    </ul>
-                  </FadeSwap>
-                  <Collapse open={totalPages > 1}>
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationLink
-                            href="#"
-                            aria-disabled={page === 1}
-                            aria-label={t('Go to previous page')}
-                            size="default"
-                            className={
-                              'gap-1 px-2.5 sm:pl-2.5 ' +
-                              (page === 1 ? 'pointer-events-none opacity-50' : 'transition-opacity')
-                            }
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPage((current) => Math.max(1, current - 1));
-                            }}
-                          >
-                            <ChevronLeftIcon />
-                            <span className="hidden sm:block">{t('Previous')}</span>
-                          </PaginationLink>
-                        </PaginationItem>
-                        {pageItems.map((item, index) => (
-                          <PaginationItem key={`${item}-${index}`}>
-                            {item === 'ellipsis' ? (
-                              <PaginationEllipsis aria-label={t('More pages')} />
-                            ) : (
-                              <PaginationLink
-                                href="#"
-                                isActive={item === page}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setPage(item);
-                                }}
-                              >
-                                {item}
-                              </PaginationLink>
-                            )}
-                          </PaginationItem>
-                        ))}
-                        <PaginationItem>
-                          <PaginationLink
-                            href="#"
-                            aria-disabled={page === totalPages}
-                            aria-label={t('Go to next page')}
-                            size="default"
-                            className={
-                              'gap-1 px-2.5 sm:pr-2.5 ' +
-                              (page === totalPages
-                                ? 'pointer-events-none opacity-50'
-                                : 'transition-opacity')
-                            }
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPage((current) => Math.min(totalPages, current + 1));
-                            }}
-                          >
-                            <span className="hidden sm:block">{t('Next')}</span>
-                            <ChevronRightIcon />
-                          </PaginationLink>
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </Collapse>
-                </div>
-              )}
-            </FadeSwap>
+              <Collapse open={dailyStats.length > 0}>
+                <IncomeExpenseBarChart
+                  data={dailyStats}
+                  currency={currency}
+                  weekStartsOn={weekStartsOn}
+                />
+              </Collapse>
+
+              <Collapse open={pieData.length > 0}>
+                <CategoryPieChart data={pieData} currency={currency} />
+              </Collapse>
+
+              <TransactionList
+                key={`${JSON.stringify(range)}-${currency}`}
+                items={txList}
+                currency={currency}
+                studentMap={studentMap}
+                onEdit={(tx) => {
+                  setEditingTx(tx);
+                  setTxFormOpen(true);
+                }}
+                onDeleted={reload}
+              />
+            </div>
           </div>
-        ) : tab === 'recurring' ? (
+        ) : (
           <RecurringList
             items={recurring}
             primaryCurrency={primaryCurrency}
             onChange={setRecurring}
           />
-        ) : (
-          <ComparisonView currency={currency} weekStartsOn={weekStartsOn} />
         )}
       </FadeSwap>
+
+      <TransactionFormDialog
+        open={txFormOpen}
+        onOpenChange={setTxFormOpen}
+        editing={editingTx}
+        primaryCurrency={primaryCurrency}
+        students={students}
+        onSubmit={saveTransaction}
+      />
+      <RecurringCreateDialog
+        open={recurringOpen}
+        onOpenChange={setRecurringOpen}
+        primaryCurrency={primaryCurrency}
+        onCreated={(r) => setRecurring((prev) => [...prev, r])}
+      />
     </div>
   );
 }

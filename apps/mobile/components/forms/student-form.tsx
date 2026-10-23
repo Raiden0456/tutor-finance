@@ -1,9 +1,16 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { toMinorUnits, fromMinorUnits, type Currency, type PricingMode } from '@tutor-finance/shared';
+import {
+  toMinorUnits,
+  fromMinorUnits,
+  type Currency,
+  type PricingMode,
+} from '@tutor-finance/shared';
 import { FormSheet } from '~/components/common/form-sheet';
 import { Field } from '~/components/common/field';
+import { MoreSection } from '~/components/common/more-section';
 import { Segmented } from '~/components/common/segmented';
+import { TabFade } from '~/components/common/tab-fade';
 import { SelectField } from '~/components/common/select-field';
 import { Notice } from '~/components/common/notice';
 import { Button } from '~/components/ui/button';
@@ -45,21 +52,39 @@ export function StudentForm({
   const [telegram, setTelegram] = React.useState('');
   const [whatsapp, setWhatsapp] = React.useState('');
   const [notes, setNotes] = React.useState('');
+  const [more, setMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Seed from the student being edited whenever the sheet opens.
   React.useEffect(() => {
     if (!open) return;
     setError(null);
+    setMore(
+      !!student &&
+        !!(
+          student.email ||
+          student.phone ||
+          student.meetingLink ||
+          student.telegramLink ||
+          student.whatsappLink ||
+          student.notes
+        ),
+    );
     setName(student?.name ?? '');
     setPricingMode(student?.pricingMode ?? 'hourly');
     setCurrency(student?.defaultCurrency ?? primaryCurrency);
-    setRate(student ? String(fromMinorUnits(student.hourlyRate.amount, student.hourlyRate.currency)) : '');
+    setRate(
+      student ? String(fromMinorUnits(student.hourlyRate.amount, student.hourlyRate.currency)) : '',
+    );
     setRatePeriod(student ? String(student.ratePeriodMin) : '60');
     setLessonCount(student?.activePackage ? String(student.activePackage.lessonCount) : '');
     setPackagePrice(
       student?.activePackage
-        ? String(fromMinorUnits(student.activePackage.price.amount, student.activePackage.price.currency))
+        ? String(
+            fromMinorUnits(
+              student.activePackage.price.amount,
+              student.activePackage.price.currency,
+            ),
+          )
         : '',
     );
     setEmail(student?.email ?? '');
@@ -70,36 +95,39 @@ export function StudentForm({
     setNotes(student?.notes ?? '');
   }, [open, student, primaryCurrency]);
 
-  const submit = useMutation(async () => {
-    setError(null);
-    if (!name.trim()) return setError(t('Student name'));
-    const base: Record<string, unknown> = {
-      name: name.trim(),
-      defaultCurrency: currency,
-      pricingMode,
-      email: email.trim() || undefined,
-      phone: phone.trim() || undefined,
-      meetingLink: meetingLink.trim() || undefined,
-      telegramLink: telegram.trim() || undefined,
-      whatsappLink: whatsapp.trim() || undefined,
-      notes: notes.trim() || undefined,
-    };
-    if (pricingMode === 'hourly') {
-      base.hourlyRate = { amount: toMinorUnits(Number(rate) || 0, currency), currency };
-      base.ratePeriodMin = Number(ratePeriod) || 60;
-    } else {
-      base.package = {
-        lessonCount: Number(lessonCount) || 1,
-        price: { amount: toMinorUnits(Number(packagePrice) || 0, currency), currency },
+  const submit = useMutation(
+    async () => {
+      setError(null);
+      if (!name.trim()) return setError(t('Student name'));
+      const base: Record<string, unknown> = {
+        name: name.trim(),
+        defaultCurrency: currency,
+        pricingMode,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        meetingLink: meetingLink.trim() || undefined,
+        telegramLink: telegram.trim() || undefined,
+        whatsappLink: whatsapp.trim() || undefined,
+        notes: notes.trim() || undefined,
       };
-    }
+      if (pricingMode === 'hourly') {
+        base.hourlyRate = { amount: toMinorUnits(Number(rate) || 0, currency), currency };
+        base.ratePeriodMin = Number(ratePeriod) || 60;
+      } else {
+        base.package = {
+          lessonCount: Number(lessonCount) || 1,
+          price: { amount: toMinorUnits(Number(packagePrice) || 0, currency), currency },
+        };
+      }
 
-    if (student) await api.patch(`students/${student.id}`, base);
-    else await api.post('students', base);
+      if (student) await api.patch(`students/${student.id}`, base);
+      else await api.post('students', base);
 
-    onOpenChange(false);
-    onSaved();
-  }, { onError: setError });
+      onOpenChange(false);
+      onSaved();
+    },
+    { onError: setError },
+  );
 
   return (
     <FormSheet
@@ -118,14 +146,6 @@ export function StudentForm({
           <Input value={name} onChangeText={setName} />
         </Field>
 
-        <Field label={t('Currency')}>
-          <SelectField
-            value={currency}
-            onValueChange={(v) => setCurrency(v as Currency)}
-            options={currencyOptions()}
-          />
-        </Field>
-
         <Field label={t('Pricing')}>
           <Segmented<PricingMode>
             value={pricingMode}
@@ -137,57 +157,74 @@ export function StudentForm({
           />
         </Field>
 
-        {pricingMode === 'hourly' ? (
+        <TabFade tabKey={pricingMode} className="gap-4">
+          {pricingMode === 'package' ? (
+            <Field label={t('Lessons in package')}>
+              <Input value={lessonCount} onChangeText={setLessonCount} keyboardType="number-pad" />
+            </Field>
+          ) : null}
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Field label={t('Rate')}>
-                <Input value={rate} onChangeText={setRate} keyboardType="decimal-pad" placeholder="0.00" />
+              <Field label={pricingMode === 'hourly' ? t('Rate') : t('Package price')}>
+                {pricingMode === 'hourly' ? (
+                  <Input
+                    value={rate}
+                    onChangeText={setRate}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <Input
+                    value={packagePrice}
+                    onChangeText={setPackagePrice}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                  />
+                )}
               </Field>
             </View>
-            <View className="flex-1">
-              <Field label={t('Rate period (min)')}>
-                <Input value={ratePeriod} onChangeText={setRatePeriod} keyboardType="number-pad" />
-              </Field>
-            </View>
-          </View>
-        ) : (
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Field label={t('Lessons in package')}>
-                <Input value={lessonCount} onChangeText={setLessonCount} keyboardType="number-pad" />
-              </Field>
-            </View>
-            <View className="flex-1">
-              <Field label={t('Package price')}>
-                <Input
-                  value={packagePrice}
-                  onChangeText={setPackagePrice}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
+            <View className="w-28">
+              <Field label={t('Currency')}>
+                <SelectField
+                  value={currency}
+                  onValueChange={(v) => setCurrency(v as Currency)}
+                  options={currencyOptions()}
                 />
               </Field>
             </View>
           </View>
-        )}
+        </TabFade>
 
-        <Field label={t('Email')}>
-          <Input value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-        </Field>
-        <Field label={t('Phone')}>
-          <Input value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        </Field>
-        <Field label={t('Default lesson link')}>
-          <Input value={meetingLink} onChangeText={setMeetingLink} autoCapitalize="none" />
-        </Field>
-        <Field label={t('Telegram link')}>
-          <Input value={telegram} onChangeText={setTelegram} autoCapitalize="none" />
-        </Field>
-        <Field label={t('WhatsApp link')}>
-          <Input value={whatsapp} onChangeText={setWhatsapp} autoCapitalize="none" />
-        </Field>
-        <Field label={t('Notes')}>
-          <Textarea value={notes} onChangeText={setNotes} placeholder={t('Add a note…')} />
-        </Field>
+        <MoreSection open={more} onOpenChange={setMore}>
+          {pricingMode === 'hourly' ? (
+            <Field label={t('Rate period (min)')}>
+              <Input value={ratePeriod} onChangeText={setRatePeriod} keyboardType="number-pad" />
+            </Field>
+          ) : null}
+          <Field label={t('Email')}>
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </Field>
+          <Field label={t('Phone')}>
+            <Input value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          </Field>
+          <Field label={t('Default lesson link')}>
+            <Input value={meetingLink} onChangeText={setMeetingLink} autoCapitalize="none" />
+          </Field>
+          <Field label={t('Telegram link')}>
+            <Input value={telegram} onChangeText={setTelegram} autoCapitalize="none" />
+          </Field>
+          <Field label={t('WhatsApp link')}>
+            <Input value={whatsapp} onChangeText={setWhatsapp} autoCapitalize="none" />
+          </Field>
+          <Field label={t('Notes')}>
+            <Textarea value={notes} onChangeText={setNotes} placeholder={t('Add a note…')} />
+          </Field>
+        </MoreSection>
       </View>
     </FormSheet>
   );

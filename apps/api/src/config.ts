@@ -34,6 +34,7 @@ function oneOf<T extends readonly string[]>(
 }
 
 const nodeEnv = optional('NODE_ENV', 'development');
+const port = num('PORT', num('API_PORT', 3000));
 const isProd = nodeEnv === 'production';
 const publicAppUrl = optional('PUBLIC_APP_URL', 'http://localhost:4321');
 const googleClientId = optional('GOOGLE_CLIENT_ID');
@@ -52,7 +53,7 @@ const resendApiKey =
 
 export const env = {
   nodeEnv,
-  port: num('PORT', num('API_PORT', 3000)),
+  port,
   databaseUrl: required('DATABASE_URL'),
   betterAuthSecret: required('BETTER_AUTH_SECRET'),
   betterAuthUrl: required('BETTER_AUTH_URL'),
@@ -94,5 +95,19 @@ export const env = {
   },
   push: {
     enabled: bool('PUSH_NOTIFICATIONS_ENABLED', true),
+  },
+  ai: {
+    openaiApiKey: optional('OPENAI_API_KEY'),
+    model: optional('AI_MODEL', 'gpt-6.1-sol'),
+    chatEffort: optional('AI_CHAT_EFFORT', 'medium'),
+    digestEffort: optional('AI_DIGEST_EFFORT', 'low'),
+    digestHour: num('AI_DIGEST_HOUR', 7),
+    transcribeModel: optional('AI_TRANSCRIBE_MODEL', 'gpt-transcribe'),
+    tokenEncryptionKey: optional('AI_TOKEN_ENCRYPTION_KEY'),
+    chatgpt: {
+      hostId: optional('CHATGPT_HOST_ID'),
+      redirectUri: optional('CHATGPT_REDIRECT_URI', `http://127.0.0.1:${port}/auth/callback`),
+      agentName: optional('CHATGPT_AGENT_NAME', 'Uchetka'),
+    },
   },
 };

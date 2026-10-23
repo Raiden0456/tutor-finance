@@ -67,6 +67,19 @@ export const TransactionInputSchema = z.object({
 
 export const ThemeEnum = z.enum(['light', 'dark', 'system']);
 export const LocaleEnum = z.enum(['en', 'ru']);
+export const AiLanguageEnum = z.enum([
+  'auto',
+  'ru',
+  'en',
+  'uk',
+  'kk',
+  'tr',
+  'pl',
+  'de',
+  'es',
+  'fr',
+  'it',
+]);
 export const FrequencyEnum = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
 export const LessonFrequencyEnum = z.enum(['weekly', 'biweekly']);
 export const WeekStartsOnEnum = z.union([
@@ -87,4 +100,5 @@ export const UserSettingsInputSchema = z.object({
   /** Minutes before a lesson starts to send the push reminder. */
   lessonReminderMinutes: z.number().int().min(1).max(1440),
   timezone: z.string().refine(isValidTimeZone, 'Invalid IANA time zone'),
+  aiLanguage: AiLanguageEnum,
 });

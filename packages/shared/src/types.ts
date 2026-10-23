@@ -7,6 +7,7 @@ import {
   TransactionTypeEnum,
   ThemeEnum,
   LocaleEnum,
+  AiLanguageEnum,
   FrequencyEnum,
   WeekStartsOnEnum,
   PricingModeEnum,
@@ -22,6 +23,7 @@ export type LessonFrequency = z.infer<typeof LessonFrequencyEnum>;
 export type TransactionType = z.infer<typeof TransactionTypeEnum>;
 export type Theme = z.infer<typeof ThemeEnum>;
 export type Locale = z.infer<typeof LocaleEnum>;
+export type AiLanguage = z.infer<typeof AiLanguageEnum>;
 export type Frequency = z.infer<typeof FrequencyEnum>;
 export type WeekStartsOn = z.infer<typeof WeekStartsOnEnum>;
 export type PricingMode = z.infer<typeof PricingModeEnum>;

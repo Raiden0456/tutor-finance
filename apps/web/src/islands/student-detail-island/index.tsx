@@ -34,6 +34,8 @@ import {
 import { LessonCard } from '@/components/lesson-card';
 import { StudentDialog } from '@/islands/students-island/student-dialog';
 import type { Lesson, Student } from '@/lib/types';
+import { lessonOwed } from '@/utils/lesson';
+import { StudentAssistant, useDataChanged } from '@/features/assistant';
 
 const AVATAR_TINTS = [
   'var(--tf-indigo)',
@@ -127,14 +129,8 @@ function StudentDetailContent({
       if (owed > 0) map.set(activePackage.price.currency, owed);
     }
     for (const l of lessons) {
-      if (l.isPackageCovered) continue;
-      if (l.status !== 'due' && l.status !== 'partially_paid') continue;
-      if (!l.effectivePrice) continue;
-      const { amount, currency } = l.effectivePrice;
-      const paid = l.status === 'partially_paid' ? (l.paidAmount ?? 0) : 0;
-      const owed = amount - paid;
-      if (owed <= 0) continue;
-      map.set(currency, (map.get(currency) ?? 0) + owed);
+      const owed = lessonOwed(l);
+      if (owed) map.set(owed.currency, (map.get(owed.currency) ?? 0) + owed.amount);
     }
     return Array.from(map.entries()).map(([currency, amount]) => ({
       currency: currency as Currency,
@@ -201,6 +197,13 @@ function StudentDetailContent({
     );
   }
 
+  useDataChanged(() => {
+    void run(async () => {
+      setStudent(await api.get<Student>(`/students/${student.id}`));
+      await reloadStudentFinancials();
+    });
+  });
+
   const resolvedBackUrl = backUrl === '/students' ? localizePath('/students', locale) : backUrl;
   const packageProgress = activePackage
     ? Math.min(100, Math.round((activePackage.coveredLessons / activePackage.lessonCount) * 100))
@@ -208,7 +211,6 @@ function StudentDetailContent({
 
   return (
     <div className="page-enter space-y-5">
-      {/* Back nav */}
       <a
         href={resolvedBackUrl}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -217,7 +219,6 @@ function StudentDetailContent({
         {backUrl === '/students' ? t('Students') : t('Back')}
       </a>
 
-      {/* Profile card */}
       <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start gap-4">
           <div
@@ -471,7 +472,6 @@ function StudentDetailContent({
         )}
       </AnimatePresence>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -500,7 +500,8 @@ function StudentDetailContent({
         </div>
       </div>
 
-      {/* Upcoming lessons */}
+      <StudentAssistant studentId={student.id} studentName={student.name} />
+
       {upcomingLessons.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -526,7 +527,6 @@ function StudentDetailContent({
         </section>
       )}
 
-      {/* Recent lessons */}
       {recentLessons.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">

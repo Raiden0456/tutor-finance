@@ -2,13 +2,15 @@ import * as React from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ChevronLeft, Settings, Sparkles } from 'lucide-react-native';
 import { Icon } from '~/components/ui/icon';
 import { Text } from '~/components/ui/text';
-import { LanguageToggle } from '~/components/common/language-toggle';
-import { ThemeToggle } from '~/components/common/theme-toggle';
+import { ensureConsent } from '~/lib/ai/consent';
 import { useColorScheme } from '~/lib/use-color-scheme';
 import { cn } from '~/lib/utils';
+
+const FAB_CLEARANCE = 96;
 
 type ScreenProps = {
   title?: string;
@@ -22,7 +24,6 @@ type ScreenProps = {
   contentClassName?: string;
 };
 
-/** Standard authed-screen frame: safe-area top, optional header, scroll + pull-to-refresh. */
 export function Screen({
   title,
   subtitle,
@@ -36,6 +37,7 @@ export function Screen({
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
+  const router = useRouter();
 
   const header =
     title || onBack ? (
@@ -63,14 +65,27 @@ export function Screen({
         </View>
         <View className="flex-row items-center gap-2 pl-1">
           {right}
-          {/* Global header controls on top-level screens — mirrors the web app's
-              shared mobile header. Detail screens (with a back button) keep
-              their own actions uncluttered. */}
           {!onBack ? (
-            <>
-              <LanguageToggle />
-              <ThemeToggle />
-            </>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                void ensureConsent()
+                  .then((ok) => ok && router.push('/assistant'))
+                  .catch(() => router.push('/assistant'))
+              }
+              className="h-9 w-9 items-center justify-center rounded-full border border-border bg-card active:opacity-80"
+            >
+              <Icon as={Sparkles} size={18} className="text-primary" />
+            </Pressable>
+          ) : null}
+          {!onBack ? (
+            <Pressable
+              hitSlop={8}
+              onPress={() => router.push('/settings')}
+              className="h-9 w-9 items-center justify-center rounded-full border border-border bg-card active:opacity-80"
+            >
+              <Icon as={Settings} size={18} className="text-foreground" />
+            </Pressable>
           ) : null}
         </View>
       </View>
@@ -88,7 +103,10 @@ export function Screen({
       {scroll ? (
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: onBack ? insets.bottom + 24 : FAB_CLEARANCE,
+          }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             onRefresh ? (

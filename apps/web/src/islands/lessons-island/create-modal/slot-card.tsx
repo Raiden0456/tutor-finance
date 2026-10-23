@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { StudentRef } from '@/lib/types';
+import type { LessonStudent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { SlotDraft } from '../shared';
 
@@ -25,7 +25,7 @@ export function SlotCard({
   onDelete,
 }: {
   slot: SlotDraft;
-  students: StudentRef[];
+  students: LessonStudent[];
   isFocused: boolean;
   hasOverlap: boolean;
   canDelete: boolean;
@@ -47,7 +47,6 @@ export function SlotCard({
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
-        {/* Student */}
         <Select value={slot.studentId} onValueChange={(v) => onChange({ studentId: v })}>
           <SelectTrigger className="h-7 w-auto min-w-[100px] flex-1 text-xs">
             <SelectValue />
@@ -61,7 +60,6 @@ export function SlotCard({
           </SelectContent>
         </Select>
 
-        {/* Date chip */}
         <button
           type="button"
           onClick={onFocus}
@@ -75,7 +73,6 @@ export function SlotCard({
           {format(slot.date, 'd MMM EEE', { locale: dateLocale })}
         </button>
 
-        {/* Time */}
         <Input
           type="time"
           value={slot.time}
@@ -83,7 +80,6 @@ export function SlotCard({
           className="h-7 w-24 text-xs"
         />
 
-        {/* Duration */}
         <div className="flex items-center gap-1">
           <Input
             type="number"
@@ -95,7 +91,6 @@ export function SlotCard({
           <span className="text-xs text-muted-foreground">{t('m')}</span>
         </div>
 
-        {/* Delete */}
         <button
           type="button"
           onClick={onDelete}
@@ -111,7 +106,6 @@ export function SlotCard({
         </button>
       </div>
 
-      {/* Overlap indicator */}
       <AnimatePresence>
         {hasOverlap && (
           <motion.div

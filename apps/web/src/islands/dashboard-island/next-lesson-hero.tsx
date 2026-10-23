@@ -79,7 +79,6 @@ export function NextLessonHero({
 
   return (
     <div className="relative isolate overflow-hidden rounded-3xl text-white">
-      {/* Background layers — crossfade between states */}
       <div
         aria-hidden
         className={cn(
@@ -97,7 +96,6 @@ export function NextLessonHero({
         style={{ background: 'linear-gradient(135deg, #15803d 0%, #22c55e 100%)' }}
       />
 
-      {/* Content */}
       <div
         key={hasLesson ? `lesson-${lesson!.id}` : 'empty'}
         className="animate-in fade-in slide-in-from-bottom-2 relative p-5 duration-500"

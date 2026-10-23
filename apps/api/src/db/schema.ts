@@ -7,11 +7,13 @@ import {
   timestamp,
   uuid,
   boolean,
+  jsonb,
   index,
   uniqueIndex,
   doublePrecision,
   check,
 } from 'drizzle-orm/pg-core';
+import type { AiErrorCode } from '@tutor-finance/shared';
 
 const CURRENCY_SQL = sql.raw("'USD','EUR','RUB','GBP','UAH','KZT','TRY','PLN','USDT','USDC'");
 const LESSON_STATUS_SQL = sql.raw(
@@ -24,9 +26,13 @@ const PRICING_MODE_SQL = sql.raw("'hourly','package'");
 const THEME_SQL = sql.raw("'light','dark','system'");
 const LOCALE_SQL = sql.raw("'en','ru'");
 const PUSH_PLATFORM_SQL = sql.raw("'ios','android'");
-const NOTIFICATION_TYPE_SQL = sql.raw("'lesson_reminder','daily_due_summary'");
+const NOTIFICATION_TYPE_SQL = sql.raw("'lesson_reminder','daily_due_summary','assistant_reply'");
 const NOTIFICATION_STATUS_SQL = sql.raw("'pending','sent','failed'");
 const CALENDAR_SYNC_OPERATION_SQL = sql.raw("'upsert','delete'");
+const AI_PROVIDER_SQL = sql.raw("'chatgpt'");
+const AI_MESSAGE_ROLE_SQL = sql.raw("'user','assistant'");
+const AI_MESSAGE_STATUS_SQL = sql.raw("'running','done','error','stopped','interrupted'");
+const AI_ACTION_STATUS_SQL = sql.raw("'pending','confirmed','rejected','failed'");
 
 // --- Better Auth tables ---------------------------------------------------
 // Matches the standard Better Auth Drizzle/pg layout. Regenerate with:
@@ -367,6 +373,7 @@ export const userSettings = pgTable(
     primaryCurrency: text('primary_currency').notNull().default('USD'),
     theme: text('theme').notNull().default('system'),
     locale: text('locale').notNull().default('en'),
+    aiLanguage: text('ai_language').notNull().default('auto'),
     weekStartsOn: integer('week_starts_on').notNull().default(1),
     lessonReminderMinutes: integer('lesson_reminder_minutes').notNull().default(30),
     timezone: text('timezone').notNull().default('UTC'),
@@ -374,6 +381,7 @@ export const userSettings = pgTable(
     googleCalendarId: text('google_calendar_id'),
     googleCalendarConnectedAt: timestamp('google_calendar_connected_at'),
     googleCalendarLastSyncedAt: timestamp('google_calendar_last_synced_at'),
+    aiConsentAt: timestamp('ai_consent_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at')
       .notNull()
@@ -469,8 +477,126 @@ export const calendarSyncJobs = pgTable(
   (t) => [
     index('calendar_sync_jobs_user_id_idx').on(t.userId),
     index('calendar_sync_jobs_dispatch_idx').on(t.nextAttemptAt, t.attempts),
-    check('calendar_sync_jobs_operation_chk', sql`${t.operation} in (${CALENDAR_SYNC_OPERATION_SQL})`),
+    check(
+      'calendar_sync_jobs_operation_chk',
+      sql`${t.operation} in (${CALENDAR_SYNC_OPERATION_SQL})`,
+    ),
     check('calendar_sync_jobs_attempts_chk', sql`${t.attempts} >= 0`),
+  ],
+);
+
+export const aiConnections = pgTable(
+  'ai_connections',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull().default('chatgpt'),
+    clientId: text('client_id').notNull(),
+    subject: text('subject').notNull(),
+    accountEmail: text('account_email'),
+    hostId: text('host_id').notNull(),
+    accessTokenEnc: text('access_token_enc'),
+    refreshTokenEnc: text('refresh_token_enc'),
+    idTokenEnc: text('id_token_enc'),
+    scopes: text('scopes')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [check('ai_connections_provider_chk', sql`${t.provider} in (${AI_PROVIDER_SQL})`)],
+);
+
+export const aiThreads = pgTable(
+  'ai_threads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id').references(() => students.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('ai_threads_user_updated_idx').on(t.userId, t.updatedAt),
+    index('ai_threads_student_id_idx').on(t.studentId),
+  ],
+);
+
+export const aiDigests = pgTable(
+  'ai_digests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    localDate: text('local_date').notNull(),
+    text: text('text').notNull(),
+    generatedAt: timestamp('generated_at').notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('ai_digests_user_date_idx').on(t.userId, t.localDate)],
+);
+
+export const aiMessages = pgTable(
+  'ai_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    threadId: uuid('thread_id')
+      .notNull()
+      .references(() => aiThreads.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    content: text('content').notNull(),
+    items: jsonb('items').$type<Record<string, unknown>[]>(),
+    status: text('status').notNull().default('done'),
+    error: jsonb('error').$type<{ code: AiErrorCode; message: string }>(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('ai_messages_thread_created_idx').on(t.threadId, t.createdAt),
+    index('ai_messages_running_idx')
+      .on(t.threadId)
+      .where(sql`${t.status} = 'running'`),
+    check('ai_messages_role_chk', sql`${t.role} in (${AI_MESSAGE_ROLE_SQL})`),
+    check('ai_messages_status_chk', sql`${t.status} in (${AI_MESSAGE_STATUS_SQL})`),
+  ],
+);
+
+export const aiPendingActions = pgTable(
+  'ai_pending_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    threadId: uuid('thread_id')
+      .notNull()
+      .references(() => aiThreads.id, { onDelete: 'cascade' }),
+    tool: text('tool').notNull(),
+    args: jsonb('args').$type<Record<string, unknown>>().notNull(),
+    summary: text('summary').notNull(),
+    status: text('status').notNull().default('pending'),
+    result: jsonb('result').$type<unknown>(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('ai_pending_actions_user_id_idx').on(t.userId),
+    index('ai_pending_actions_thread_id_idx').on(t.threadId),
+    check('ai_pending_actions_status_chk', sql`${t.status} in (${AI_ACTION_STATUS_SQL})`),
   ],
 );
 
@@ -487,4 +613,8 @@ export const schema = {
   devicePushTokens,
   notificationDeliveries,
   calendarSyncJobs,
+  aiConnections,
+  aiThreads,
+  aiMessages,
+  aiPendingActions,
 };

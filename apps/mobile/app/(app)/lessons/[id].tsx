@@ -1,35 +1,26 @@
 import * as React from 'react';
 import { Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, CircleDollarSign, Pencil, Trash2, Video } from 'lucide-react-native';
+import { Lightbulb, MoreHorizontal, NotebookPen, Video } from 'lucide-react-native';
 import { Screen } from '~/components/common/screen';
 import { StatusBadge } from '~/components/lessons/status-badge';
-import { LessonForm } from '~/components/forms/lesson-form';
+import { LessonStatusNote } from '~/components/lessons/lesson-status-note';
+import { PrimaryActionButton, useLessonActions } from '~/components/lessons/lesson-actions';
 import { ErrorState } from '~/components/common/error-state';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
+import { useOpenAssistant } from '~/lib/ai/use-open-assistant';
 import { useApiQuery } from '~/lib/use-query';
-import { useMutation } from '~/lib/use-mutation';
 import { useI18n } from '~/lib/i18n';
-import { formatDate, money } from '~/lib/format';
+import { formatDate } from '~/lib/format';
 import type { Lesson, Student } from '~/lib/types';
 
 export default function LessonDetailScreen() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -40,117 +31,131 @@ export default function LessonDetailScreen() {
     [studentId],
   );
 
-  const [editOpen, setEditOpen] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
-
-  const l = lesson.data;
-  const refresh = () => {
-    void lesson.refetch();
-  };
-
-  const patchStatus = useMutation(async (patch: Record<string, unknown>) => {
-    await api.patch(`lessons/${id}`, patch);
-    refresh();
-  });
-
-  const remove = useMutation(async () => {
-    await api.delete(`lessons/${id}`);
-    setConfirmDelete(false);
-    router.back();
-  });
-
-  if (lesson.loading && !l) {
+  if (lesson.loading && !lesson.data) {
     return (
       <Screen onBack={() => router.back()} title="">
         <Skeleton className="h-40 w-full" />
       </Screen>
     );
   }
-  if (!l) {
+  if (!lesson.data) {
     return (
       <Screen onBack={() => router.back()} title={t('Lesson')}>
-        <ErrorState message={lesson.error} onRetry={refresh} retrying={lesson.loading} />
+        <ErrorState message={lesson.error} onRetry={lesson.refetch} retrying={lesson.loading} />
       </Screen>
     );
   }
 
-  const price = l.effectivePrice;
+  return (
+    <LessonDetail
+      lesson={lesson.data}
+      studentName={student.data?.name ?? ''}
+      onChanged={(updated) => (updated ? lesson.setData(updated) : void lesson.refetch())}
+      onDeleted={() => router.back()}
+      onBack={() => router.back()}
+    />
+  );
+}
+
+function LessonDetail({
+  lesson: l,
+  studentName,
+  onChanged,
+  onDeleted,
+  onBack,
+}: {
+  lesson: Lesson;
+  studentName: string;
+  onChanged: (updated?: Lesson) => void;
+  onDeleted: () => void;
+  onBack: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const actions = useLessonActions({
+    lesson: l,
+    title: studentName,
+    showDetails: false,
+    onChanged,
+    onDeleted,
+  });
+  const assistant = useOpenAssistant();
+  const askAssistant = (key: string) =>
+    void assistant.run({
+      studentId: l.studentId,
+      studentName,
+      prompt: t(key, { when: formatDate(l.startsAt, 'EEEE d MMMM, HH:mm', locale) }),
+    });
 
   return (
     <>
       <Screen
-        onBack={() => router.back()}
-        title={t('Lesson with {name}', { name: student.data?.name ?? '' })}
+        onBack={onBack}
+        title={t('Lesson with {name}', { name: studentName })}
         right={
-          <View className="flex-row gap-1">
-            <Button size="icon" variant="ghost" onPress={() => setEditOpen(true)}>
-              <Icon as={Pencil} size={18} />
-            </Button>
-            <Button size="icon" variant="ghost" onPress={() => setConfirmDelete(true)}>
-              <Icon as={Trash2} size={18} className="text-destructive" />
-            </Button>
-          </View>
+          <Button size="icon" variant="ghost" onPress={actions.openMenu}>
+            <Icon as={MoreHorizontal} size={18} />
+          </Button>
         }
       >
         <View className="gap-4">
           <Card>
             <CardContent className="gap-3 pt-5">
               <View className="flex-row items-center justify-between">
-                <Text className="text-lg font-semibold">{student.data?.name ?? t('Student')}</Text>
-                <StatusBadge status={l.status} />
+                <Text className="text-lg font-semibold">{studentName || t('Student')}</Text>
+                <StatusBadge lesson={l} />
               </View>
+              <LessonStatusNote lesson={l} className="text-sm" />
               <Row
                 label={t('Date & time')}
                 value={formatDate(l.startsAt, 'EEE, d MMM yyyy · HH:mm', locale)}
               />
               <Row label={t('Duration')} value={`${l.durationMin} ${t('min')}`} />
-              {price ? (
-                <Row
-                  label={l.isPackageCovered ? t('Included in package') : t('Lesson price')}
-                  value={l.isPackageCovered ? '—' : money(price.amount, price.currency, locale)}
-                />
-              ) : null}
-              {l.paidAmount != null && price ? (
-                <Row
-                  label={t('Paid {paid} of {total}', {
-                    paid: money(l.paidAmount, price.currency, locale),
-                    total: money(price.amount, price.currency, locale),
-                  })}
-                  value=""
-                />
-              ) : null}
             </CardContent>
           </Card>
 
-          {/* Quick actions */}
-          <View className="flex-row flex-wrap gap-2">
-            {l.status === 'scheduled' ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={patchStatus.pending}
-                onPress={() => void patchStatus.run({ status: 'completed' })}
-              >
-                <Icon as={CheckCircle2} size={15} />
-                <Text>{t('Mark as Completed')}</Text>
-              </Button>
-            ) : null}
-            {l.status !== 'paid' && !l.isPackageCovered ? (
-              <Button
-                size="sm"
-                disabled={patchStatus.pending}
-                onPress={() => void patchStatus.run({ status: 'paid', paidAmount: price?.amount })}
-              >
-                <Icon as={CircleDollarSign} size={15} />
-                <Text>{t('Mark as Paid')}</Text>
-              </Button>
-            ) : null}
-            {l.meetingLink ? (
-              <Button size="sm" variant="outline" onPress={() => Linking.openURL(l.meetingLink!)}>
-                <Icon as={Video} size={15} />
-                <Text>{t('Join meeting')}</Text>
-              </Button>
-            ) : null}
+          {actions.primary || l.meetingLink ? (
+            <View className="flex-row gap-2">
+              {actions.primary ? (
+                <PrimaryActionButton
+                  lesson={l}
+                  action={actions.primary}
+                  busy={actions.busy}
+                  onPress={actions.runPrimary}
+                  className="flex-1"
+                />
+              ) : null}
+              {l.meetingLink ? (
+                <Button
+                  variant="outline"
+                  className={actions.primary ? undefined : 'flex-1'}
+                  onPress={() => void Linking.openURL(l.meetingLink!)}
+                >
+                  <Icon as={Video} size={16} />
+                  <Text>{t('Join meeting')}</Text>
+                </Button>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View className="flex-row gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={assistant.pending}
+              onPress={() => askAssistant('Prepare a lesson plan for the lesson on {when}.')}
+            >
+              <Icon as={NotebookPen} size={16} className="text-primary" />
+              <Text>{t('Lesson plan')}</Text>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={assistant.pending}
+              onPress={() => askAssistant('Suggest homework ideas for the lesson on {when}.')}
+            >
+              <Icon as={Lightbulb} size={16} className="text-primary" />
+              <Text>{t('Homework ideas')}</Text>
+            </Button>
           </View>
 
           {l.homework ? (
@@ -176,40 +181,7 @@ export default function LessonDetailScreen() {
           ) : null}
         </View>
       </Screen>
-
-      {student.data ? (
-        <LessonForm
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          lesson={l}
-          students={[student.data]}
-          onSaved={refresh}
-        />
-      ) : null}
-
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('Delete lesson?')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('This permanently deletes the lesson')} {t('and its income transaction')}.{' '}
-              {t('This action cannot be undone.')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <Text>{t('Cancel')}</Text>
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive"
-              disabled={remove.pending}
-              onPress={() => void remove.run()}
-            >
-              <Text>{t('Delete')}</Text>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {actions.elements}
     </>
   );
 }
@@ -218,7 +190,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-center justify-between">
       <Text className="text-sm text-muted-foreground">{label}</Text>
-      {value ? <Text className="text-sm font-medium">{value}</Text> : null}
+      <Text className="text-sm font-medium">{value}</Text>
     </View>
   );
 }

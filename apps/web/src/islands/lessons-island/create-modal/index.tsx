@@ -25,18 +25,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { WeekStartsOn } from '@tutor-finance/shared';
-import type { Lesson, StudentRef } from '@/lib/types';
-import { statusLabel } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
+import { MoneyInput } from '@/components/form/money-input';
+import { MoreFields } from '@/components/form/more-fields';
+import { parseMajorToMinor, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
+import type { Lesson, LessonStudent } from '@/lib/types';
 import { CreateCalendar } from './create-calendar';
 import { DaySchedulePreview } from './day-schedule-preview';
 import { SlotCard } from './slot-card';
-import { type SlotDraft, CREATE_STATUSES, dayKey } from '../shared';
+import { type SlotDraft, dayKey } from '../shared';
 
 interface CreateLessonModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  students: StudentRef[];
+  students: LessonStudent[];
   studentMap: Map<string, string>;
   daysWithLessons: Set<string>;
   monthLessons: Lesson[];
@@ -69,6 +71,10 @@ export function CreateLessonModal({
   const [createViewMonth, setCreateViewMonth] = useState(() => startOfMonth(initialDate));
   const [createStudentId, setCreateStudentId] = useState(students[0]?.id ?? '');
   const [createMeetingLink, setCreateMeetingLink] = useState(students[0]?.meetingLink ?? '');
+  const [priceAmount, setPriceAmount] = useState('');
+  const [priceCurrency, setPriceCurrency] = useState<Currency>(
+    students[0]?.defaultCurrency ?? 'USD',
+  );
   const [batchMode, setBatchMode] = useState(false);
   const [slots, setSlots] = useState<SlotDraft[]>([]);
   const [focusedSlotId, setFocusedSlotId] = useState<string | null>(null);
@@ -78,11 +84,26 @@ export function CreateLessonModal({
   const [createErrors, setCreateErrors] = useState<string[]>([]);
   const [createSubmitting, setCreateSubmitting] = useState(false);
 
-  function studentMeetingLink(studentId: string) {
-    return students.find((s) => s.id === studentId)?.meetingLink ?? '';
+  function studentById(studentId: string) {
+    return students.find((s) => s.id === studentId);
   }
 
-  // Capture initialDate at open time; reset all state when modal opens
+  function studentMeetingLink(studentId: string) {
+    return studentById(studentId)?.meetingLink ?? '';
+  }
+
+  function studentDuration(studentId: string) {
+    return studentById(studentId)?.ratePeriodMin ?? 60;
+  }
+
+  function selectStudent(studentId: string) {
+    const student = studentById(studentId);
+    setCreateStudentId(studentId);
+    setCreateMeetingLink(student?.meetingLink ?? '');
+    setCreateDurationMin(student?.ratePeriodMin ?? 60);
+    setPriceCurrency(student?.defaultCurrency ?? 'USD');
+  }
+
   useEffect(() => {
     if (open) {
       initialDateRef.current = initialDate;
@@ -90,9 +111,8 @@ export function CreateLessonModal({
       setCreateDate(d);
       setCreateViewMonth(startOfMonth(d));
       setCreateTime('10:00');
-      setCreateDurationMin(60);
-      setCreateStudentId(students[0]?.id ?? '');
-      setCreateMeetingLink(students[0]?.meetingLink ?? '');
+      selectStudent(students[0]?.id ?? '');
+      setPriceAmount('');
       setBatchMode(false);
       setSlots([]);
       setFocusedSlotId(null);
@@ -164,7 +184,6 @@ export function CreateLessonModal({
       date: createDate,
       time: batchMode ? (prev?.time ?? createTime) : createTime,
       durationMin: batchMode ? (prev?.durationMin ?? createDurationMin) : createDurationMin,
-      status: 'scheduled',
     };
     if (!batchMode) {
       const firstSlot: SlotDraft = {
@@ -173,7 +192,6 @@ export function CreateLessonModal({
         date: createDate,
         time: createTime,
         durationMin: createDurationMin,
-        status: 'scheduled',
       };
       setBatchMode(true);
       setSlots([firstSlot, newSlot]);
@@ -189,13 +207,17 @@ export function CreateLessonModal({
     const [h, m] = createTime.split(':').map(Number);
     const startsAt = new Date(createDate);
     startsAt.setHours(h, m, 0, 0);
+    const priceMinor = priceAmount.trim() ? parseMajorToMinor(priceAmount, priceCurrency) : null;
+    if (priceMinor !== null && priceMinor <= 0) return;
     setCreateSubmitting(true);
     await run(async () => {
       await api.post('/lessons', {
         studentId: createStudentId,
         startsAt: startsAt.toISOString(),
         durationMin: createDurationMin,
-        status: String(data.get('status') ?? 'scheduled'),
+        status: 'scheduled',
+        priceOverride:
+          priceMinor === null ? undefined : { amount: priceMinor, currency: priceCurrency },
         notes: String(data.get('notes') ?? '').trim() || undefined,
         homework: String(data.get('homework') ?? '').trim() || undefined,
         meetingLink: createMeetingLink.trim() || undefined,
@@ -221,7 +243,7 @@ export function CreateLessonModal({
           studentId: s.studentId,
           startsAt: startsAt.toISOString(),
           durationMin: s.durationMin,
-          status: s.status,
+          status: 'scheduled',
           meetingLink: studentMeetingLink(s.studentId) || undefined,
         });
       } catch {
@@ -259,7 +281,6 @@ export function CreateLessonModal({
           className="contents"
         >
           <ResponsiveModalBody className="min-h-0 flex flex-col gap-4 pr-1">
-            {/* ─── Mode panels ─── */}
             <AnimatePresence initial={false} mode="wait">
               {!batchMode ? (
                 <motion.div
@@ -270,44 +291,20 @@ export function CreateLessonModal({
                   transition={{ duration: 0.15 }}
                   className="flex flex-col gap-4"
                 >
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                      <Label>{t('Student')}</Label>
-                      <Select
-                        name="studentId"
-                        value={createStudentId}
-                        onValueChange={(studentId) => {
-                          setCreateStudentId(studentId);
-                          setCreateMeetingLink(studentMeetingLink(studentId));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>{t('Status')}</Label>
-                      <Select name="status" defaultValue="scheduled">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CREATE_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {t(statusLabel[s])}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="grid gap-2">
+                    <Label>{t('Student')}</Label>
+                    <Select name="studentId" value={createStudentId} onValueChange={selectStudent}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid gap-2">
                     <Label>{t('Date')}</Label>
@@ -354,25 +351,37 @@ export function CreateLessonModal({
                       />
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">{t('Notes')}</Label>
-                    <Input id="notes" name="notes" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="homework">{t('Homework')}</Label>
-                    <Input id="homework" name="homework" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="meetingLink">{t('Meeting link')}</Label>
-                    <Input
-                      id="meetingLink"
-                      name="meetingLink"
-                      type="url"
-                      placeholder="https://..."
-                      value={createMeetingLink}
-                      onChange={(e) => setCreateMeetingLink(e.target.value)}
-                    />
-                  </div>
+                  <MoreFields>
+                    <div className="grid gap-2">
+                      <Label>{t('Price override')}</Label>
+                      <MoneyInput
+                        amount={priceAmount}
+                        currency={priceCurrency}
+                        onAmountChange={setPriceAmount}
+                        onCurrencyChange={setPriceCurrency}
+                        placeholder={t('Leave blank to use hourly rate')}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="meetingLink">{t('Meeting link')}</Label>
+                      <Input
+                        id="meetingLink"
+                        name="meetingLink"
+                        type="url"
+                        placeholder="https://..."
+                        value={createMeetingLink}
+                        onChange={(e) => setCreateMeetingLink(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="homework">{t('Homework')}</Label>
+                      <Textarea id="homework" name="homework" rows={2} className="resize-none" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="notes">{t('Notes')}</Label>
+                      <Textarea id="notes" name="notes" rows={2} className="resize-none" />
+                    </div>
+                  </MoreFields>
                 </motion.div>
               ) : (
                 <motion.div
@@ -421,11 +430,14 @@ export function CreateLessonModal({
                           setCreateDate(slot.date);
                           setCreateViewMonth(startOfMonth(slot.date));
                         }}
-                        onChange={(patch) =>
+                        onChange={(patch) => {
+                          const next = patch.studentId
+                            ? { ...patch, durationMin: studentDuration(patch.studentId) }
+                            : patch;
                           setSlots((prev) =>
-                            prev.map((s) => (s.id === slot.id ? { ...s, ...patch } : s)),
-                          )
-                        }
+                            prev.map((s) => (s.id === slot.id ? { ...s, ...next } : s)),
+                          );
+                        }}
                         onDelete={() => {
                           const next = slots.filter((s) => s.id !== slot.id);
                           if (next.length <= 1) {
@@ -454,19 +466,17 @@ export function CreateLessonModal({
               )}
             </AnimatePresence>
 
-            {/* ─── Add slot button ─── */}
             <button
               type="button"
               onClick={handleAddSlot}
-              className="flex items-center gap-1.5 text-xs font-medium text-primary transition-opacity hover:opacity-70 active:opacity-50"
+              className="flex w-fit items-center gap-1.5 text-xs font-medium text-primary transition-opacity hover:opacity-70 active:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" />
-              {t('Add slot')}
+              {t('Add another time')}
             </button>
           </ResponsiveModalBody>
 
           <ResponsiveModalFooter className="flex-col items-stretch gap-2">
-            {/* Overlap warning — single mode */}
             <AnimatePresence>
               {createOverlapLesson && !batchMode && (
                 <motion.div
@@ -488,7 +498,6 @@ export function CreateLessonModal({
                 </motion.div>
               )}
             </AnimatePresence>
-            {/* Batch progress */}
             <AnimatePresence>
               {createProgress && (
                 <motion.div
@@ -508,7 +517,6 @@ export function CreateLessonModal({
                 </motion.div>
               )}
             </AnimatePresence>
-            {/* Batch errors */}
             <AnimatePresence>
               {createErrors.length > 0 && (
                 <motion.div

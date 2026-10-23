@@ -19,11 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
 import { fmtMajor } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { TabSwitcher } from '@/islands/transactions-island/tab-switcher';
+import { TabSwitcher } from '@/components/tab-switcher';
 import { SUPPORTED_CURRENCIES } from '@tutor-finance/shared';
+import { Collapse } from '@/components/ui/collapse';
+import { Textarea } from '@/components/ui/textarea';
+import { MoreFields } from '@/components/form/more-fields';
 import type { PricingMode, Student } from '@/lib/types';
 
 export function StudentDialog({
@@ -73,14 +75,6 @@ export function StudentDialog({
           <div className="grid gap-2">
             <Label htmlFor="name">{t('Name')}</Label>
             <Input id="name" name="name" required defaultValue={editing?.name ?? ''} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="email">{t('Email')}</Label>
-            <Input id="email" name="email" type="email" defaultValue={editing?.email ?? ''} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="phone">{t('Phone')}</Label>
-            <Input id="phone" name="phone" defaultValue={editing?.phone ?? ''} />
           </div>
 
           <div className="grid gap-2">
@@ -138,17 +132,6 @@ export function StudentDialog({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="ratePeriodMin">{t('Rate period (min)')}</Label>
-                  <Input
-                    id="ratePeriodMin"
-                    name="ratePeriodMin"
-                    type="number"
-                    min="1"
-                    required
-                    defaultValue={editing?.ratePeriodMin ?? 60}
-                  />
                 </div>
               </motion.div>
             ) : (
@@ -208,42 +191,73 @@ export function StudentDialog({
             )}
           </AnimatePresence>
 
-          <div className="grid gap-2">
-            <Label htmlFor="meetingLink">{t('Default lesson link')}</Label>
-            <Input
-              id="meetingLink"
-              name="meetingLink"
-              type="url"
-              placeholder="https://…"
-              defaultValue={editing?.meetingLink ?? ''}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="telegramLink">{t('Telegram link')}</Label>
-              <Input
-                id="telegramLink"
-                name="telegramLink"
-                type="url"
-                placeholder="https://t.me/..."
-                defaultValue={editing?.telegramLink ?? ''}
-              />
+          <MoreFields>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="email">{t('Email')}</Label>
+                <Input id="email" name="email" type="email" defaultValue={editing?.email ?? ''} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">{t('Phone')}</Label>
+                <Input id="phone" name="phone" type="tel" defaultValue={editing?.phone ?? ''} />
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="whatsappLink">{t('WhatsApp link')}</Label>
+              <Label htmlFor="meetingLink">{t('Default lesson link')}</Label>
               <Input
-                id="whatsappLink"
-                name="whatsappLink"
+                id="meetingLink"
+                name="meetingLink"
                 type="url"
-                placeholder="https://wa.me/..."
-                defaultValue={editing?.whatsappLink ?? ''}
+                placeholder="https://…"
+                defaultValue={editing?.meetingLink ?? ''}
               />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="notes">{t('Notes')}</Label>
-            <Input id="notes" name="notes" defaultValue={editing?.notes ?? ''} />
-          </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="telegramLink">{t('Telegram link')}</Label>
+                <Input
+                  id="telegramLink"
+                  name="telegramLink"
+                  type="url"
+                  placeholder="https://t.me/..."
+                  defaultValue={editing?.telegramLink ?? ''}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="whatsappLink">{t('WhatsApp link')}</Label>
+                <Input
+                  id="whatsappLink"
+                  name="whatsappLink"
+                  type="url"
+                  placeholder="https://wa.me/..."
+                  defaultValue={editing?.whatsappLink ?? ''}
+                />
+              </div>
+            </div>
+            <Collapse open={pricingMode === 'hourly'}>
+              <div className="grid gap-2">
+                <Label htmlFor="ratePeriodMin">{t('Rate period (min)')}</Label>
+                <Input
+                  id="ratePeriodMin"
+                  name="ratePeriodMin"
+                  type="number"
+                  min="1"
+                  required
+                  defaultValue={editing?.ratePeriodMin ?? 60}
+                />
+              </div>
+            </Collapse>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">{t('Notes')}</Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                rows={2}
+                className="resize-none"
+                defaultValue={editing?.notes ?? ''}
+              />
+            </div>
+          </MoreFields>
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
@@ -256,7 +270,7 @@ export function StudentDialog({
   );
 }
 
-export function EmptyState({ onAdd }: { onAdd: () => void }) {
+export function EmptyState() {
   const { t } = useI18n();
 
   return (
@@ -265,9 +279,6 @@ export function EmptyState({ onAdd }: { onAdd: () => void }) {
       <p className="mt-1 text-xs text-muted-foreground">
         {t('Add your first one to start tracking lessons.')}
       </p>
-      <Button onClick={onAdd} className="mt-4">
-        <Plus className="h-4 w-4" /> {t('Add student')}
-      </Button>
     </div>
   );
 }

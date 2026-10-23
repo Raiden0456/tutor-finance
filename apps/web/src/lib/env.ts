@@ -16,7 +16,7 @@ export const PUBLIC_APP_URL =
 // SERVER_API_URL is used ONLY by SSR / Astro frontmatter and the /api/* reverse
 // proxy. Read from process.env at runtime so it works on Render.
 export const SERVER_API_URL =
-  proc.SERVER_API_URL ?? proc.PUBLIC_API_URL ?? viteEnv.SERVER_API_URL ?? 'http://localhost:3000';
+  proc.SERVER_API_URL || proc.PUBLIC_API_URL || viteEnv.SERVER_API_URL || 'http://localhost:3000';
 
 // Browser-facing API base. In the browser, requests go to the current origin
 // and hit the same-origin `/api/*` reverse proxy, which keeps auth cookies

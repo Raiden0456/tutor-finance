@@ -1,4 +1,4 @@
-import type { Lesson, TransactionType } from '@tutor-finance/shared';
+import type { Lesson, Student, StudentRef, TransactionType } from '@tutor-finance/shared';
 
 // Re-export shared input + view types so existing `@/lib/types` imports keep working.
 export type {
@@ -21,9 +21,9 @@ export type {
   Recurring,
 } from '@tutor-finance/shared';
 
-// ── Web-only view types ──────────────────────────────────────────────────────
-
 export type RecentLesson = Omit<Lesson, 'notes'>;
+
+export type LessonStudent = StudentRef & Pick<Student, 'ratePeriodMin' | 'defaultCurrency'>;
 
 export interface DailyTx {
   occurredAt: string;

@@ -29,7 +29,13 @@ const [settings, lessons, studentsList, schedulesList] = await Promise.all([
   api.get<RecurringLesson[]>('/recurring-lessons'),
 ]);
 
-const students = studentsList.map((s) => ({ id: s.id, name: s.name, meetingLink: s.meetingLink }));
+const students = studentsList.map((s) => ({
+  id: s.id,
+  name: s.name,
+  meetingLink: s.meetingLink,
+  ratePeriodMin: s.ratePeriodMin,
+  defaultCurrency: s.defaultCurrency,
+}));
 ---
 
 <AppLayout

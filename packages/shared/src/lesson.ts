@@ -1,4 +1,42 @@
 import type { LessonStatus } from './types.js';
+import type { Lesson } from './views.js';
+
+export type DisplayStatus = 'scheduled' | 'awaiting_payment' | 'paid' | 'cancelled';
+
+export const DISPLAY_STATUS_LABEL: Record<DisplayStatus, string> = {
+  scheduled: 'Scheduled',
+  awaiting_payment: 'Awaiting payment',
+  paid: 'Paid',
+  cancelled: 'Cancelled',
+};
+
+export function displayStatus(lesson: Pick<Lesson, 'status' | 'isPackageCovered'>): DisplayStatus {
+  switch (lesson.status) {
+    case 'scheduled':
+      return 'scheduled';
+    case 'paid':
+      return 'paid';
+    case 'cancelled':
+    case 'no_show':
+      return 'cancelled';
+    case 'completed':
+    case 'due':
+      return lesson.isPackageCovered ? 'paid' : 'awaiting_payment';
+    case 'partially_paid':
+      return 'awaiting_payment';
+  }
+}
+
+export type LessonPrimaryAction = 'complete' | 'mark_paid';
+
+export function primaryAction(
+  lesson: Pick<Lesson, 'status' | 'isPackageCovered'>,
+): LessonPrimaryAction | null {
+  const display = displayStatus(lesson);
+  if (display === 'scheduled') return 'complete';
+  if (display === 'awaiting_payment') return 'mark_paid';
+  return null;
+}
 
 /** Statuses that have an outstanding (or settle-able) payment. */
 export function needsPayment(status: LessonStatus): boolean {
@@ -37,3 +75,24 @@ export const LESSON_STATUS_ORDER: LessonStatus[] = [
   'cancelled',
   'no_show',
 ];
+
+type ConflictCandidate = Pick<Lesson, 'id' | 'startsAt' | 'durationMin' | 'status'>;
+
+export function findLessonConflicts<T extends ConflictCandidate>(lessons: T[]): [T, T][] {
+  const active = lessons
+    .filter((l) => l.status !== 'cancelled' && l.status !== 'no_show')
+    .map((l) => {
+      const start = new Date(l.startsAt).getTime();
+      return { lesson: l, start, end: start + l.durationMin * 60_000 };
+    })
+    .sort((a, b) => a.start - b.start);
+
+  const conflicts: [T, T][] = [];
+  for (let i = 0; i < active.length; i++) {
+    const a = active[i]!;
+    for (let j = i + 1; j < active.length && active[j]!.start < a.end; j++) {
+      conflicts.push([a.lesson, active[j]!.lesson]);
+    }
+  }
+  return conflicts;
+}

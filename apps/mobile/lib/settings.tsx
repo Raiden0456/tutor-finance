@@ -12,7 +12,12 @@ type SettingsContextValue = {
     patch: Partial<
       Pick<
         Settings,
-        'primaryCurrency' | 'theme' | 'locale' | 'weekStartsOn' | 'lessonReminderMinutes'
+        | 'primaryCurrency'
+        | 'theme'
+        | 'locale'
+        | 'weekStartsOn'
+        | 'lessonReminderMinutes'
+        | 'aiLanguage'
       >
     >,
   ) => Promise<void>;

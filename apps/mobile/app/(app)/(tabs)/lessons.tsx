@@ -27,7 +27,6 @@ import { LessonForm } from '~/components/forms/lesson-form';
 import { RecurringLessonForm } from '~/components/forms/recurring-lesson-form';
 import { EmptyState } from '~/components/common/empty-state';
 import { ErrorState } from '~/components/common/error-state';
-import { Fab } from '~/components/common/fab';
 import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
 import { StaggerItem } from '~/components/common/stagger';
@@ -47,6 +46,7 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useDataVersion } from '~/lib/data-version';
 import { useMutation } from '~/lib/use-mutation';
 import { capitalizeFirst, getDateFnsLocale, useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
@@ -59,63 +59,46 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 export default function LessonsScreen() {
   const { t } = useI18n();
   const [tab, setTab] = React.useState<'calendar' | 'schedules'>('calendar');
-  const [logOpen, setLogOpen] = React.useState(false);
+  const version = useDataVersion();
 
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
-    [],
+    [version],
   );
 
   return (
-    <View className="flex-1">
-      <Screen title={t('Lessons')}>
-        <View className="gap-4">
-          <Segmented
-            value={tab}
-            onChange={setTab}
-            options={[
-              { value: 'calendar', label: t('Calendar') },
-              { value: 'schedules', label: t('Schedules') },
-            ]}
-          />
-          <TabFade tabKey={tab}>
-            {students.error && !students.data ? (
-              <ErrorState
-                message={students.error}
-                onRetry={students.refetch}
-                retrying={students.loading}
-              />
-            ) : tab === 'calendar' ? (
-              <CalendarTab
-                students={students.data ?? []}
-                formOpen={logOpen}
-                onFormOpenChange={setLogOpen}
-              />
-            ) : (
-              <SchedulesTab students={students.data ?? []} />
-            )}
-          </TabFade>
-        </View>
-      </Screen>
-
-      {tab === 'calendar' && (students.data ?? []).length > 0 ? (
-        <Fab onPress={() => setLogOpen(true)} />
-      ) : null}
-    </View>
+    <Screen title={t('Lessons')}>
+      <View className="gap-4">
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'calendar', label: t('Calendar') },
+            { value: 'schedules', label: t('Schedules') },
+          ]}
+        />
+        <TabFade tabKey={tab}>
+          {students.error && !students.data ? (
+            <ErrorState
+              message={students.error}
+              onRetry={students.refetch}
+              retrying={students.loading}
+            />
+          ) : tab === 'calendar' ? (
+            <CalendarTab students={students.data ?? []} version={version} />
+          ) : (
+            <SchedulesTab students={students.data ?? []} version={version} />
+          )}
+        </TabFade>
+      </View>
+    </Screen>
   );
 }
 
-function CalendarTab({
-  students,
-  formOpen,
-  onFormOpenChange,
-}: {
-  students: Student[];
-  formOpen: boolean;
-  onFormOpenChange: (open: boolean) => void;
-}) {
+function CalendarTab({ students, version }: { students: Student[]; version: number }) {
   const { t, locale } = useI18n();
   const { weekStartsOn } = useSettings();
+  const [formOpen, setFormOpen] = React.useState(false);
 
   const [selected, setSelected] = React.useState(() => startOfDay(new Date()));
   const [rangeEnd, setRangeEnd] = React.useState<Date | null>(null);
@@ -134,7 +117,7 @@ function CalendarTab({
   const to = React.useMemo(() => endOfMonth(addMonths(viewAnchor, 1)).toISOString(), [viewAnchor]);
   const lessons = useApiQuery(
     () => api.get<Lesson[]>('lessons', { query: { from, to, orderDir: 'asc', limit: 500 } }),
-    [from, to],
+    [from, to, version],
   );
 
   const nameOf = (id: string) => students.find((s) => s.id === id)?.name ?? t('Student');
@@ -224,7 +207,9 @@ function CalendarTab({
         onToggleMonth={() => setMonthExpanded((v) => !v)}
         onSelect={selectDay}
         onSwipe={(dir) => {
-          const next = startOfDay(new Date(selected.getTime() + (dir === 'next' ? 7 : -7) * 86400000));
+          const next = startOfDay(
+            new Date(selected.getTime() + (dir === 'next' ? 7 : -7) * 86400000),
+          );
           setSelected(next);
           setViewAnchor(next);
         }}
@@ -263,7 +248,11 @@ function CalendarTab({
           </View>
 
           {lessons.error && !lessons.data ? (
-            <ErrorState message={lessons.error} onRetry={lessons.refetch} retrying={lessons.loading} />
+            <ErrorState
+              message={lessons.error}
+              onRetry={lessons.refetch}
+              retrying={lessons.loading}
+            />
           ) : lessons.loading && (lessons.data ?? []).length === 0 ? (
             <Skeleton className="h-20 w-full" />
           ) : dayLessons.length === 0 ? (
@@ -276,7 +265,7 @@ function CalendarTab({
                     : t('No lessons on this day.')}
               </Text>
               {students.length > 0 ? (
-                <Button variant="outline" size="sm" onPress={() => onFormOpenChange(true)}>
+                <Button variant="outline" size="sm" onPress={() => setFormOpen(true)}>
                   <Icon as={Plus} size={15} />
                   <Text>{t('Add lesson')}</Text>
                 </Button>
@@ -300,7 +289,7 @@ function CalendarTab({
 
       <LessonForm
         open={formOpen}
-        onOpenChange={onFormOpenChange}
+        onOpenChange={setFormOpen}
         students={students}
         defaultDate={selected}
         onSaved={() => lessons.refetch()}
@@ -367,7 +356,11 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
       </View>
 
       {archived.error && !archived.data ? (
-        <ErrorState message={archived.error} onRetry={archived.refetch} retrying={archived.loading} />
+        <ErrorState
+          message={archived.error}
+          onRetry={archived.refetch}
+          retrying={archived.loading}
+        />
       ) : archived.loading && list.length === 0 ? (
         <Skeleton className="h-20 w-full" />
       ) : list.length === 0 ? (
@@ -380,7 +373,6 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
                 lesson={l}
                 studentName={nameOf(l.studentId)}
                 showDate
-                isArchived
                 onChanged={() => archived.refetch()}
               />
             </StaggerItem>
@@ -419,9 +411,9 @@ function ArchiveView({ nameOf }: { nameOf: (id: string) => string }) {
   );
 }
 
-function SchedulesTab({ students }: { students: Student[] }) {
+function SchedulesTab({ students, version }: { students: Student[]; version: number }) {
   const { t } = useI18n();
-  const schedules = useApiQuery(() => api.get<RecurringLesson[]>('recurring-lessons'), []);
+  const schedules = useApiQuery(() => api.get<RecurringLesson[]>('recurring-lessons'), [version]);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<RecurringLesson | null>(null);
   const [toDelete, setToDelete] = React.useState<RecurringLesson | null>(null);
@@ -442,23 +434,35 @@ function SchedulesTab({ students }: { students: Student[] }) {
           'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.',
         )}
       </Text>
-      <Button
-        variant="outline"
-        onPress={() => {
-          setEditing(null);
-          setFormOpen(true);
-        }}
-      >
-        <Icon as={Plus} size={16} />
-        <Text>{t('Add schedule')}</Text>
-      </Button>
 
       {schedules.error && !schedules.data ? (
-        <ErrorState message={schedules.error} onRetry={schedules.refetch} retrying={schedules.loading} />
+        <ErrorState
+          message={schedules.error}
+          onRetry={schedules.refetch}
+          retrying={schedules.loading}
+        />
       ) : schedules.loading && (schedules.data ?? []).length === 0 ? (
         <Skeleton className="h-24 w-full" />
       ) : (schedules.data ?? []).length === 0 ? (
-        <EmptyState icon={CalendarDays} title={t('No recurring schedules yet.')} />
+        <EmptyState
+          icon={CalendarDays}
+          title={t('No recurring schedules yet.')}
+          action={
+            students.length > 0 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
+                <Icon as={Plus} size={15} />
+                <Text>{t('Add schedule')}</Text>
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         (schedules.data ?? []).map((sch) => (
           <View

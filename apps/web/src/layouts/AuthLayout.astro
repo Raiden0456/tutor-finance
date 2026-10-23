@@ -61,7 +61,7 @@ const landingHref = landingBase ? `${landingBase}${locale === 'ru' ? '/ru/' : '/
     }
     <div class="absolute right-4 top-4 z-50 flex items-center gap-2">
       <LanguageSwitcher current={path} locale={locale} />
-      <ThemeToggle initialTheme={themeCookie} variant="button" locale={locale} client:load />
+      <ThemeToggle initialTheme={themeCookie} locale={locale} client:load />
     </div>
     {
       wide ? (

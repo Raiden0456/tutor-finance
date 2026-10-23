@@ -49,6 +49,22 @@ services:
           property: connectionString
       - key: CACHE_ENABLED
         value: 'true'
+      - key: AI_TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_CHAT_EFFORT
+        value: medium
+      - key: AI_DIGEST_EFFORT
+        value: low
+      - key: AI_DIGEST_HOUR
+        value: '7'
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHATGPT_HOST_ID
+        sync: false
+      - key: CHATGPT_REDIRECT_URI
+        sync: false
 
   # ── Web (Astro SSR) ──────────────────────────────────────────────────────────
   - type: web

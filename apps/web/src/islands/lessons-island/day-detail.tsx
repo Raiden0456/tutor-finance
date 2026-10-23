@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { format, isSameDay, isToday } from 'date-fns';
-import { Loader2, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { FadeSwap } from '@/components/ui/collapse';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { LessonCard } from '@/components/lesson-card';
@@ -16,7 +15,6 @@ export function DayDetail({
   studentMap,
   loading,
   onLessonChanged,
-  onLog,
   hasStudents,
 }: {
   rangeStart: Date;
@@ -26,7 +24,6 @@ export function DayDetail({
   studentMap: Map<string, string>;
   loading: boolean;
   onLessonChanged: () => Promise<void>;
-  onLog: () => void;
   hasStudents: boolean;
 }) {
   const { locale, t } = useI18n();
@@ -63,15 +60,7 @@ export function DayDetail({
             ) : loading ? (
               <span>{t('Loading')}…</span>
             ) : (
-              <>
-                <span>
-                  {isRange ? t('No lessons in this range.') : t('No lessons on this day.')}
-                </span>
-                <Button size="sm" variant="outline" onClick={onLog}>
-                  <Plus className="h-4 w-4" />
-                  {t('Add lesson')}
-                </Button>
-              </>
+              <span>{isRange ? t('No lessons in this range.') : t('No lessons on this day.')}</span>
             )}
           </div>
         ) : (

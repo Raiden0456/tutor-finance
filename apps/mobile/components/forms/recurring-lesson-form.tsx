@@ -4,6 +4,7 @@ import { type LessonFrequency } from '@tutor-finance/shared';
 import { FormSheet } from '~/components/common/form-sheet';
 import { Field } from '~/components/common/field';
 import { SelectField } from '~/components/common/select-field';
+import { MoreSection } from '~/components/common/more-section';
 import { Segmented } from '~/components/common/segmented';
 import { DateTimeField } from '~/components/common/date-time-field';
 import { Notice } from '~/components/common/notice';
@@ -17,7 +18,6 @@ import { useI18n } from '~/lib/i18n';
 import type { RecurringLesson, Student } from '~/lib/types';
 import { cn } from '~/lib/utils';
 
-// Server day indices: 0 = Sunday … 6 = Saturday. Display Mon-first.
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -45,12 +45,23 @@ export function RecurringLessonForm({
   const [time, setTime] = React.useState(new Date());
   const [duration, setDuration] = React.useState('60');
   const [frequency, setFrequency] = React.useState<LessonFrequency>('weekly');
+  const [more, setMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const selectStudent = React.useCallback(
+    (id: string | null) => {
+      setStudentId(id);
+      const student = students.find((s) => s.id === id);
+      if (student) setDuration(String(student.ratePeriodMin));
+    },
+    [students],
+  );
 
   React.useEffect(() => {
     if (!open) return;
     setError(null);
-    setStudentId(schedule?.studentId ?? students[0]?.id ?? null);
+    setMore(false);
+    setStudentId(schedule?.studentId ?? null);
     setDays(schedule?.daysOfWeek ?? []);
     if (schedule?.startTime) {
       const [h, m] = schedule.startTime.split(':').map(Number);
@@ -62,29 +73,33 @@ export function RecurringLessonForm({
       d.setHours(9, 0, 0, 0);
       setTime(d);
     }
-    setDuration(schedule ? String(schedule.durationMin) : '60');
     setFrequency(schedule?.frequency ?? 'weekly');
-  }, [open, schedule, students]);
+    if (schedule) setDuration(String(schedule.durationMin));
+    else selectStudent(students.find((s) => !s.archivedAt)?.id ?? null);
+  }, [open, schedule, students, selectStudent]);
 
   const toggleDay = (d: number) =>
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
-  const submit = useMutation(async () => {
-    setError(null);
-    if (!studentId) return setError(t('Select student'));
-    if (days.length === 0) return setError(t('Days of week'));
-    const payload = {
-      studentId,
-      daysOfWeek: [...days].sort((a, b) => a - b),
-      startTime: `${pad(time.getHours())}:${pad(time.getMinutes())}`,
-      durationMin: Number(duration) || 60,
-      frequency,
-    };
-    if (schedule) await api.patch(`recurring-lessons/${schedule.id}`, payload);
-    else await api.post('recurring-lessons', payload);
-    onOpenChange(false);
-    onSaved();
-  }, { onError: setError });
+  const submit = useMutation(
+    async () => {
+      setError(null);
+      if (!studentId) return setError(t('Select student'));
+      if (days.length === 0) return setError(t('Days of week'));
+      const payload = {
+        studentId,
+        daysOfWeek: [...days].sort((a, b) => a - b),
+        startTime: `${pad(time.getHours())}:${pad(time.getMinutes())}`,
+        durationMin: Number(duration) || 60,
+        frequency,
+      };
+      if (schedule) await api.patch(`recurring-lessons/${schedule.id}`, payload);
+      else await api.post('recurring-lessons', payload);
+      onOpenChange(false);
+      onSaved();
+    },
+    { onError: setError },
+  );
 
   return (
     <FormSheet
@@ -102,9 +117,11 @@ export function RecurringLessonForm({
         <Field label={t('Student')}>
           <SelectField
             value={studentId}
-            onValueChange={setStudentId}
+            onValueChange={selectStudent}
             placeholder={t('Select student')}
-            options={students.map((s) => ({ value: s.id, label: s.name }))}
+            options={students
+              .filter((s) => !s.archivedAt || s.id === studentId)
+              .map((s) => ({ value: s.id, label: s.name }))}
           />
         </Field>
 
@@ -121,7 +138,12 @@ export function RecurringLessonForm({
                     active ? 'border-primary bg-primary' : 'border-border bg-background',
                   )}
                 >
-                  <Text className={cn('text-xs font-medium', active ? 'text-primary-foreground' : 'text-foreground')}>
+                  <Text
+                    className={cn(
+                      'text-xs font-medium',
+                      active ? 'text-primary-foreground' : 'text-foreground',
+                    )}
+                  >
                     {t(DAY_NAMES[d]!).slice(0, 2)}
                   </Text>
                 </Pressable>
@@ -143,16 +165,18 @@ export function RecurringLessonForm({
           </View>
         </View>
 
-        <Field label={t('Frequency')}>
-          <Segmented<LessonFrequency>
-            value={frequency}
-            onChange={setFrequency}
-            options={[
-              { value: 'weekly', label: t('Weekly') },
-              { value: 'biweekly', label: t('Biweekly') },
-            ]}
-          />
-        </Field>
+        <MoreSection open={more} onOpenChange={setMore}>
+          <Field label={t('Frequency')}>
+            <Segmented<LessonFrequency>
+              value={frequency}
+              onChange={setFrequency}
+              options={[
+                { value: 'weekly', label: t('Weekly') },
+                { value: 'biweekly', label: t('Biweekly') },
+              ]}
+            />
+          </Field>
+        </MoreSection>
       </View>
     </FormSheet>
   );

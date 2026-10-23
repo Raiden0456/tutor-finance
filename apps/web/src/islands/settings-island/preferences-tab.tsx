@@ -10,9 +10,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { GoogleCalendarCard } from '@/islands/google-calendar-card';
-import { SUPPORTED_CURRENCIES, type Currency, type WeekStartsOn } from '@tutor-finance/shared';
+import {
+  AI_LANGUAGE_NAMES,
+  SUPPORTED_CURRENCIES,
+  type AiLanguage,
+  type Currency,
+  type WeekStartsOn,
+} from '@tutor-finance/shared';
 import { Check } from 'lucide-react';
+import type { Locale } from '@/lib/i18n';
+import type { Theme } from '@/utils/theme';
+
+const THEMES: Array<{ value: Theme; label: string }> = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+const LANGUAGES: Array<{ value: Locale; label: string }> = [
+  { value: 'en', label: 'English' },
+  { value: 'ru', label: 'Русский' },
+];
+
+const AI_LANGUAGE_OPTIONS = Object.entries(AI_LANGUAGE_NAMES) as Array<[AiLanguage, string]>;
 
 const REMINDER_PRESETS = ['10', '30', '60'];
 
@@ -27,17 +47,22 @@ const weekStartOptions: Array<{ value: WeekStartsOn; label: string }> = [
 ];
 
 type Props = {
-  appLocale: 'en' | 'ru';
+  appLocale: Locale;
   primaryCurrency: Currency;
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
   timezone: string;
+  aiLanguage: AiLanguage;
+  theme: Theme;
   saving: boolean;
   saved: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
   onPrimaryCurrencyChange: (value: Currency) => void;
   onWeekStartsOnChange: (value: WeekStartsOn) => void;
   onLessonReminderChange: (value: number) => void;
+  onAiLanguageChange: (value: AiLanguage) => void;
+  onThemeChange: (value: Theme) => void;
+  onLocaleChange: (value: Locale) => void;
   onSave: () => void;
 };
 
@@ -47,12 +72,17 @@ export function PreferencesTab({
   weekStartsOn,
   lessonReminderMinutes,
   timezone,
+  aiLanguage,
+  theme,
   saving,
   saved,
   t,
   onPrimaryCurrencyChange,
   onWeekStartsOnChange,
   onLessonReminderChange,
+  onAiLanguageChange,
+  onThemeChange,
+  onLocaleChange,
   onSave,
 }: Props) {
   const [reminderChoice, setReminderChoice] = useState<string>(
@@ -64,12 +94,72 @@ export function PreferencesTab({
     <div className="space-y-5">
       <Card>
         <CardHeader>
+          <CardTitle className="text-sm font-medium">{t('Appearance')}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label>{t('Theme')}</Label>
+            <Select value={theme} onValueChange={(v) => onThemeChange(v as Theme)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {THEMES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.label)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t('Language')}</Label>
+            <Select value={appLocale} onValueChange={(v) => onLocaleChange(v as Locale)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t('Assistant language')}</Label>
+            <Select value={aiLanguage} onValueChange={(v) => onAiLanguageChange(v as AiLanguage)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t('Same as interface')}</SelectItem>
+                {AI_LANGUAGE_OPTIONS.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t('The assistant replies in the language you write in; this is used otherwise.')}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-sm font-medium">{t('Preferences')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
             <Label>{t('Primary currency')}</Label>
-            <Select value={primaryCurrency} onValueChange={(v) => onPrimaryCurrencyChange(v as Currency)}>
+            <Select
+              value={primaryCurrency}
+              onValueChange={(v) => onPrimaryCurrencyChange(v as Currency)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -163,8 +253,6 @@ export function PreferencesTab({
           </div>
         </CardContent>
       </Card>
-
-      <GoogleCalendarCard locale={appLocale} />
     </div>
   );
 }

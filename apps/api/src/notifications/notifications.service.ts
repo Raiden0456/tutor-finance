@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, notExists, sql } from 'drizzle-orm';
 import { DEFAULT_TIMEZONE, civilDate, civilDateToUtc, zonedParts } from '@tutor-finance/shared';
 import { RedisCacheService } from '../cache/redis-cache.service.js';
 import { env } from '../config.js';
@@ -10,6 +10,7 @@ import {
   devicePushTokens,
   lessons,
   notificationDeliveries,
+  studentLessonPackages,
   students,
   userSettings,
 } from '../db/schema.js';
@@ -28,6 +29,7 @@ const DAILY_SUMMARY_LOCAL_HOUR = 9;
 const NOTIFICATION_TYPES = {
   lessonReminder: 'lesson_reminder',
   dailyDueSummary: 'daily_due_summary',
+  assistantReply: 'assistant_reply',
 } as const;
 
 type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -190,6 +192,33 @@ export class NotificationsService {
     }
   }
 
+  async notifyAssistantReply(input: {
+    userId: string;
+    threadId: string;
+    messageId: string;
+    text: string;
+  }): Promise<void> {
+    const [settings] = await this.db
+      .select({ locale: userSettings.locale })
+      .from(userSettings)
+      .where(eq(userSettings.userId, input.userId))
+      .limit(1);
+    const locale = settings?.locale ?? 'en';
+    const text = input.text.replace(/\s+/g, ' ').trim();
+    await this.queueAndSend({
+      userId: input.userId,
+      type: NOTIFICATION_TYPES.assistantReply,
+      entityId: input.messageId,
+      scheduledFor: new Date(),
+      title: locale === 'ru' ? 'Ассистент ответил' : 'Assistant replied',
+      body:
+        text.length > 100
+          ? `${text.slice(0, 100)}…`
+          : text || (locale === 'ru' ? 'Ответ готов' : 'Your answer is ready'),
+      path: `/assistant/${input.threadId}`,
+    });
+  }
+
   private async queueAndSend(args: QueuePushArgs): Promise<void> {
     const tokens = await this.getActiveTokens(args.userId);
     if (tokens.length === 0) return;
@@ -321,6 +350,17 @@ export class NotificationsService {
           eq(lessons.status, 'scheduled'),
           isNull(lessons.archivedAt),
           lt(sql`${lessons.startsAt} + (${lessons.durationMin} * interval '1 minute')`, sql`now()`),
+          notExists(
+            this.db
+              .select({ id: studentLessonPackages.id })
+              .from(studentLessonPackages)
+              .where(
+                and(
+                  eq(studentLessonPackages.studentId, lessons.studentId),
+                  isNull(studentLessonPackages.closedAt),
+                ),
+              ),
+          ),
         ),
       )
       .returning({ userId: lessons.userId });

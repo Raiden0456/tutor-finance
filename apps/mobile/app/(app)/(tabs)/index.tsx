@@ -1,69 +1,62 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { addDays, endOfDay, endOfWeek, isToday, startOfDay, subDays } from 'date-fns';
+import {
+  addDays,
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  isToday,
+  startOfDay,
+  startOfMonth,
+  subDays,
+} from 'date-fns';
+import { displayStatus, findLessonConflicts } from '@tutor-finance/shared';
+import { DigestCard } from '~/components/assistant/digest-card';
 import { Screen } from '~/components/common/screen';
-import { NextLessonHero } from '~/components/dashboard/next-lesson-hero';
-import { TodayOverview } from '~/components/dashboard/today-overview';
-import { FinanceStat } from '~/components/dashboard/finance-stat';
-import { SectionHeader } from '~/components/dashboard/section-header';
-import { ProcessedLessonRow } from '~/components/dashboard/processed-lesson-row';
-import { LessonCard } from '~/components/lessons/lesson-card';
-import { RangeTabs, RANGE_DAYS, type RangeKey } from '~/components/common/range-tabs';
-import { SelectField } from '~/components/common/select-field';
 import { ErrorState } from '~/components/common/error-state';
-import { StaggerItem } from '~/components/common/stagger';
-import { Skeleton } from '~/components/ui/skeleton';
-import { Text } from '~/components/ui/text';
+import { MonthSummary } from '~/components/dashboard/month-summary';
+import { NeedsAttention } from '~/components/dashboard/needs-attention';
+import { TodaySection } from '~/components/dashboard/today-section';
 import { api } from '~/lib/api';
+import { useDataVersion } from '~/lib/data-version';
 import { useApiQuery } from '~/lib/use-query';
 import { useSettings } from '~/lib/settings';
-import { currencyOptions } from '~/lib/catalog';
-import { capitalizeFirst, useI18n } from '~/lib/i18n';
-import { intlLocale, money } from '~/lib/format';
-import type { Currency, Lesson, Student, Summary } from '~/lib/types';
+import { useI18n } from '~/lib/i18n';
+import type { Lesson, Student, Summary } from '~/lib/types';
+
+const DEBT_LOOKBACK_DAYS = 120;
+const CONFLICT_LOOKAHEAD_DAYS = 7;
 
 export default function DashboardScreen() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { primaryCurrency, weekStartsOn } = useSettings();
-  const [range, setRange] = React.useState<RangeKey>('30d');
-  const [currency, setCurrency] = React.useState<Currency | null>(null);
-  const targetCurrency = currency ?? primaryCurrency;
+  const version = useDataVersion();
 
-  const now = new Date();
-  const from = subDays(startOfDay(now), RANGE_DAYS[range] - 1).toISOString();
-  const to = endOfDay(now).toISOString();
-
-  const summary = useApiQuery(
-    () => api.get<Summary>('dashboard/summary', { query: { from, to, target: targetCurrency } }),
-    [from, to, targetCurrency],
-  );
+  const summary = useApiQuery(() => {
+    const now = new Date();
+    return api.get<Summary>('dashboard/summary', {
+      query: {
+        from: startOfMonth(now).toISOString(),
+        to: endOfMonth(now).toISOString(),
+        target: primaryCurrency,
+      },
+    });
+  }, [primaryCurrency, version]);
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
-    [],
+    [version],
   );
-  const lessons = useApiQuery(
-    () =>
-      api.get<Lesson[]>('lessons', {
-        query: {
-          from: startOfDay(now).toISOString(),
-          to: addDays(now, 14).toISOString(),
-          orderDir: 'asc',
-        },
-      }),
-    [],
-  );
-
-  const todayLabel = React.useMemo(
-    () =>
-      capitalizeFirst(
-        new Intl.DateTimeFormat(intlLocale(locale), {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        }).format(new Date()),
-      ),
-    [locale],
-  );
+  const lessons = useApiQuery(() => {
+    const now = new Date();
+    return api.get<Lesson[]>('lessons', {
+      query: {
+        from: startOfDay(subDays(now, DEBT_LOOKBACK_DAYS)).toISOString(),
+        to: endOfDay(addDays(now, CONFLICT_LOOKAHEAD_DAYS)).toISOString(),
+        orderDir: 'asc',
+        limit: 1000,
+      },
+    });
+  }, [version]);
 
   const loading = summary.loading || students.loading || lessons.loading;
   const failed = [summary, students, lessons].find((q) => q.error && !q.data);
@@ -72,160 +65,58 @@ export default function DashboardScreen() {
     [students.data, t],
   );
 
-  const all = lessons.data ?? [];
-  const todayLessons = all.filter((l) => isToday(new Date(l.startsAt)));
-  // Next scheduled lesson within THIS week only (matches web hero).
-  const weekEnd = endOfWeek(now, { weekStartsOn });
-  const nextLesson =
-    all.find(
-      (l) =>
-        l.status === 'scheduled' &&
-        new Date(l.startsAt).getTime() >= now.getTime() &&
-        new Date(l.startsAt).getTime() <= weekEnd.getTime(),
-    ) ?? null;
+  const derived = React.useMemo(() => {
+    const all = lessons.data ?? [];
+    const now = new Date();
+    const nowMs = now.getTime();
+    const weekEndMs = endOfWeek(now, { weekStartsOn }).getTime();
+    const todayStartMs = startOfDay(now).getTime();
+    const lookaheadMs = endOfDay(addDays(now, CONFLICT_LOOKAHEAD_DAYS)).getTime();
+    const startOf = (l: Lesson) => new Date(l.startsAt).getTime();
 
-  // Same three buckets as the web dashboard.
-  const pendingLessons = todayLessons.filter((l) => l.status === 'scheduled');
-  const dueLessons = todayLessons.filter(
-    (l) => l.status === 'due' || l.status === 'partially_paid' || l.status === 'completed',
-  );
-  const processedLessons = todayLessons.filter(
-    (l) =>
-      l.status !== 'scheduled' &&
-      l.status !== 'due' &&
-      l.status !== 'partially_paid' &&
-      l.status !== 'completed',
-  );
+    return {
+      todayLessons: all.filter((l) => isToday(new Date(l.startsAt))),
+      nextLesson:
+        all.find(
+          (l) => l.status === 'scheduled' && startOf(l) >= nowMs && startOf(l) <= weekEndMs,
+        ) ?? null,
+      awaiting: all
+        .filter((l) => displayStatus(l) === 'awaiting_payment' && startOf(l) <= nowMs)
+        .reverse(),
+      conflicts: findLessonConflicts(
+        all.filter((l) => startOf(l) >= todayStartMs && startOf(l) <= lookaheadMs),
+      ),
+    };
+  }, [lessons.data, weekStartsOn]);
 
   const refresh = () => {
     void summary.refetch();
     void students.refetch();
     void lessons.refetch();
   };
-
-  const net = summary.data?.netInTargetCurrency ?? 0;
+  const refreshLessons = () => {
+    void lessons.refetch();
+    void summary.refetch();
+  };
 
   return (
     <Screen title={t('Dashboard')} refreshing={loading} onRefresh={refresh}>
-      <View className="gap-4">
-        <View>
-          <Text className="text-3xl font-bold">{t('Today')}</Text>
-          <Text className="mt-0.5 text-sm text-muted-foreground">{todayLabel}</Text>
-        </View>
-
-        {loading && all.length === 0 ? (
-          <Skeleton className="h-36 w-full rounded-3xl" />
-        ) : (
-          <NextLessonHero
-            lesson={nextLesson}
-            studentName={nextLesson ? nameOf(nextLesson.studentId) : ''}
-          />
-        )}
-
-        {/* Today's overview (4 cards) */}
-        <TodayOverview lessons={todayLessons} />
-
-        {/* Upcoming */}
-        {pendingLessons.length > 0 ? (
-          <View className="gap-2.5">
-            <SectionHeader dot="bg-tf-indigo" label={t('Upcoming')} count={pendingLessons.length} />
-            {pendingLessons.map((l, i) => (
-              <StaggerItem key={l.id} index={i}>
-                <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={refresh} />
-              </StaggerItem>
-            ))}
-          </View>
-        ) : null}
-
-        {/* Due payment */}
-        {dueLessons.length > 0 ? (
-          <View className="gap-2.5">
-            <SectionHeader dot="bg-tf-pollen" label={t('Due Payment')} count={dueLessons.length} />
-            {dueLessons.map((l, i) => (
-              <StaggerItem key={l.id} index={i}>
-                <LessonCard lesson={l} studentName={nameOf(l.studentId)} onChanged={refresh} />
-              </StaggerItem>
-            ))}
-          </View>
-        ) : null}
-
-        {/* Processed */}
-        {processedLessons.length > 0 ? (
-          <View className="gap-2">
-            <SectionHeader
-              dot="bg-muted-foreground"
-              label={t('Processed')}
-              count={processedLessons.length}
-            />
-            {processedLessons.map((l, i) => (
-              <StaggerItem key={l.id} index={i}>
-                <ProcessedLessonRow lesson={l} studentName={nameOf(l.studentId)} />
-              </StaggerItem>
-            ))}
-          </View>
-        ) : null}
-
-        {todayLessons.length === 0 && !nextLesson ? (
-          <View className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10">
-            <Text className="text-center text-sm text-muted-foreground">
-              {t('No lessons today. Enjoy your day off!')}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Financial summary */}
-        <View className="gap-3 border-t border-border pt-5">
-          <View className="flex-row items-center gap-2">
-            <View className="flex-1">
-              <RangeTabs value={range} onValueChange={setRange} />
-            </View>
-            <View className="w-28">
-              <SelectField
-                value={targetCurrency}
-                onValueChange={(v) => setCurrency(v as Currency)}
-                options={currencyOptions()}
-              />
-            </View>
-          </View>
-
-          <View className="flex-row gap-3">
-            <FinanceStat
-              label={t('Planned')}
-              tone="planned"
-              value={
-                summary.data
-                  ? money(summary.data.plannedIncomeInTargetCurrency, targetCurrency, locale)
-                  : '—'
-              }
-            />
-            <FinanceStat
-              label={t('Income')}
-              tone="income"
-              value={
-                summary.data
-                  ? money(summary.data.incomeInTargetCurrency, targetCurrency, locale)
-                  : '—'
-              }
-            />
-          </View>
-          <View className="flex-row gap-3">
-            <FinanceStat
-              label={t('Expenses')}
-              tone="expense"
-              value={
-                summary.data
-                  ? money(summary.data.expenseInTargetCurrency, targetCurrency, locale)
-                  : '—'
-              }
-            />
-            <FinanceStat
-              label={t('Net')}
-              tone={net >= 0 ? 'income' : 'expense'}
-              value={summary.data ? money(net, targetCurrency, locale) : '—'}
-            />
-          </View>
-        </View>
-
+      <View className="gap-6">
+        <DigestCard />
+        <TodaySection
+          loading={lessons.loading}
+          nextLesson={derived.nextLesson}
+          todayLessons={derived.todayLessons}
+          nameOf={nameOf}
+          onChanged={refreshLessons}
+        />
+        <NeedsAttention
+          awaiting={derived.awaiting}
+          conflicts={derived.conflicts}
+          nameOf={nameOf}
+          onChanged={refreshLessons}
+        />
+        <MonthSummary summary={summary.data} currency={primaryCurrency} />
         {failed ? <ErrorState message={failed.error} onRetry={refresh} retrying={loading} /> : null}
       </View>
     </Screen>

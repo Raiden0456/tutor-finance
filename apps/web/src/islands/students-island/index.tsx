@@ -13,15 +13,16 @@ import {
   ResponsiveModalFooter,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
-  ResponsiveModalTrigger,
 } from '@/components/ui/responsive-modal';
+import { PageHeader } from '@/components/layout/page-header';
 import { Plus } from 'lucide-react';
 import type { Currency } from '@tutor-finance/shared';
 import type { Student, IncomeTx } from '@/lib/types';
 import { buildStudentPayload } from '@/lib/student-payload';
 import { useMutation } from '@/hooks/use-mutation';
+import { useDataChanged } from '@/features/assistant';
 import { Spinner } from '@/components/ui/spinner';
-import { TabSwitcher } from '../transactions-island/tab-switcher';
+import { TabSwitcher } from '@/components/tab-switcher';
 import { StudentCard } from './student-card';
 import { StudentDialog, EmptyState } from './student-dialog';
 
@@ -50,6 +51,13 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
   const [archiveId, setArchiveId] = useState<string | null>(null);
+
+  useDataChanged(() => {
+    api
+      .get<Student[]>('/students', { query: { includeArchived: true } })
+      .then(setStudents)
+      .catch(() => undefined);
+  });
 
   const active = students.filter((s) => !s.archivedAt);
   const archived = students.filter((s) => s.archivedAt);
@@ -117,27 +125,22 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
 
   return (
     <div className="page-enter space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="hidden text-xl font-semibold tracking-tight md:block">{t('Students')}</h1>
-          <p className="text-xs text-muted-foreground">
-            {active.length === 0
-              ? t('No students yet')
-              : t('{count} active', { count: active.length })}
-          </p>
-        </div>
-        <ResponsiveModal open={open} onOpenChange={setOpen}>
-          <ResponsiveModalTrigger asChild>
-            <Button onClick={startCreate} size="default">
-              <Plus className="h-4 w-4" />
-              <span>{t('Add')}</span>
-            </Button>
-          </ResponsiveModalTrigger>
-          <StudentDialog editing={editing} onSubmit={handleSubmit} />
-        </ResponsiveModal>
-      </header>
+      <PageHeader
+        title={t('Students')}
+        subtitle={
+          active.length === 0 ? t('No students yet') : t('{count} active', { count: active.length })
+        }
+        action={
+          <Button onClick={startCreate}>
+            <Plus className="h-4 w-4" />
+            {t('Add student')}
+          </Button>
+        }
+      />
+      <ResponsiveModal open={open} onOpenChange={setOpen}>
+        <StudentDialog editing={editing} onSubmit={handleSubmit} />
+      </ResponsiveModal>
 
-      {/* Top earners — name + amount rows with progress bars, mirrors mobile. */}
       <Collapse open={topEarners.length > 0} className="p-1">
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
@@ -177,7 +180,7 @@ function StudentsContent({ initial, transactions, primaryCurrency }: Omit<Props,
       <FadeSwap motionKey={`${tab}-${list.length === 0 ? 'empty' : 'list'}`}>
         {list.length === 0 ? (
           tab === 'active' ? (
-            <EmptyState onAdd={startCreate} />
+            <EmptyState />
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
               {t('No data')}

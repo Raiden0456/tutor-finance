@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { toMinorUnits } from '@tutor-finance/shared';
 import { Mail, Phone, Send, MessageCircle, Video, Pencil, Archive, ArchiveRestore } from 'lucide-react-native';
 import { Screen } from '~/components/common/screen';
+import { StudentAssistantCard } from '~/components/assistant/student-assistant-card';
 import { StudentAvatar } from '~/components/students/student-avatar';
 import { StudentForm } from '~/components/forms/student-form';
 import { LessonCard } from '~/components/lessons/lesson-card';
@@ -145,6 +146,8 @@ export default function StudentDetailScreen() {
               </View>
             </CardContent>
           </Card>
+
+          <StudentAssistantCard studentId={s.id} studentName={s.name} />
 
           {/* Pricing / package */}
           <Card>

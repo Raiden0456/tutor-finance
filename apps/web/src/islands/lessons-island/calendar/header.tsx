@@ -1,7 +1,6 @@
 import { format } from 'date-fns';
 import { motion } from 'motion/react';
-import { Archive, CalendarRange, ChevronDown, Loader2, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Archive, CalendarRange, ChevronDown, Loader2 } from 'lucide-react';
 import { capitalizeFirst, getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { SelectionMode } from '../shared';
@@ -15,8 +14,6 @@ export function CalendarHeader({
   onToggleMonth,
   onToggleMode,
   onToggleArchive,
-  onLog,
-  disabledLog,
 }: {
   rangeStart: Date;
   selectionMode: SelectionMode;
@@ -26,15 +23,12 @@ export function CalendarHeader({
   onToggleMonth: () => void;
   onToggleMode: () => void;
   onToggleArchive: () => void;
-  onLog: () => void;
-  disabledLog: boolean;
 }) {
   const { locale, t } = useI18n();
   const dateLocale = getDateFnsLocale(locale);
 
   return (
     <div className="flex items-center justify-between gap-2 pt-3 pb-2">
-      {/* Left: month label + range span */}
       <button
         onClick={onToggleMonth}
         className="flex min-w-0 items-center gap-1.5 transition-opacity active:opacity-60"
@@ -53,7 +47,6 @@ export function CalendarHeader({
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
       </button>
 
-      {/* Right: mode toggle + archive + log */}
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={onToggleMode}
@@ -79,10 +72,6 @@ export function CalendarHeader({
         >
           <Archive className="h-4 w-4" />
         </button>
-        <Button size="sm" disabled={disabledLog || showArchive} onClick={onLog}>
-          <Plus className="h-4 w-4" />
-          {t('Log')}
-        </Button>
       </div>
     </div>
   );

@@ -87,6 +87,7 @@ const handler: APIRoute = async ({ request, params }) => {
     method: request.method,
     headers: filterHeaders(request.headers, STRIPPED_REQUEST_HEADERS),
     redirect: 'manual',
+    signal: request.signal,
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {

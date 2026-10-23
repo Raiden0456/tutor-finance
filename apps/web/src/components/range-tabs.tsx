@@ -43,16 +43,6 @@ export function rangeLabel(r: RangeState, locale?: string): string {
   return `${fmt.format(r.from)} – ${fmt.format(r.to)}`;
 }
 
-export function inferRange(fromIso: string, toIso: string): RangeState {
-  const from = new Date(fromIso);
-  const to = new Date(toIso);
-  const days = Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1;
-  if (days >= 6 && days <= 8) return { kind: 'preset', key: '7d' };
-  if (days >= 28 && days <= 31) return { kind: 'preset', key: '30d' };
-  if (days >= 88 && days <= 92) return { kind: 'preset', key: '90d' };
-  return { kind: 'custom', from, to };
-}
-
 export function RangeTabs({
   value,
   onChange,

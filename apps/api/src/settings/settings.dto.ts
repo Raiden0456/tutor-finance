@@ -12,6 +12,8 @@ import {
   SUPPORTED_CURRENCIES,
   ThemeEnum,
   LocaleEnum,
+  AiLanguageEnum,
+  type AiLanguage,
   type Currency,
   type Locale,
   type Theme,
@@ -47,6 +49,10 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsTimeZone()
   timezone?: string;
+
+  @IsOptional()
+  @IsIn(AiLanguageEnum.options as unknown as string[])
+  aiLanguage?: AiLanguage;
 }
 
 export class SetPasswordDto {
@@ -72,6 +78,7 @@ export interface SettingsResponse {
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
   timezone: string;
+  aiLanguage: AiLanguage;
   accountSecurity: AccountSecurityResponse;
   profile: AccountProfileResponse;
 }

@@ -71,7 +71,10 @@ export function StudentCard({
       className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="flex items-center gap-3 p-3">
-        <a href={`/students/${student.id}`} className="flex min-w-0 flex-1 items-center gap-3 group">
+        <a
+          href={`/students/${student.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 group"
+        >
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
             style={{ backgroundColor: tint }}

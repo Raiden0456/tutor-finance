@@ -2,14 +2,12 @@
 import '@/styles/globals.css';
 import { ClientRouter } from 'astro:transitions';
 import Seo from '@/components/seo.astro';
-import { Sidebar, MobileTabBar } from '@/components/nav';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { SignOutButton } from '@/components/sign-out-button';
-import { LanguageSwitcher } from '@/components/language-switcher';
+import { Sidebar, MobileTabBar, MobileHeaderMenu } from '@/components/nav';
 import { MobilePushBridge } from '@/components/mobile-push-bridge';
-import { TimeZoneSync } from '@/components/timezone-sync';
+import { SettingsSync } from '@/components/settings-sync';
 import { PageSkeleton } from '@/components/page-skeleton';
 import { Toaster } from '@/components/ui/sonner';
+import { AssistantRoot } from '@/features/assistant';
 import { getServerSession } from '@/lib/auth-server';
 import { normalizeLocale } from '@/lib/i18n';
 
@@ -23,9 +21,7 @@ const cookie = Astro.request.headers.get('cookie') ?? undefined;
 const session = await getServerSession(cookie);
 const url = new URL(Astro.request.url);
 const path = url.pathname;
-const switcherPath = `${url.pathname}${url.search}`;
 const locale = normalizeLocale(Astro.currentLocale);
-const themeCookie = (Astro.cookies.get('theme')?.value ?? 'system') as 'light' | 'dark' | 'system';
 const nativeShell =
   Astro.request.headers.get('user-agent')?.includes('TutorFinanceNativeShell/1.0') ?? false;
 const userDisplayName = session.user?.name || session.user?.email;
@@ -103,7 +99,7 @@ const userDisplayName = session.user?.name || session.user?.email;
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased">
     <div class="flex min-h-screen">
-      <Sidebar current={path} locale={locale} initialTheme={themeCookie} client:load />
+      <Sidebar current={path} locale={locale} userName={userDisplayName} client:load />
       <div class="flex min-w-0 flex-1 flex-col">
         <!-- Mobile header -->
         <header
@@ -112,24 +108,12 @@ const userDisplayName = session.user?.name || session.user?.email;
           style="padding-top: var(--app-safe-area-top)"
         >
           <h1 class="text-2xl font-bold">{title}</h1>
-          <div class="flex items-center gap-2">
-            <LanguageSwitcher current={switcherPath} locale={locale} />
-            <ThemeToggle initialTheme={themeCookie} variant="button" locale={locale} client:load />
-          </div>
-        </header>
-        <!-- Desktop header -->
-        <header
-          class="sticky top-0 z-30 hidden min-h-14 items-center justify-end border-b border-border bg-card/80 px-6 backdrop-blur-md md:flex"
-          style="padding-top: var(--app-safe-area-top)"
-        >
-          <div class="flex items-center gap-1">
-            <span
-              class="max-w-48 truncate text-sm text-muted-foreground transition-colors duration-200"
-            >
-              {userDisplayName}
-            </span>
-            <SignOutButton locale={locale} client:load />
-          </div>
+          <MobileHeaderMenu
+            current={path}
+            locale={locale}
+            userName={userDisplayName}
+            client:load
+          />
         </header>
         <main class="flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-8 md:pt-6">
           <div class="mx-auto w-full max-w-3xl md:max-w-4xl">
@@ -139,9 +123,10 @@ const userDisplayName = session.user?.name || session.user?.email;
       </div>
     </div>
     <MobilePushBridge client:load />
-    <TimeZoneSync client:load />
+    <SettingsSync locale={locale} client:load />
     <MobileTabBar current={path} locale={locale} client:load />
     <PageSkeleton client:load transition:persist />
+    <AssistantRoot client:load locale={locale} transition:persist="assistant" />
     <Toaster position="top-center" richColors client:load transition:persist />
   </body>
 </html>

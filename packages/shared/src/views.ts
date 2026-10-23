@@ -10,6 +10,7 @@ import type {
   TransactionType,
   Theme,
   Locale,
+  AiLanguage,
   Frequency,
   WeekStartsOn,
   PricingMode,
@@ -96,6 +97,7 @@ export interface Settings {
   weekStartsOn: WeekStartsOn;
   lessonReminderMinutes: number;
   timezone: string;
+  aiLanguage: AiLanguage;
   accountSecurity: AccountSecurity;
   profile: AccountProfile;
 }

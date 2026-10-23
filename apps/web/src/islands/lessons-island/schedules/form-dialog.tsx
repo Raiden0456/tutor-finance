@@ -19,20 +19,18 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-modal';
-import {
-  fromMinorUnits,
-  parseMajorToMinor,
-  SUPPORTED_CURRENCIES,
-  type Currency,
-} from '@tutor-finance/shared';
-import type { LessonFrequency, RecurringLesson, StudentRef } from '@/lib/types';
+import { parseMajorToMinor, type Currency } from '@tutor-finance/shared';
+import type { LessonFrequency, RecurringLesson, LessonStudent } from '@/lib/types';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { getDateFnsLocale, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useMutation } from '@/hooks/use-mutation';
 import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
+import { MoneyInput } from '@/components/form/money-input';
+import { MoreFields } from '@/components/form/more-fields';
+import { fmtMajor } from '@/lib/format';
 
-// Jan 5 2025 = Sunday (index 0)
 const REF_SUNDAY = new Date(2025, 0, 5);
 
 function timeToMinutes(time: string): number | null {
@@ -69,7 +67,7 @@ export function ScheduleFormDialog({
   onSubmit,
 }: {
   title: string;
-  students: StudentRef[];
+  students: LessonStudent[];
   defaults?: RecurringLesson;
   schedules?: RecurringLesson[];
   weekStartsOn?: WeekStartsOn;
@@ -86,9 +84,22 @@ export function ScheduleFormDialog({
   const [meetingLink, setMeetingLink] = useState(
     defaults?.meetingLink ?? students[0]?.meetingLink ?? '',
   );
+  const [priceAmount, setPriceAmount] = useState(
+    defaults?.priceOverride
+      ? fmtMajor(defaults.priceOverride.amount, defaults.priceOverride.currency)
+      : '',
+  );
+  const [priceCurrency, setPriceCurrency] = useState<Currency>(
+    defaults?.priceOverride?.currency ?? students[0]?.defaultCurrency ?? 'USD',
+  );
 
-  function studentMeetingLink(studentId: string) {
-    return students.find((s) => s.id === studentId)?.meetingLink ?? '';
+  function selectStudent(studentId: string) {
+    const student = students.find((s) => s.id === studentId);
+    setSelectedStudentId(studentId);
+    if (isEdit) return;
+    setMeetingLink(student?.meetingLink ?? '');
+    setDurationMin(student?.ratePeriodMin ?? 60);
+    setPriceCurrency(student?.defaultCurrency ?? 'USD');
   }
 
   function toggleDay(idx: number) {
@@ -102,8 +113,9 @@ export function ScheduleFormDialog({
   }
   const [frequency, setFrequency] = useState<LessonFrequency>(defaults?.frequency ?? 'weekly');
   const [startTime, setStartTime] = useState(defaults?.startTime ?? '09:00');
-  const [durationMin, setDurationMin] = useState(defaults?.durationMin ?? 60);
-  const [showPrice, setShowPrice] = useState(!!defaults?.priceOverride);
+  const [durationMin, setDurationMin] = useState(
+    defaults?.durationMin ?? students[0]?.ratePeriodMin ?? 60,
+  );
 
   const overlappingSchedules = useMemo(() => {
     const start = timeToMinutes(startTime);
@@ -119,12 +131,6 @@ export function ScheduleFormDialog({
       return timeRangesOverlap(start, durationMin, scheduleStart, schedule.durationMin);
     });
   }, [defaults?.id, daysOfWeek, durationMin, schedules, startTime]);
-
-  const defaultPriceCurrency = defaults?.priceOverride?.currency ?? 'USD';
-  const defaultPriceAmount =
-    defaults?.priceOverride != null
-      ? String(fromMinorUnits(defaults.priceOverride.amount, defaults.priceOverride.currency))
-      : '';
 
   async function handleSubmit(e: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     e.preventDefault();
@@ -144,16 +150,11 @@ export function ScheduleFormDialog({
       const meetingLinkValue = meetingLink.trim() || undefined;
       const notes = String(data.get('notes') ?? '').trim() || undefined;
 
-      let priceOverride: ScheduleFormPayload['priceOverride'] = undefined;
-      if (showPrice) {
-        const currency = String(data.get('priceCurrency') ?? 'USD') as Currency;
-        const rawAmount = String(data.get('priceAmount') ?? '').trim();
-        if (rawAmount) {
-          priceOverride = { amount: parseMajorToMinor(rawAmount, currency), currency };
-        } else {
-          priceOverride = null;
-        }
-      }
+      const priceOverride: ScheduleFormPayload['priceOverride'] = priceAmount.trim()
+        ? { amount: parseMajorToMinor(priceAmount, priceCurrency), currency: priceCurrency }
+        : defaults?.priceOverride
+          ? null
+          : undefined;
 
       await onSubmit({
         studentId,
@@ -182,10 +183,7 @@ export function ScheduleFormDialog({
             <Select
               name="studentId"
               value={selectedStudentId}
-              onValueChange={(studentId) => {
-                setSelectedStudentId(studentId);
-                if (!isEdit) setMeetingLink(studentMeetingLink(studentId));
-              }}
+              onValueChange={selectStudent}
               disabled={isEdit}
             >
               <SelectTrigger id="sch-student">
@@ -275,41 +273,42 @@ export function ScheduleFormDialog({
           </AnimatePresence>
 
           <div className="grid gap-2">
-            <Label>{t('Frequency')}</Label>
-            <div className="flex gap-1">
-              {(['weekly', 'biweekly'] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFrequency(f)}
-                  className={cn(
-                    'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150',
-                    frequency === f
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  {f === 'weekly' ? t('Weekly') : t('Biweekly')}
-                </button>
-              ))}
-            </div>
+            <Label htmlFor="sch-start">{t('Start date')}</Label>
+            <Input
+              id="sch-start"
+              name="startDate"
+              type="date"
+              disabled={isEdit}
+              defaultValue={
+                defaults?.startDate
+                  ? new Date(defaults.startDate).toISOString().slice(0, 10)
+                  : new Date().toISOString().slice(0, 10)
+              }
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <MoreFields>
             <div className="grid gap-2">
-              <Label htmlFor="sch-start">{t('Start date')}</Label>
-              <Input
-                id="sch-start"
-                name="startDate"
-                type="date"
-                disabled={isEdit}
-                defaultValue={
-                  defaults?.startDate
-                    ? new Date(defaults.startDate).toISOString().slice(0, 10)
-                    : new Date().toISOString().slice(0, 10)
-                }
-              />
+              <Label>{t('Frequency')}</Label>
+              <div className="flex gap-1">
+                {(['weekly', 'biweekly'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFrequency(f)}
+                    className={cn(
+                      'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150',
+                      frequency === f
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    {f === 'weekly' ? t('Weekly') : t('Biweekly')}
+                  </button>
+                ))}
+              </div>
             </div>
+
             <div className="grid gap-2">
               <Label htmlFor="sch-end">{t('End date')}</Label>
               <Input
@@ -321,61 +320,41 @@ export function ScheduleFormDialog({
                 }
               />
             </div>
-          </div>
 
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
+            <div className="grid gap-2">
               <Label>{t('Price override')}</Label>
-              <button
-                type="button"
-                onClick={() => setShowPrice((x) => !x)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPrice ? t('Remove') : t('Add')}
-              </button>
+              <MoneyInput
+                amount={priceAmount}
+                currency={priceCurrency}
+                onAmountChange={setPriceAmount}
+                onCurrencyChange={setPriceCurrency}
+                placeholder={t('Leave blank to use hourly rate')}
+              />
             </div>
-            {showPrice && (
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  name="priceAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  defaultValue={defaultPriceAmount}
-                />
-                <Select name="priceCurrency" defaultValue={defaultPriceCurrency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="sch-link">{t('Meeting link')}</Label>
-            <Input
-              id="sch-link"
-              name="meetingLink"
-              type="url"
-              placeholder="https://"
-              value={meetingLink}
-              onChange={(e) => setMeetingLink(e.target.value)}
-            />
-          </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sch-link">{t('Meeting link')}</Label>
+              <Input
+                id="sch-link"
+                name="meetingLink"
+                type="url"
+                placeholder="https://"
+                value={meetingLink}
+                onChange={(e) => setMeetingLink(e.target.value)}
+              />
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="sch-notes">{t('Notes')}</Label>
-            <Input id="sch-notes" name="notes" defaultValue={defaults?.notes ?? ''} />
-          </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sch-notes">{t('Notes')}</Label>
+              <Textarea
+                id="sch-notes"
+                name="notes"
+                rows={2}
+                className="resize-none"
+                defaultValue={defaults?.notes ?? ''}
+              />
+            </div>
+          </MoreFields>
         </ResponsiveModalBody>
         <ResponsiveModalFooter>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">

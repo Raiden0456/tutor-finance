@@ -120,6 +120,34 @@
       "when": 1792666426784,
       "tag": "0017_money_bigint_user_timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792751702487,
+      "tag": "0018_ai_assistant",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792754282176,
+      "tag": "0019_ai_digests",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792754632655,
+      "tag": "0020_ai_language",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792760373207,
+      "tag": "0021_ai_message_status",
+      "breakpoints": true
     }
   ]
 }

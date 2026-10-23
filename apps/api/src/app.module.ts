@@ -19,6 +19,7 @@ import { RecurringModule } from './recurring/recurring.module.js';
 import { RecurringLessonsModule } from './recurring-lessons/recurring-lessons.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module.js';
+import { AiModule } from './ai/ai.module.js';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { GoogleCalendarModule } from './google-calendar/google-calendar.module.j
     RecurringLessonsModule,
     NotificationsModule,
     GoogleCalendarModule,
+    AiModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

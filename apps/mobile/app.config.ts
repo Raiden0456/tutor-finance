@@ -34,6 +34,12 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     [
+      'expo-audio',
+      {
+        microphonePermission: 'Uchetka uses the microphone for voice input to the assistant.',
+      },
+    ],
+    [
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',

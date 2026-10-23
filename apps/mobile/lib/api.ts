@@ -20,7 +20,7 @@ interface RequestInitExtra extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
-function buildUrl(path: string, query?: Query): string {
+export function buildUrl(path: string, query?: Query): string {
   const base = API_URL.endsWith('/') ? API_URL : `${API_URL}/`;
   const url = new URL(path.replace(/^\/+/, ''), base);
   if (query) {
@@ -61,38 +61,43 @@ async function handleUnauthorized() {
   }
 }
 
-async function request<T>(path: string, init: RequestInitExtra = {}): Promise<T> {
-  const { query, body, headers, ...rest } = init;
-  const url = buildUrl(path, query);
-
+export function authHeaders(): Record<string, string> {
   // Native has no cookie jar: the Better Auth Expo client persists the session
   // cookie in SecureStore and exposes it here. Attach it to every API call.
   const cookie = authClient.getCookie();
+  return cookie ? { cookie } : {};
+}
+
+export function toApiError(res: { status: number; statusText: string }, path: string, text: string) {
+  const data = text ? safeParse(text) : undefined;
+  if (res.status === 401 && authClient.getCookie() && !path.includes('auth/')) {
+    void handleUnauthorized();
+  }
+  const msg =
+    (data && typeof data === 'object' && 'message' in data
+      ? String((data as { message: unknown }).message)
+      : res.statusText) || 'Request failed';
+  return new ApiError(res.status, msg, data);
+}
+
+async function request<T>(path: string, init: RequestInitExtra = {}): Promise<T> {
+  const { query, body, headers, ...rest } = init;
+  const url = buildUrl(path, query);
 
   const res = await fetch(url, {
     ...rest,
     headers: {
       'content-type': 'application/json',
       accept: 'application/json',
-      ...(cookie ? { cookie } : {}),
+      ...authHeaders(),
       ...(headers as Record<string, string> | undefined),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
   const text = await res.text();
-  const data = text ? safeParse(text) : undefined;
-
-  if (res.status === 401 && cookie && !path.includes('auth/')) void handleUnauthorized();
-
-  if (!res.ok) {
-    const msg =
-      (data && typeof data === 'object' && 'message' in data
-        ? String((data as { message: unknown }).message)
-        : res.statusText) || 'Request failed';
-    throw new ApiError(res.status, msg, data);
-  }
-  return data as T;
+  if (!res.ok) throw toApiError(res, path, text);
+  return (text ? safeParse(text) : undefined) as T;
 }
 
 export const api = {

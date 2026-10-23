@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { addDays, startOfWeek, subDays } from 'date-fns';
 import { AnimatePresence } from 'motion/react';
-import { Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { FadeSwap } from '@/components/ui/collapse';
-import { Button } from '@/components/ui/button';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
-import type { RecurringLesson, StudentRef } from '@/lib/types';
+import type { RecurringLesson, LessonStudent } from '@/lib/types';
 import type { WeekStartsOn } from '@tutor-finance/shared';
 import { useI18n } from '@/lib/i18n';
 import { useMutation } from '@/hooks/use-mutation';
@@ -20,16 +18,19 @@ export function SchedulesView({
   students,
   studentMap,
   weekStartsOn,
+  addOpen,
+  onAddOpenChange,
 }: {
   initialSchedules: RecurringLesson[];
-  students: StudentRef[];
+  students: LessonStudent[];
   studentMap: Map<string, string>;
   weekStartsOn: WeekStartsOn;
+  addOpen: boolean;
+  onAddOpenChange: (open: boolean) => void;
 }) {
   const { t } = useI18n();
   const { run } = useMutation();
   const [schedules, setSchedules] = useState<RecurringLesson[]>(initialSchedules);
-  const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringLesson | null>(null);
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), weekStartOptions(weekStartsOn)),
@@ -42,7 +43,7 @@ export function SchedulesView({
   async function handleCreate(payload: ScheduleFormPayload) {
     const created = await api.post<RecurringLesson>('/recurring-lessons', payload);
     setSchedules((prev) => [...prev, created]);
-    setAddOpen(false);
+    onAddOpenChange(false);
   }
 
   async function handleEdit(id: string, payload: ScheduleFormPayload) {
@@ -69,19 +70,13 @@ export function SchedulesView({
 
   return (
     <div className="mt-1 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="text-sm font-semibold">{t('Weekly template')}</span>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t(
-              'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.',
-            )}
-          </p>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="shrink-0">
-          <Plus className="h-4 w-4" />
-          {t('Add schedule')}
-        </Button>
+      <div className="min-w-0">
+        <span className="text-sm font-semibold">{t('Weekly template')}</span>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {t(
+            'Schedules create actual lessons only for the next 2 weeks. Future lessons are generated automatically as they get closer.',
+          )}
+        </p>
       </div>
 
       {schedules.length > 0 && (
@@ -97,12 +92,8 @@ export function SchedulesView({
 
       <FadeSwap motionKey={schedules.length === 0 ? 'empty' : 'list'}>
         {schedules.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
-            <span>{t('No recurring schedules yet.')}</span>
-            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4" />
-              {t('Add schedule')}
-            </Button>
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+            {t('No recurring schedules yet.')}
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -122,7 +113,7 @@ export function SchedulesView({
         )}
       </FadeSwap>
 
-      <ResponsiveModal open={addOpen} onOpenChange={setAddOpen}>
+      <ResponsiveModal open={addOpen} onOpenChange={onAddOpenChange}>
         <ScheduleFormDialog
           title={t('New schedule')}
           students={students}

@@ -2,22 +2,24 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { startOfMonth } from 'date-fns';
-import { Users } from 'lucide-react-native';
+import { Plus, Users } from 'lucide-react-native';
 import { Screen } from '~/components/common/screen';
 import { StudentCard } from '~/components/students/student-card';
 import { StudentForm } from '~/components/forms/student-form';
-import { Fab } from '~/components/common/fab';
 import { Segmented } from '~/components/common/segmented';
 import { TabFade } from '~/components/common/tab-fade';
 import { StaggerItem } from '~/components/common/stagger';
 import { EmptyState } from '~/components/common/empty-state';
 import { ErrorState } from '~/components/common/error-state';
+import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Icon } from '~/components/ui/icon';
 import { Progress } from '~/components/ui/progress';
 import { Skeleton } from '~/components/ui/skeleton';
 import { Text } from '~/components/ui/text';
 import { api } from '~/lib/api';
 import { useApiQuery } from '~/lib/use-query';
+import { useDataVersion } from '~/lib/data-version';
 import { useI18n } from '~/lib/i18n';
 import { useSettings } from '~/lib/settings';
 import { money } from '~/lib/format';
@@ -29,10 +31,11 @@ export default function StudentsScreen() {
   const { primaryCurrency } = useSettings();
   const [tab, setTab] = React.useState<'active' | 'archived'>('active');
   const [formOpen, setFormOpen] = React.useState(false);
+  const version = useDataVersion();
 
   const students = useApiQuery(
     () => api.get<Student[]>('students', { query: { includeArchived: true } }),
-    [],
+    [version],
   );
   const income = useApiQuery(
     () =>
@@ -45,7 +48,7 @@ export default function StudentsScreen() {
           limit: 1000,
         },
       }),
-    [primaryCurrency],
+    [primaryCurrency, version],
   );
 
   const earnedByStudent = React.useMemo(() => {
@@ -136,6 +139,14 @@ export default function StudentsScreen() {
                   icon={Users}
                   title={t('No students yet')}
                   description={t('Add your first one to start tracking lessons.')}
+                  action={
+                    tab === 'active' ? (
+                      <Button variant="outline" size="sm" onPress={() => setFormOpen(true)}>
+                        <Icon as={Plus} size={15} />
+                        <Text>{t('Add student')}</Text>
+                      </Button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <View className="gap-2">
@@ -155,7 +166,6 @@ export default function StudentsScreen() {
         </View>
       </Screen>
 
-      <Fab onPress={() => setFormOpen(true)} />
       <StudentForm open={formOpen} onOpenChange={setFormOpen} onSaved={() => students.refetch()} />
     </View>
   );

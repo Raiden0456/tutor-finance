@@ -31,15 +31,16 @@ function buildUrl(base: string, path: string, query?: RequestInitExtra['query'])
 async function request<T>(base: string, path: string, init: RequestInitExtra = {}): Promise<T> {
   const { query, body, headers, ...rest } = init;
   const url = buildUrl(base, path, query);
+  const isForm = body instanceof FormData;
   const res = await fetch(url, {
     ...rest,
     credentials: 'include',
     headers: {
-      'content-type': 'application/json',
+      ...(isForm ? {} : { 'content-type': 'application/json' }),
       accept: 'application/json',
       ...(headers as Record<string, string> | undefined),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
   const text = await res.text();
   const data = text ? safeParse(text) : undefined;
@@ -53,7 +54,7 @@ async function request<T>(base: string, path: string, init: RequestInitExtra = {
   return data as T;
 }
 
-function safeParse(text: string): unknown {
+export function safeParse(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {

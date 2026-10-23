@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "ai_language" text DEFAULT 'auto' NOT NULL;

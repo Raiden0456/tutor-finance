@@ -61,17 +61,24 @@ export function ScheduleCard({
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             <span>
               {[...item.daysOfWeek]
-              .sort((a, b) => a - b)
-              .map((d) => capitalizeFirst(format(new Date(REF_SUNDAY.getTime() + d * 86400000), 'EEE', { locale: dateLocale })))
-              .join(', ')} · {item.startTime}
+                .sort((a, b) => a - b)
+                .map((d) =>
+                  capitalizeFirst(
+                    format(new Date(REF_SUNDAY.getTime() + d * 86400000), 'EEE', {
+                      locale: dateLocale,
+                    }),
+                  ),
+                )
+                .join(', ')}{' '}
+              · {item.startTime}
             </span>
             <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
               {item.frequency === 'biweekly' ? t('Biweekly') : t('Weekly')}
             </span>
-            <span>{item.durationMin} {t('min')}</span>
-            {!item.isActive && (
-              <span className="text-muted-foreground/60">{t('Paused')}</span>
-            )}
+            <span>
+              {item.durationMin} {t('min')}
+            </span>
+            {!item.isActive && <span className="text-muted-foreground/60">{t('Paused')}</span>}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">

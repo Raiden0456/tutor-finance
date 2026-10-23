@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { toMinorUnits, fromMinorUnits, type Currency, type Frequency } from '@tutor-finance/shared';
 import { FormSheet } from '~/components/common/form-sheet';
 import { Field } from '~/components/common/field';
+import { MoreSection } from '~/components/common/more-section';
 import { SelectField } from '~/components/common/select-field';
 import { Notice } from '~/components/common/notice';
 import { Button } from '~/components/ui/button';
@@ -35,11 +36,13 @@ export function RecurringForm({
   const [category, setCategory] = React.useState('rent');
   const [description, setDescription] = React.useState('');
   const [frequency, setFrequency] = React.useState<Frequency>('monthly');
+  const [more, setMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
     setError(null);
+    setMore(!!recurring && (recurring.currency !== primaryCurrency || !!recurring.description));
     setAmount(recurring ? String(fromMinorUnits(recurring.amount, recurring.currency)) : '');
     setCurrency(recurring?.currency ?? primaryCurrency);
     setCategory(recurring?.category ?? 'rent');
@@ -54,16 +57,25 @@ export function RecurringForm({
     { value: 'yearly', label: t('Yearly') },
   ];
 
-  const submit = useMutation(async () => {
-    setError(null);
-    const minor = toMinorUnits(Number(amount) || 0, currency);
-    if (minor < 1) return setError(t('Amount'));
-    const payload = { amount: minor, currency, category, description: description.trim() || undefined, frequency };
-    if (recurring) await api.patch(`recurring/${recurring.id}`, payload);
-    else await api.post('recurring', payload);
-    onOpenChange(false);
-    onSaved();
-  }, { onError: setError });
+  const submit = useMutation(
+    async () => {
+      setError(null);
+      const minor = toMinorUnits(Number(amount) || 0, currency);
+      if (minor < 1) return setError(t('Amount'));
+      const payload = {
+        amount: minor,
+        currency,
+        category,
+        description: description.trim() || undefined,
+        frequency,
+      };
+      if (recurring) await api.patch(`recurring/${recurring.id}`, payload);
+      else await api.post('recurring', payload);
+      onOpenChange(false);
+      onSaved();
+    },
+    { onError: setError },
+  );
 
   return (
     <FormSheet
@@ -78,24 +90,20 @@ export function RecurringForm({
     >
       <View className="gap-4">
         <Notice message={error} />
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Field label={t('Amount')}>
-              <Input value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" />
-            </Field>
-          </View>
-          <View className="w-28">
-            <Field label={t('Currency')}>
-              <SelectField
-                value={currency}
-                onValueChange={(v) => setCurrency(v as Currency)}
-                options={currencyOptions()}
-              />
-            </Field>
-          </View>
-        </View>
+        <Field label={`${t('Amount')} (${currency})`}>
+          <Input
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+          />
+        </Field>
         <Field label={t('Category')}>
-          <SelectField value={category} onValueChange={setCategory} options={categoryOptions(EXPENSE_CATEGORIES, t)} />
+          <SelectField
+            value={category}
+            onValueChange={setCategory}
+            options={categoryOptions(EXPENSE_CATEGORIES, t)}
+          />
         </Field>
         <Field label={t('Frequency')}>
           <SelectField
@@ -104,9 +112,18 @@ export function RecurringForm({
             options={freqOptions}
           />
         </Field>
-        <Field label={t('Description')}>
-          <Input value={description} onChangeText={setDescription} />
-        </Field>
+        <MoreSection open={more} onOpenChange={setMore}>
+          <Field label={t('Currency')}>
+            <SelectField
+              value={currency}
+              onValueChange={(v) => setCurrency(v as Currency)}
+              options={currencyOptions()}
+            />
+          </Field>
+          <Field label={t('Description')}>
+            <Input value={description} onChangeText={setDescription} />
+          </Field>
+        </MoreSection>
       </View>
     </FormSheet>
   );
