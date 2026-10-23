@@ -11,6 +11,8 @@ const ru: Record<string, string> = {
   'Open source': 'Open source',
   'Sign in': 'Войти',
   'Try the beta': 'Попробовать бету',
+  'Launching soon': 'Скоро запуск',
+  'Coming soon': 'Скоро',
   'Toggle theme': 'Переключить тему',
   Light: 'Светлая',
   Dark: 'Тёмная',

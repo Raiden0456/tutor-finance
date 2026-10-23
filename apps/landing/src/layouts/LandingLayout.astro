@@ -17,7 +17,6 @@ const {
 const locale = normalizeLocale(Astro.currentLocale);
 const t = createTranslator(locale);
 const switcherPath = `${Astro.url.pathname}${Astro.url.search}`;
-const webUrl = import.meta.env.PUBLIC_WEB_URL ?? 'http://localhost:4321';
 ---
 
 <!doctype html>
@@ -67,19 +66,17 @@ const webUrl = import.meta.env.PUBLIC_WEB_URL ?? 'http://localhost:4321';
         <nav class="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           <a href="#features" class="transition-colors hover:text-foreground">{t('Features')}</a>
           <a href="#preview" class="transition-colors hover:text-foreground">{t('Preview')}</a>
-          <a href="#pricing" class="transition-colors hover:text-foreground">{t('Pricing')}</a>
           <a href="#open-source" class="transition-colors hover:text-foreground">{t('Open source')}</a>
         </nav>
 
         <div class="flex items-center gap-2">
           <LanguageSwitcher current={switcherPath} locale={locale} />
           <ThemeToggle locale={locale} client:load />
-          <a
-            href={`${webUrl}/sign-up`}
-            class="hidden h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 sm:inline-flex"
+          <span
+            class="hidden h-9 cursor-default items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-muted-foreground sm:inline-flex"
           >
-            {t('Try the beta')}
-          </a>
+            {t('Coming soon')}
+          </span>
         </div>
       </div>
     </header>

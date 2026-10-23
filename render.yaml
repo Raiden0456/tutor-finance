@@ -3,6 +3,7 @@ services:
   - type: keyvalue
     name: tutor-finance-cache
     region: frankfurt
+    plan: free
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
 
@@ -11,7 +12,7 @@ services:
     name: tutor-finance-api
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/api...
     startCommand: cd apps/api && node dist/scripts/migrate.js && node dist/main.js
     healthCheckPath: /health
@@ -71,7 +72,7 @@ services:
     name: tutor-finance-web
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: free
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/web...
     startCommand: node apps/web/dist/server/entry.mjs
     envVars:
@@ -97,14 +98,10 @@ services:
     runtime: static
     buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo run build --filter=@tutor-finance/landing...
     staticPublishPath: ./apps/landing/dist
-    envVars:
-      # Public URL of the web (app) service. CTAs link to ${PUBLIC_WEB_URL}/sign-up.
-      - key: PUBLIC_WEB_URL
-        sync: false
 
 databases:
   - name: tutor-finance-db
     region: frankfurt
-    plan: basic-256mb
+    plan: free
     databaseName: tutor_finance
     user: tutor
